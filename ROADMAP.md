@@ -1,0 +1,17 @@
+# Roadmap
+## MVP (done in run 1)
+- [x] Player movement (keys + touch drag), camera follow
+- [x] Auto-fire weapons: Magic Bolt, Orbiting Orbs, Pulse Nova
+- [x] Enemies spawn offscreen, chase player; 4 types unlocked over time + boss every 2 min
+- [x] Difficulty ramp: spawn rate, HP and speed scale with time
+- [x] XP gems, level-ups with 3 random choices (weapons + 5 passives)
+- [x] HUD, death screen, best-time via localStorage
+- [x] Headless smoke test
+## Next
+- [ ] Balance pass (playtest 5+ minute survival; currently idle player dies ~30s)
+- [ ] Health pickups, treasure chests, screen shake / hit particles
+- [ ] More weapons (whip/arc, boomerang, garlic aura) and weapon evolutions
+- [ ] Sound (WebAudio bleeps), pause key (P/Esc)
+- [ ] Sprites instead of circles, themed floor tiles
+- [ ] Spatial hash for collision to support 1000+ enemies
+- [ ] Character select, meta upgrades with gold
