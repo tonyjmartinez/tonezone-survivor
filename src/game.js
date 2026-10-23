@@ -48,15 +48,32 @@ let state = 'title'; // title | play | levelup | dead | pause
 let G; // game world
 const best = +(localStorage.getItem('tzs_best') || 0);
 
+// ---------- meta upgrades (gold persists in localStorage; buy on title with 1-3) ----------
+const META = {
+  hp:  { name: 'Toughness', desc: '+10 starting HP', max: 10, cost: l => 20 + l * 15 },
+  dmg: { name: 'Power', desc: '+5% damage', max: 10, cost: l => 30 + l * 20 },
+  spd: { name: 'Fleetfoot', desc: '+3% move speed', max: 8, cost: l => 25 + l * 20 },
+};
+const META_KEYS = Object.keys(META);
+function loadMeta() { try { return JSON.parse(localStorage.getItem('tzs_meta')) || {}; } catch (err) { return {}; } }
+const getGold = () => +(localStorage.getItem('tzs_gold') || 0);
+function buyMeta(k) {
+  const m = loadMeta(), l = m[k] || 0, d = META[k];
+  if (!d || l >= d.max || getGold() < d.cost(l)) return false;
+  localStorage.setItem('tzs_gold', getGold() - d.cost(l)); m[k] = l + 1; localStorage.setItem('tzs_meta', JSON.stringify(m));
+  return true;
+}
+
 function newGame() {
+  const mu = loadMeta();
   G = {
     t: 0, kills: 0, spawnAcc: 0, nextBoss: BOSS_EVERY,
     cam: { x: 0, y: 0 },
-    p: { x: 0, y: 0, r: 10, hp: 120, maxHp: 120, speed: 140, dmgMul: 1, magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 5 },
+    p: { x: 0, y: 0, r: 10, hp: 120 + 10 * (mu.hp || 0), maxHp: 120 + 10 * (mu.hp || 0), speed: 140 * (1 + 0.03 * (mu.spd || 0)), dmgMul: 1 + 0.05 * (mu.dmg || 0), magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 5 },
     w: { bolt: 1 }, pa: {},
     enemies: [], shots: [], gems: [], booms: [], hearts: [], chests: [], parts: [], shake: 0, fx: [], texts: [],
     timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
-    choices: [],
+    choices: [], gold: 0,
   };
 }
 
@@ -77,6 +94,7 @@ function sfx(freq, dur = 0.08, type = 'square', vol = 0.04) {
 function onKey(k, e) {
   if (k === 'm') { muted = !muted; return; }
   if ((k === 'p' || k === 'escape') && (state === 'play' || state === 'pause')) { state = state === 'play' ? 'pause' : 'play'; return; }
+  if (state === 'title' && k >= '1' && k <= '3') { buyMeta(META_KEYS[+k - 1]); return; }
   if (state === 'title' && (k === ' ' || k === 'enter' || k === 'tap')) { newGame(); state = 'play'; }
   else if (state === 'dead' && (k === ' ' || k === 'enter' || k === 'tap')) { state = 'title'; }
   else if (state === 'levelup') {
@@ -312,6 +330,8 @@ function update(dt) {
   if (p.hp <= 0) {
     state = 'dead'; sfx(90, 0.6, 'sawtooth', 0.08);
     const score = Math.floor(G.t);
+    G.gold = G.kills + Math.floor(G.t / 10);
+    localStorage.setItem('tzs_gold', getGold() + G.gold);
     if (score > +(localStorage.getItem('tzs_best') || 0)) localStorage.setItem('tzs_best', score);
   }
 }
@@ -328,7 +348,10 @@ function render() {
     text('WASD / arrows / drag to move. Weapons fire automatically.', W / 2, H / 2, 16);
     text('Press SPACE or tap to start', W / 2, H / 2 + 40, 20, '#6ee7b7');
     const b = +(localStorage.getItem('tzs_best') || 0);
-    if (b) text('Best survival: ' + fmt(b), W / 2, H / 2 + 80, 16, '#aaa');
+    if (b) text('Best survival: ' + fmt(b), W / 2, H / 2 + 70, 16, '#aaa');
+    const mu = loadMeta();
+    text('Gold: ' + getGold() + '  -  press 1-3 to buy upgrades', W / 2, H / 2 + 110, 16, '#fde047');
+    META_KEYS.forEach((k, i) => { const d = META[k], l = mu[k] || 0; text(`${i + 1}. ${d.name} ${l}/${d.max}  ${d.desc}  ` + (l >= d.max ? 'MAX' : d.cost(l) + 'g'), W / 2, H / 2 + 136 + i * 22, 14, l < d.max && getGold() >= d.cost(l) ? '#6ee7b7' : '#888'); });
     return;
   }
   const { cam, p } = G;
@@ -394,7 +417,7 @@ function render() {
     ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, W, H);
     text('YOU DIED', W / 2, H / 2 - 30, 40, '#ef4444');
     text(`Survived ${fmt(G.t)}  |  Kills ${G.kills}  |  Level ${p.lvl}`, W / 2, H / 2 + 10, 18);
-    text('Best: ' + fmt(+(localStorage.getItem('tzs_best') || 0)), W / 2, H / 2 + 40, 16, '#aaa');
+    text('Best: ' + fmt(+(localStorage.getItem('tzs_best') || 0)) + '   Gold earned: +' + G.gold, W / 2, H / 2 + 40, 16, '#aaa');
     text('SPACE or tap to continue', W / 2, H / 2 + 80, 18, '#6ee7b7');
   }
 }
@@ -410,5 +433,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { keys, get state() { return state; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey };
+window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey };
 })();

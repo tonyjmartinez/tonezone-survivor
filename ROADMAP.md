@@ -20,4 +20,5 @@
 - [x] Themed floor tiles (checker + stones/grass, run 9)
 - [ ] Sprites instead of circles
 - [ ] Spatial hash for collision to support 1000+ enemies
-- [ ] Character select, meta upgrades with gold
+- [x] Meta upgrades with gold (run 10)
+- [ ] Character select

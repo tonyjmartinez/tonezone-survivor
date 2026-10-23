@@ -13,5 +13,6 @@
 - 2026-10-23 run 7: treasure chests (bosses drop one; pickup = +1 level to a random owned non-maxed weapon, else full heal). Direct-pickup only (no magnet).
 - 2026-10-23 run 8: weapon evolutions. Maxed (Lv6) weapon + paired passive (see `EVOLVE` map in game.js) -> boss chest evolves it to Lv8 ("EVO" in HUD, shake + text). Verified via test-hook script; smoke passes.
 - 2026-10-23 run 9: themed floor (checker tiles + hashed stone/grass decorations, no assets). Duplicate PR #8 (re-did run 2 work) closed; branch reset to main again.
+- 2026-10-23 run 10: gold + meta upgrades. Death awards gold (kills + t/10) into localStorage `tzs_gold`; title screen keys 1-3 buy Toughness/Power/Fleetfoot (`tzs_meta`, `META` in game.js), applied in `newGame()`. Smoke test covers a purchase; `__tzs.state` now settable.
 ## Next steps
-- Check `origin/main` before starting (parallel session branches exist). Spatial hash, sprites/floor tiles, character select + gold meta upgrades, more enemy variety, real playtest balance (5+ min). See ROADMAP "Next".
+- Check `origin/main` before starting (parallel session branches exist). Spatial hash, sprites, character select, more enemy variety, real playtest balance (5+ min). See ROADMAP "Next".
