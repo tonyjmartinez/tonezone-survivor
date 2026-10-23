@@ -25,5 +25,6 @@
 - 2026-10-23 run 19: fetched origin/main first (branch was stale again; my duplicate run-2 work discarded). Added Recovery passive (+0.5 HP/s per level, `p.regen`).
 - 2026-10-23 run 20: fetched origin/main first (discarded my duplicate run-2 work again). Added horde events: every 75s a ring of 20-40 enemies spawns around the player with a banner (`spawnHorde`, `HORDE_EVERY`). Bot 135-149s (was ~160), smoke passes.
 - 2026-10-23 run 21: fetched origin/main first (my stale branch again held duplicate run-2 work; reset). Added Lightning weapon (`zap`: strikes N random on-screen enemies, evolves with Recovery).
+- 2026-10-23 run 22: fetched origin/main first (my checkout was stale; duplicate run-2 work discarded again). Added Vacuum pickup (0.6% drop, pulls all gems; `G.vacs`).
 ## Next steps
 - Check `origin/main` before starting (parallel session branches exist). use hash for weapon queries (low value), more weapons/enemy variety, sprite polish for projectiles, real playtest balance (5+ min). See ROADMAP "Next".

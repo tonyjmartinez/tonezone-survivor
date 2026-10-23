@@ -28,3 +28,4 @@
 - [x] Recovery (regen) passive (run 19)
 - [x] Horde ring events every 75s (run 20)
 - [x] Lightning weapon (run 21)
+- [x] Vacuum pickup (run 22)
