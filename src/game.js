@@ -38,7 +38,7 @@ const ENEMY_TYPES = [
 const BOSS_EVERY = 120; // seconds
 
 // ---------- state ----------
-let state = 'title'; // title | play | levelup | dead
+let state = 'title'; // title | play | levelup | dead | pause
 let G; // game world
 const best = +(localStorage.getItem('tzs_best') || 0);
 
@@ -48,13 +48,15 @@ function newGame() {
     cam: { x: 0, y: 0 },
     p: { x: 0, y: 0, r: 10, hp: 100, maxHp: 100, speed: 140, dmgMul: 1, magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 5 },
     w: { bolt: 1 }, pa: {},
-    enemies: [], shots: [], gems: [], fx: [], texts: [],
+    enemies: [], shots: [], gems: [], fx: [], texts: [], hearts: [], shake: 0,
     timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
     choices: [],
   };
 }
 
 function onKey(k, e) {
+  if ((k === 'p' || k === 'escape') && (state === 'play' || state === 'pause')) { state = state === 'play' ? 'pause' : 'play'; return; }
+  if (state === 'pause' && k === 'tap') { state = 'play'; return; }
   if (state === 'title' && (k === ' ' || k === 'enter' || k === 'tap')) { newGame(); state = 'play'; }
   else if (state === 'dead' && (k === ' ' || k === 'enter' || k === 'tap')) { state = 'title'; }
   else if (state === 'levelup') {
@@ -77,6 +79,11 @@ function damage(e, amt, kx, ky) {
   amt *= G.p.dmgMul; e.hp -= amt; e.flash = 0.08;
   if (kx !== undefined) { e.x += kx; e.y += ky; }
   G.texts.push({ x: e.x, y: e.y - e.r, s: Math.round(amt), t: 0.5 });
+}
+
+function burst(x, y, color, n) {
+  for (let i = 0; i < n; i++) { const a = rnd(0, 7), v = rnd(40, 160); G.fx.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: rnd(0.25, 0.5), color }); }
+  if (G.fx.length > 300) G.fx.splice(0, G.fx.length - 300);
 }
 
 // ---------- level up ----------
@@ -136,7 +143,7 @@ function update(dt) {
   if (wb) {
     G.timers.bolt -= dt;
     if (G.timers.bolt <= 0) {
-      G.timers.bolt = 0.9 * p.cdMul;
+      G.timers.bolt = 0.75 * p.cdMul;
       const n = 1 + Math.floor((wb - 1) / 2) + (wb >= 6 ? 1 : 0);
       for (let i = 0; i < n; i++) {
         const t = nearest(p, 500);
@@ -192,10 +199,12 @@ function update(dt) {
       const o = G.enemies[j], d = Math.hypot(e.x - o.x, e.y - o.y) || 1, min = e.r + o.r;
       if (d < min) { const k = (min - d) / 2 / d; e.x += (e.x - o.x) * k; e.y += (e.y - o.y) * k; o.x -= (e.x - o.x) * k; o.y -= (e.y - o.y) * k; }
     }
-    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= e.dmg; p.hurt = 0.6; }
+    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= e.dmg; p.hurt = 0.6; G.shake = Math.max(G.shake, 0.15); }
   }
   for (const e of G.enemies) if (e.hp <= 0) {
     G.kills++;
+    burst(e.x, e.y, e.color, e.boss ? 24 : 6);
+    if (e.boss || Math.random() < 0.02) G.hearts.push({ x: e.x, y: e.y });
     G.gems.push({ x: e.x, y: e.y, v: e.xp, big: e.boss });
     if (e.boss) for (let k = 0; k < 8; k++) G.gems.push({ x: e.x + rnd(-30, 30), y: e.y + rnd(-30, 30), v: 5 });
   }
@@ -216,6 +225,11 @@ function update(dt) {
     G.choices = rollChoices();
     if (G.choices.length) state = 'levelup';
   }
+  for (const h of G.hearts) if (dist2(p, h) < (p.r + 10 + p.magnet * 0.3) ** 2) { h.dead = true; p.hp = Math.min(p.maxHp, p.hp + 25); G.texts.push({ x: p.x, y: p.y - 14, s: '+HP', t: 0.6 }); }
+  G.hearts = G.hearts.filter(h => !h.dead);
+  for (const f of G.fx) { f.t -= dt; f.x += f.vx * dt; f.y += f.vy * dt; }
+  G.fx = G.fx.filter(f => f.t > 0);
+  G.shake = Math.max(0, G.shake - dt);
   for (const t of G.texts) { t.t -= dt; t.y -= 24 * dt; }
   G.texts = G.texts.filter(t => t.t > 0);
 
@@ -242,7 +256,8 @@ function render() {
     return;
   }
   const { cam, p } = G;
-  ctx.save(); ctx.translate(-cam.x, -cam.y);
+  const sh = G.shake > 0 ? G.shake * 40 : 0;
+  ctx.save(); ctx.translate(-cam.x + rnd(-sh, sh), -cam.y + rnd(-sh, sh));
   // grid floor
   ctx.strokeStyle = '#262636'; ctx.lineWidth = 1; ctx.beginPath();
   const gs = 64, x0 = Math.floor(cam.x / gs) * gs, y0 = Math.floor(cam.y / gs) * gs;
@@ -250,6 +265,8 @@ function render() {
   for (let y = y0; y < cam.y + H + gs; y += gs) { ctx.moveTo(cam.x, y); ctx.lineTo(cam.x + W, y); }
   ctx.stroke();
   for (const g of G.gems) circle(g.x, g.y, g.big ? 7 : 4, g.v >= 5 ? '#f0abfc' : '#38bdf8');
+  for (const h of G.hearts) { circle(h.x, h.y, 7, '#ef4444'); circle(h.x - 2, h.y - 2, 2, '#fecaca'); }
+  for (const f of G.fx) { ctx.globalAlpha = Math.min(1, f.t * 3); circle(f.x, f.y, 2.5, f.color); } ctx.globalAlpha = 1;
   for (const e of G.enemies) {
     circle(e.x, e.y, e.r, e.flash > 0 ? '#fff' : e.color);
     if (e.boss) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 3, 0, 7); ctx.stroke(); }
@@ -286,6 +303,11 @@ function render() {
       text(d.desc, r.x + 12, r.y + 56, 14, '#bbb', 'left');
     });
   }
+  if (state === 'pause') {
+    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, H);
+    text('PAUSED', W / 2, H / 2, 40, '#fde047');
+    text('P / Esc / tap to resume', W / 2, H / 2 + 36, 16, '#aaa');
+  }
   if (state === 'dead') {
     ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, W, H);
     text('YOU DIED', W / 2, H / 2 - 30, 40, '#ef4444');
@@ -306,5 +328,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { get state() { return state; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey };
+window.__tzs = { keys, get state() { return state; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey };
 })();
