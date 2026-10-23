@@ -14,7 +14,7 @@
 - [x] Garlic aura
 - [x] Boomerang
 - [x] Whip (arc)
-- [ ] Weapon evolutions
+- [x] Weapon evolutions (maxed weapon + paired passive via chest)
 - [x] Sound (WebAudio bleeps, M = mute)
 - [x] Pause key (P/Esc)
 - [ ] Sprites instead of circles, themed floor tiles

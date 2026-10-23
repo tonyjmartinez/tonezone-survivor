@@ -32,6 +32,9 @@ const PASSIVES = {
   magnet: { name: 'Magnet', desc: '+40% pickup range', max: 5 },
   haste:  { name: 'Haste', desc: '-10% cooldowns', max: 5 },
 };
+// Evolution: a maxed weapon + its paired passive, opened via boss chest, jumps to level 8 (EVO).
+const EVOLVE = { bolt: 'haste', orbit: 'might', nova: 'magnet', boomer: 'speed', whip: 'health', garlic: 'haste' };
+const EVO_LVL = 8;
 const ENEMY_TYPES = [
   { name: 'bat',   hp: 8,   speed: 70,  r: 9,  dmg: 6,  xp: 1, color: '#a78bfa', from: 0 },
   { name: 'ghoul', hp: 22,  speed: 55,  r: 12, dmg: 9,  xp: 2, color: '#6ee7b7', from: 45 },
@@ -293,8 +296,10 @@ function update(dt) {
   G.hearts = G.hearts.filter(h => !h.dead);
   for (const c of G.chests) if (dist2(p, c) < (p.r + 14) ** 2) {
     c.dead = true; sfx(880, 0.3, 'triangle', 0.07);
+    const evo = Object.keys(G.w).filter(k => G.w[k] === WEAPONS[k].max && G.pa[EVOLVE[k]]);
     const up = Object.keys(G.w).filter(k => G.w[k] < WEAPONS[k].max);
-    if (up.length) { const k = up[(Math.random() * up.length) | 0]; G.w[k]++; G.texts.push({ x: p.x, y: p.y - 24, s: WEAPONS[k].name + ' +1!', t: 1.4 }); }
+    if (evo.length) { const k = evo[(Math.random() * evo.length) | 0]; G.w[k] = EVO_LVL; G.shake = 0.4; G.texts.push({ x: p.x, y: p.y - 24, s: WEAPONS[k].name + ' EVOLVED!', t: 2 }); }
+    else if (up.length) { const k = up[(Math.random() * up.length) | 0]; G.w[k]++; G.texts.push({ x: p.x, y: p.y - 24, s: WEAPONS[k].name + ' +1!', t: 1.4 }); }
     else { p.hp = p.maxHp; G.texts.push({ x: p.x, y: p.y - 24, s: 'Full heal!', t: 1.4 }); }
   }
   G.chests = G.chests.filter(c => !c.dead);
@@ -363,7 +368,7 @@ function render() {
   text(fmt(G.t), W / 2, 40, 22);
   text('Kills ' + G.kills, W - 16, 40, 16, '#fff', 'right');
   let y = 56; ctx.textAlign = 'left';
-  for (const k in G.w) { text(`${WEAPONS[k].name} ${G.w[k]}`, 16, y, 12, '#fde047', 'left'); y += 14; }
+  for (const k in G.w) { text(`${WEAPONS[k].name} ${G.w[k] >= EVO_LVL ? 'EVO' : G.w[k]}`, 16, y, 12, '#fde047', 'left'); y += 14; }
   for (const k in G.pa) { text(`${PASSIVES[k].name} ${G.pa[k]}`, 16, y, 12, '#a7f3d0', 'left'); y += 14; }
 
   if (state === 'levelup') {
