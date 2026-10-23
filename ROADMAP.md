@@ -19,7 +19,7 @@
 - [x] Pause key (P/Esc)
 - [x] Themed floor tiles (checker + stones/grass, run 9)
 - [x] More enemy variety (wisp swarm, golem; run 11)
-- [x] Procedural enemy sprites (wings/horns/eyes tracking player; run 14). Player/pickups still simple shapes
+- [x] Procedural enemy sprites (wings/horns/eyes tracking player; run 14). Player + heart sprites done run 15; gems/chests still simple
 - [x] Spatial hash for enemy separation (run 13; enemy cap 400->800)
 - [x] Meta upgrades with gold (run 10)
 - [x] Character select (run 12)

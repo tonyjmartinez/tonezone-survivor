@@ -366,6 +366,21 @@ function update(dt) {
 const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 function text(s, x, y, size, color = '#fff', align = 'center') { ctx.fillStyle = color; ctx.font = `bold ${size}px monospace`; ctx.textAlign = align; ctx.fillText(s, x, y); }
 // Procedural "sprites": body shape + per-type features, eyes face the player.
+function drawHeart(x, y) {
+  ctx.fillStyle = '#f43f5e'; ctx.beginPath();
+  ctx.arc(x - 3, y - 2, 4, 0, 7); ctx.arc(x + 3, y - 2, 4, 0, 7); ctx.moveTo(x - 7, y - 1); ctx.lineTo(x, y + 8); ctx.lineTo(x + 7, y - 1); ctx.fill();
+}
+function drawPlayer(p) {
+  const body = p.hurt > 0 && ((p.hurt * 20) | 0) % 2 ? '#fca5a5' : CHARS[charIdx].color;
+  const mx = (keys['d'] || keys['arrowright'] ? 1 : 0) - (keys['a'] || keys['arrowleft'] ? 1 : 0);
+  if (mx) p.face = mx;
+  const f = p.face || 1;
+  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(p.x, p.y + p.r, p.r, 4, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#7c3aed'; ctx.beginPath(); ctx.moveTo(p.x - f * 4, p.y - 4); ctx.lineTo(p.x - f * 16, p.y + 10 + Math.sin(G.t * 12) * 2); ctx.lineTo(p.x - f * 2, p.y + 8); ctx.fill();
+  circle(p.x, p.y, p.r, body);
+  circle(p.x + f * 4, p.y - 2, 3, '#fff'); circle(p.x + f * 5, p.y - 2, 1.5, '#1e293b');
+  ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.moveTo(p.x - 7, p.y - 7); ctx.lineTo(p.x - 4, p.y - 15); ctx.lineTo(p.x, p.y - 9); ctx.lineTo(p.x + 4, p.y - 15); ctx.lineTo(p.x + 7, p.y - 7); ctx.fill();
+}
 function drawEnemy(e) {
   const { x, y, r } = e, c = e.flash > 0 ? '#fff' : e.color;
   const a = Math.atan2(G.p.y - y, G.p.x - x), ex = Math.cos(a) * r * 0.25, ey = Math.sin(a) * r * 0.25;
@@ -418,7 +433,7 @@ function render() {
     else if (d === 1) { ctx.strokeStyle = '#2f4a3c'; ctx.lineWidth = 2; const gx = px + (h >> 4) % 48 + 8, gy = py + (h >> 9) % 48 + 12; ctx.beginPath(); ctx.moveTo(gx - 4, gy); ctx.lineTo(gx - 6, gy - 7); ctx.moveTo(gx, gy); ctx.lineTo(gx, gy - 9); ctx.moveTo(gx + 4, gy); ctx.lineTo(gx + 6, gy - 7); ctx.stroke(); }
   }
   for (const g of G.gems) circle(g.x, g.y, g.big ? 7 : 4, g.v >= 5 ? '#f0abfc' : '#38bdf8');
-  for (const h of G.hearts) circle(h.x, h.y, 6, '#f43f5e');
+  for (const h of G.hearts) drawHeart(h.x, h.y + Math.sin(G.t * 5 + h.x) * 1.5);
   for (const c of G.chests) { ctx.fillStyle = '#b45309'; ctx.fillRect(c.x - 12, c.y - 9, 24, 18); ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2; ctx.strokeRect(c.x - 12, c.y - 9, 24, 18); }
   for (const e of G.enemies) {
     drawEnemy(e);
@@ -431,8 +446,7 @@ function render() {
   if (G.w.garlic) { ctx.fillStyle = 'rgba(167,243,208,.12)'; ctx.beginPath(); ctx.arc(p.x, p.y, 50 + G.w.garlic * 12, 0, 7); ctx.fill(); }
   if (G.slash) { const k = G.slash; ctx.fillStyle = 'rgba(253,230,138,' + (k.t / 0.15 * 0.6) + ')'; ctx.beginPath(); ctx.moveTo(k.x, k.y); ctx.arc(k.x, k.y, k.reach, k.a - k.half, k.a + k.half); ctx.closePath(); ctx.fill(); }
   if (G.novaRing) { ctx.strokeStyle = 'rgba(125,211,252,' + (G.novaRing.t / 0.3) + ')'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(p.x, p.y, G.novaRing.r, 0, 7); ctx.stroke(); }
-  circle(p.x, p.y, p.r, p.hurt > 0 && ((p.hurt * 20) | 0) % 2 ? '#fca5a5' : CHARS[charIdx].color);
-  circle(p.x, p.y - 2, 3, '#1e293b');
+  drawPlayer(p);
   for (const t of G.texts) text(t.s, t.x, t.y, 12, '#fff');
   ctx.restore();
 
