@@ -25,3 +25,4 @@
 - [x] Character select (run 12)
 - [x] Gem + chest sprites, gem merging (run 17)
 - [x] Projectile sprites: bolt + boomerang (run 18)
+- [x] Recovery (regen) passive (run 19)
