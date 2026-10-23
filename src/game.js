@@ -21,6 +21,9 @@ const WEAPONS = {
   bolt:  { name: 'Magic Bolt', desc: 'Fires at nearest enemy', max: 6 },
   orbit: { name: 'Orbiting Orbs', desc: 'Orbs circle you', max: 6 },
   nova:  { name: 'Pulse Nova', desc: 'Periodic shockwave', max: 6 },
+  boomer: { name: 'Boomerang', desc: 'Flies out and returns, piercing', max: 6 },
+  whip:  { name: 'Whip', desc: 'Wide arc slash at nearest foe', max: 6 },
+  garlic: { name: 'Garlic Aura', desc: 'Damages & slows nearby foes', max: 6 },
 };
 const PASSIVES = {
   might:  { name: 'Might', desc: '+20% damage', max: 5 },
@@ -38,7 +41,7 @@ const ENEMY_TYPES = [
 const BOSS_EVERY = 120; // seconds
 
 // ---------- state ----------
-let state = 'title'; // title | play | pause | levelup | dead
+let state = 'title'; // title | play | levelup | dead | pause
 let G; // game world
 const best = +(localStorage.getItem('tzs_best') || 0);
 
@@ -46,15 +49,30 @@ function newGame() {
   G = {
     t: 0, kills: 0, spawnAcc: 0, nextBoss: BOSS_EVERY,
     cam: { x: 0, y: 0 },
-    p: { x: 0, y: 0, r: 10, hp: 100, maxHp: 100, speed: 140, dmgMul: 1, magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 4 },
+    p: { x: 0, y: 0, r: 10, hp: 120, maxHp: 120, speed: 140, dmgMul: 1, magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 5 },
     w: { bolt: 1 }, pa: {},
-    enemies: [], shots: [], gems: [], hearts: [], parts: [], shake: 0, fx: [], texts: [],
+    enemies: [], shots: [], gems: [], booms: [], hearts: [], parts: [], shake: 0, fx: [], texts: [],
     timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
     choices: [],
   };
 }
 
+// ---------- sound (WebAudio bleeps; M toggles mute) ----------
+let ac = null, muted = false, lastSfx = 0;
+function sfx(freq, dur = 0.08, type = 'square', vol = 0.04) {
+  if (muted || typeof AudioContext === 'undefined') return;
+  try {
+    ac = ac || new AudioContext();
+    const now = ac.currentTime; if (now - lastSfx < 0.02) return; lastSfx = now;
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, now); o.frequency.exponentialRampToValueAtTime(freq * 0.5, now + dur);
+    g.gain.setValueAtTime(vol, now); g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    o.connect(g); g.connect(ac.destination); o.start(now); o.stop(now + dur);
+  } catch (err) { muted = true; }
+}
+
 function onKey(k, e) {
+  if (k === 'm') { muted = !muted; return; }
   if ((k === 'p' || k === 'escape') && (state === 'play' || state === 'pause')) { state = state === 'play' ? 'pause' : 'play'; return; }
   if (state === 'title' && (k === ' ' || k === 'enter' || k === 'tap')) { newGame(); state = 'play'; }
   else if (state === 'dead' && (k === ' ' || k === 'enter' || k === 'tap')) { state = 'title'; }
@@ -78,11 +96,7 @@ function damage(e, amt, kx, ky) {
   amt *= G.p.dmgMul; e.hp -= amt; e.flash = 0.08;
   if (kx !== undefined) { e.x += kx; e.y += ky; }
   G.texts.push({ x: e.x, y: e.y - e.r, s: Math.round(amt), t: 0.5 });
-  burst(e.x, e.y, 2, e.color, 80);
-}
-function burst(x, y, n, color, spd) {
-  if (G.parts.length > 300) return;
-  for (let i = 0; i < n; i++) { const a = rnd(0, 7), v = rnd(0.3, 1) * spd; G.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: rnd(0.25, 0.5), color }); }
+  if (G.parts.length < 200) for (let i = 0; i < 2; i++) G.parts.push({ x: e.x, y: e.y, vx: rnd(-80, 80), vy: rnd(-80, 80), t: 0.3, c: e.color });
 }
 
 // ---------- level up ----------
@@ -109,7 +123,7 @@ const choiceRects = () => [0, 1, 2].map(i => ({ x: W / 2 - 150, y: H / 2 - 120 +
 function pickAt(x, y) { return choiceRects().findIndex(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h); }
 
 // ---------- spawning / difficulty ----------
-function spawnRate() { return 1.2 + G.t / 25 + (G.t / 120) ** 2; } // enemies per second, ramps up
+function spawnRate() { return 0.8 + G.t / 30 + (G.t / 130) ** 2; } // enemies per second, ramps up
 function spawnEnemy(boss) {
   const types = ENEMY_TYPES.filter(t => G.t >= t.from);
   const base = boss ? { name: 'boss', hp: 600, speed: 60, r: 34, dmg: 25, xp: 40, color: '#fde047' } : types[(Math.random() * types.length) | 0];
@@ -142,7 +156,7 @@ function update(dt) {
   if (wb) {
     G.timers.bolt -= dt;
     if (G.timers.bolt <= 0) {
-      G.timers.bolt = 0.75 * p.cdMul;
+      G.timers.bolt = 0.9 * p.cdMul;
       const n = 1 + Math.floor((wb - 1) / 2) + (wb >= 6 ? 1 : 0);
       for (let i = 0; i < n; i++) {
         const t = nearest(p, 500);
@@ -162,6 +176,53 @@ function update(dt) {
         if (dist2(o, e) < (e.r + 7) ** 2 && !(e.orbHit > G.t)) { e.orbHit = G.t + 0.4; damage(e, 6 + wo * 2.5, Math.cos(a + 1.57) * 4, Math.sin(a + 1.57) * 4); }
       }
     }
+  }
+  const wbm = G.w.boomer;
+  if (wbm) {
+    G.timers.boomer = (G.timers.boomer || 0) - dt;
+    if (G.timers.boomer <= 0) {
+      const t = nearest(p, 600);
+      if (t) {
+        G.timers.boomer = (2.2 - wbm * 0.15) * p.cdMul;
+        const a = Math.atan2(t.y - p.y, t.x - p.x);
+        G.booms.push({ x: p.x, y: p.y, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, age: 0, dmg: 10 + wbm * 3 });
+      }
+    }
+  }
+  for (const b of G.booms) {
+    b.age += dt;
+    const k = b.age < 0.7 ? 1 : 0; // outbound, then home on player
+    if (!k) { const a = Math.atan2(p.y - b.y, p.x - b.x); b.vx = Math.cos(a) * 380; b.vy = Math.sin(a) * 380; }
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    for (const e of G.enemies) if (dist2(b, e) < (e.r + 9) ** 2 && !(e.boomHit > G.t)) { e.boomHit = G.t + 0.35; damage(e, b.dmg); }
+    if (!k && dist2(b, p) < (p.r + 8) ** 2) b.dead = true;
+    if (b.age > 4) b.dead = true;
+  }
+  G.booms = G.booms.filter(b => !b.dead);
+  const ww = G.w.whip;
+  if (ww) {
+    G.timers.whip = (G.timers.whip || 0) - dt;
+    if (G.timers.whip <= 0) {
+      const t = nearest(p, 220);
+      if (t) {
+        G.timers.whip = (1.5 - ww * 0.1) * p.cdMul;
+        const a = Math.atan2(t.y - p.y, t.x - p.x), reach = 80 + ww * 12, half = 0.9 + ww * 0.1;
+        G.slash = { x: p.x, y: p.y, a, reach, half, t: 0.15 };
+        for (const e of G.enemies) {
+          if (dist2(p, e) > (reach + e.r) ** 2) continue;
+          let d = Math.atan2(e.y - p.y, e.x - p.x) - a; d = Math.atan2(Math.sin(d), Math.cos(d));
+          if (Math.abs(d) <= half) damage(e, 14 + ww * 5, Math.cos(a) * 12, Math.sin(a) * 12);
+        }
+      } else G.timers.whip = 0.1;
+    }
+  }
+  if (G.slash) { G.slash.t -= dt; if (G.slash.t <= 0) G.slash = null; }
+  const wg = G.w.garlic;
+  if (wg) {
+    const gr = 50 + wg * 12;
+    G.timers.garlic = (G.timers.garlic || 0) - dt;
+    const tick = G.timers.garlic <= 0; if (tick) G.timers.garlic = 0.5 * p.cdMul;
+    for (const e of G.enemies) if (dist2(p, e) < (gr + e.r) ** 2) { e.slow = 0.1; if (tick) damage(e, 3 + wg * 1.5); }
   }
   const wn = G.w.nova;
   if (wn) {
@@ -191,19 +252,20 @@ function update(dt) {
   for (let i = 0; i < G.enemies.length; i++) {
     const e = G.enemies[i];
     const a = Math.atan2(p.y - e.y, p.x - e.x);
-    e.x += Math.cos(a) * e.speed * dt; e.y += Math.sin(a) * e.speed * dt;
+    const sp = e.slow > 0 ? 0.6 : 1; e.slow = Math.max(0, (e.slow || 0) - dt);
+    e.x += Math.cos(a) * e.speed * sp * dt; e.y += Math.sin(a) * e.speed * sp * dt;
     e.flash = Math.max(0, e.flash - dt);
     // soft separation (cheap: only against next few)
     for (let j = i + 1; j < Math.min(i + 6, G.enemies.length); j++) {
       const o = G.enemies[j], d = Math.hypot(e.x - o.x, e.y - o.y) || 1, min = e.r + o.r;
       if (d < min) { const k = (min - d) / 2 / d; e.x += (e.x - o.x) * k; e.y += (e.y - o.y) * k; o.x -= (e.x - o.x) * k; o.y -= (e.y - o.y) * k; }
     }
-    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= e.dmg; p.hurt = 0.6; G.shake = 8; }
+    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= e.dmg; p.hurt = 0.6; G.shake = 0.25; sfx(120, 0.15, 'sawtooth', 0.06); }
   }
   for (const e of G.enemies) if (e.hp <= 0) {
-    G.kills++; burst(e.x, e.y, e.boss ? 24 : 8, e.color, 140);
-    if (e.boss || Math.random() < 0.025) G.hearts.push({ x: e.x, y: e.y });
+    G.kills++; sfx(260 + Math.random() * 80, 0.06);
     G.gems.push({ x: e.x, y: e.y, v: e.xp, big: e.boss });
+    if (e.boss || Math.random() < 0.025) G.hearts.push({ x: e.x + 8, y: e.y, heal: e.boss ? 60 : 20 });
     if (e.boss) for (let k = 0; k < 8; k++) G.gems.push({ x: e.x + rnd(-30, 30), y: e.y + rnd(-30, 30), v: 5 });
   }
   G.enemies = G.enemies.filter(e => e.hp > 0);
@@ -218,21 +280,24 @@ function update(dt) {
     if (d2 < (p.r + 6) ** 2) { g.dead = true; p.xp += g.v; }
   }
   G.gems = G.gems.filter(g => !g.dead);
-  for (const h of G.hearts) if (dist2(p, h) < (p.r + 9) ** 2) { h.dead = true; p.hp = Math.min(p.maxHp, p.hp + 25); G.texts.push({ x: p.x, y: p.y - 14, s: '+25', t: 0.7 }); }
-  G.hearts = G.hearts.filter(h => !h.dead);
-  for (const q of G.parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.t -= dt; }
-  G.parts = G.parts.filter(q => q.t > 0);
-  G.shake = Math.max(0, G.shake - 30 * dt);
   if (p.xp >= p.need && state === 'play') {
     p.xp -= p.need; p.lvl++; p.need = Math.round(p.need * 1.35 + 3);
     G.choices = rollChoices();
-    if (G.choices.length) state = 'levelup';
+    if (G.choices.length) { state = 'levelup'; sfx(660, 0.25, 'triangle', 0.07); }
   }
+  for (const h of G.hearts) if (dist2(p, h) < (p.r + 10) ** 2 || (dist2(p, h) < mr2 && p.hp < p.maxHp)) {
+    if (dist2(p, h) < (p.r + 10) ** 2) { h.dead = true; sfx(520, 0.15, 'sine', 0.06); p.hp = Math.min(p.maxHp, p.hp + h.heal); G.texts.push({ x: p.x, y: p.y - 16, s: '+' + h.heal, t: 0.8 }); }
+    else { const a = Math.atan2(p.y - h.y, p.x - h.x); h.x += Math.cos(a) * 200 * dt; h.y += Math.sin(a) * 200 * dt; }
+  }
+  G.hearts = G.hearts.filter(h => !h.dead);
+  for (const q of G.parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.t -= dt; }
+  G.parts = G.parts.filter(q => q.t > 0);
+  G.shake = Math.max(0, G.shake - dt);
   for (const t of G.texts) { t.t -= dt; t.y -= 24 * dt; }
   G.texts = G.texts.filter(t => t.t > 0);
 
   if (p.hp <= 0) {
-    state = 'dead';
+    state = 'dead'; sfx(90, 0.6, 'sawtooth', 0.08);
     const score = Math.floor(G.t);
     if (score > +(localStorage.getItem('tzs_best') || 0)) localStorage.setItem('tzs_best', score);
   }
@@ -247,14 +312,15 @@ function render() {
   ctx.fillStyle = '#1b1b26'; ctx.fillRect(0, 0, W, H);
   if (state === 'title') {
     text('TONE ZONE SURVIVORS', W / 2, H / 2 - 40, 36, '#fde047');
-    text('WASD / arrows / drag to move. Weapons fire automatically. P = pause.', W / 2, H / 2, 16);
+    text('WASD / arrows / drag to move. Weapons fire automatically.', W / 2, H / 2, 16);
     text('Press SPACE or tap to start', W / 2, H / 2 + 40, 20, '#6ee7b7');
     const b = +(localStorage.getItem('tzs_best') || 0);
     if (b) text('Best survival: ' + fmt(b), W / 2, H / 2 + 80, 16, '#aaa');
     return;
   }
   const { cam, p } = G;
-  ctx.save(); ctx.translate(-cam.x + rnd(-1, 1) * G.shake, -cam.y + rnd(-1, 1) * G.shake);
+  const sh = G.shake * 20;
+  ctx.save(); ctx.translate(-cam.x + rnd(-sh, sh), -cam.y + rnd(-sh, sh));
   // grid floor
   ctx.strokeStyle = '#262636'; ctx.lineWidth = 1; ctx.beginPath();
   const gs = 64, x0 = Math.floor(cam.x / gs) * gs, y0 = Math.floor(cam.y / gs) * gs;
@@ -262,15 +328,18 @@ function render() {
   for (let y = y0; y < cam.y + H + gs; y += gs) { ctx.moveTo(cam.x, y); ctx.lineTo(cam.x + W, y); }
   ctx.stroke();
   for (const g of G.gems) circle(g.x, g.y, g.big ? 7 : 4, g.v >= 5 ? '#f0abfc' : '#38bdf8');
-  for (const h of G.hearts) circle(h.x, h.y, 7, '#f43f5e');
+  for (const h of G.hearts) circle(h.x, h.y, 6, '#f43f5e');
   for (const e of G.enemies) {
     circle(e.x, e.y, e.r, e.flash > 0 ? '#fff' : e.color);
     if (e.boss) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 3, 0, 7); ctx.stroke(); }
   }
+  for (const q of G.parts) circle(q.x, q.y, 2, q.c);
+  for (const b of G.booms) circle(b.x, b.y, 8, '#fdba74');
   for (const s of G.shots) circle(s.x, s.y, 5, '#fef08a');
   if (G.w.orbit) { const n = 1 + G.w.orbit, rad = 60 + G.w.orbit * 4; for (let i = 0; i < n; i++) { const a = G.orbAng + (i / n) * Math.PI * 2; circle(p.x + Math.cos(a) * rad, p.y + Math.sin(a) * rad, 7, '#c4b5fd'); } }
+  if (G.w.garlic) { ctx.fillStyle = 'rgba(167,243,208,.12)'; ctx.beginPath(); ctx.arc(p.x, p.y, 50 + G.w.garlic * 12, 0, 7); ctx.fill(); }
+  if (G.slash) { const k = G.slash; ctx.fillStyle = 'rgba(253,230,138,' + (k.t / 0.15 * 0.6) + ')'; ctx.beginPath(); ctx.moveTo(k.x, k.y); ctx.arc(k.x, k.y, k.reach, k.a - k.half, k.a + k.half); ctx.closePath(); ctx.fill(); }
   if (G.novaRing) { ctx.strokeStyle = 'rgba(125,211,252,' + (G.novaRing.t / 0.3) + ')'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(p.x, p.y, G.novaRing.r, 0, 7); ctx.stroke(); }
-  for (const q of G.parts) circle(q.x, q.y, 2, q.color);
   circle(p.x, p.y, p.r, p.hurt > 0 && ((p.hurt * 20) | 0) % 2 ? '#fca5a5' : '#f8fafc');
   circle(p.x, p.y - 2, 3, '#1e293b');
   for (const t of G.texts) text(t.s, t.x, t.y, 12, '#fff');
@@ -288,7 +357,6 @@ function render() {
   for (const k in G.w) { text(`${WEAPONS[k].name} ${G.w[k]}`, 16, y, 12, '#fde047', 'left'); y += 14; }
   for (const k in G.pa) { text(`${PASSIVES[k].name} ${G.pa[k]}`, 16, y, 12, '#a7f3d0', 'left'); y += 14; }
 
-  if (state === 'pause') { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, H); text('PAUSED - press P / Esc', W / 2, H / 2, 28, '#fde047'); }
   if (state === 'levelup') {
     ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(0, 0, W, H);
     text('LEVEL UP! Pick one (1-3 or tap)', W / 2, H / 2 - 150, 22, '#fde047');
@@ -300,6 +368,10 @@ function render() {
       text(`${i + 1}. ${d.name} (Lv ${c.lvl})`, r.x + 12, r.y + 30, 18, '#fff', 'left');
       text(d.desc, r.x + 12, r.y + 56, 14, '#bbb', 'left');
     });
+  }
+  if (state === 'pause') {
+    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, H);
+    text('PAUSED (P / Esc to resume)', W / 2, H / 2, 24, '#fde047');
   }
   if (state === 'dead') {
     ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, W, H);
@@ -321,5 +393,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { get state() { return state; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey };
+window.__tzs = { keys, get state() { return state; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey };
 })();

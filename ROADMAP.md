@@ -8,12 +8,15 @@
 - [x] HUD, death screen, best-time via localStorage
 - [x] Headless smoke test
 ## Next
-- [ ] Balance pass (bot in smoke test is a weak fleeing bot; dies ~2min. Needs smarter bot that collects gems to judge 5min survival)
-- [x] Health pickups, screen shake / hit particles (run 2)
+- [x] Balance pass v1 (idle ~50s, kiting bot ~2min; needs real playtest for 5+ min)
+- [x] Health pickups, screen shake / hit particles
 - [ ] Treasure chests
-- [ ] More weapons (whip/arc, boomerang, garlic aura) and weapon evolutions
-- [x] Pause key (P/Esc) (run 2)
-- [ ] Sound (WebAudio bleeps)
+- [x] Garlic aura
+- [x] Boomerang
+- [x] Whip (arc)
+- [ ] Weapon evolutions
+- [x] Sound (WebAudio bleeps, M = mute)
+- [x] Pause key (P/Esc)
 - [ ] Sprites instead of circles, themed floor tiles
 - [ ] Spatial hash for collision to support 1000+ enemies
 - [ ] Character select, meta upgrades with gold

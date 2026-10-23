@@ -5,6 +5,10 @@
 - Difficulty: `spawnRate()` = 1.2 + t/25 + (t/120)^2 per sec; enemy hp x(1+t/90); speed up to +60%.
 ## Log
 - 2026-10-22 run 1: repo was empty. Built full MVP (see ROADMAP). Smoke test passes. Repo had no `main` branch yet; work lives on `ccr-079477ac-9ewkoc`.
-- 2026-10-23 run 2: added pause (P/Esc, state `pause`), heart pickups (2.5% drop, bosses always; +25hp), hit/death particles, screen shake on damage, bolt cd 0.9->0.75, first level-up 5->4 xp. Smoke test now also runs a fleeing bot (prints survival time; not a gate). Still on branch `ccr-079477ac-brv7jy`; no `main` branch exists yet on origin.
+- 2026-10-22 run 2: gentler spawn ramp (0.8+t/30+(t/130)^2), 120 starting HP; heart pickups (2.5% drop, bosses always); hit particles + screen shake; pause (P/Esc). Idle player now dies ~50s; dumb kiting bot ~2min. Smoke passes. `main` still absent -> PR/merge attempted.
+- 2026-10-23 run 3: found main already had run 2's work (parallel branch had duplicated it; reset to main). Added Garlic Aura weapon (aura dmg tick + 40% slow), `tests/bot.js` kiting-bot balance probe (~135-165s), `keys` exposed on test hook.
+- 2026-10-23 run 4: added Boomerang weapon (outbound 0.7s then homes back, pierces, per-enemy 0.35s hit cooldown). Smoke passes.
+- 2026-10-23 run 5: WebAudio bleeps (hit/kill/heart/levelup/death), M toggles mute; silently disabled if AudioContext fails (headless safe).
+- 2026-10-23 run 6: Whip weapon (arc slash at nearest foe within 220px, dmg 14+5*lvl, wider/longer per level). Branch was re-synced to main (PR #4, a duplicate of run 2, closed).
 ## Next steps
-- Smarter test bot (collect gems) -> real balance pass; more weapons (whip/boomerang/garlic); chests; sound. See ROADMAP "Next".
+- Check `origin/main` before starting (parallel session branches exist). More weapons (whip/boomerang) + evolutions, chests, sound, spatial hash. See ROADMAP "Next".
