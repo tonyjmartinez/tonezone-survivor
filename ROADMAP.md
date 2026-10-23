@@ -18,6 +18,7 @@
 - [x] Sound (WebAudio bleeps, M = mute)
 - [x] Pause key (P/Esc)
 - [x] Themed floor tiles (checker + stones/grass, run 9)
+- [x] More enemy variety (wisp swarm, golem; run 11)
 - [ ] Sprites instead of circles
 - [ ] Spatial hash for collision to support 1000+ enemies
 - [x] Meta upgrades with gold (run 10)
