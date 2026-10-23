@@ -40,6 +40,8 @@ const ENEMY_TYPES = [
   { name: 'ghoul', hp: 22,  speed: 55,  r: 12, dmg: 9,  xp: 2, color: '#6ee7b7', from: 45 },
   { name: 'imp',   hp: 14,  speed: 105, r: 8,  dmg: 8,  xp: 2, color: '#fb923c', from: 90 },
   { name: 'brute', hp: 90,  speed: 45,  r: 18, dmg: 16, xp: 8, color: '#f87171', from: 150 },
+  { name: 'wisp',  hp: 6,   speed: 120, r: 6,  dmg: 5,  xp: 1, color: '#67e8f9', from: 120, pack: 5 }, // spawns in a swarm
+  { name: 'golem', hp: 220, speed: 35,  r: 22, dmg: 22, xp: 15, color: '#94a3b8', from: 240 },
 ];
 const BOSS_EVERY = 120; // seconds
 
@@ -150,7 +152,8 @@ function spawnEnemy(boss) {
   const base = boss ? { name: 'boss', hp: 600, speed: 60, r: 34, dmg: 25, xp: 40, color: '#fde047' } : types[(Math.random() * types.length) | 0];
   const a = rnd(0, Math.PI * 2), d = Math.hypot(W, H) / 2 + 40;
   const hpScale = 1 + G.t / 90;
-  G.enemies.push({ x: G.p.x + Math.cos(a) * d, y: G.p.y + Math.sin(a) * d, r: base.r, hp: base.hp * hpScale * (boss ? 1 + G.t / 240 : 1), speed: base.speed * (1 + Math.min(G.t / 600, 0.6)), dmg: base.dmg, xp: base.xp, color: base.color, flash: 0, boss });
+  const n = base.pack || 1;
+  for (let i = 0; i < n; i++) G.enemies.push({ x: G.p.x + Math.cos(a) * d + (i ? rnd(-30, 30) : 0), y: G.p.y + Math.sin(a) * d + (i ? rnd(-30, 30) : 0), r: base.r, hp: base.hp * hpScale * (boss ? 1 + G.t / 240 : 1), speed: base.speed * (1 + Math.min(G.t / 600, 0.6)), dmg: base.dmg, xp: base.xp, color: base.color, flash: 0, boss });
 }
 
 // ---------- update ----------
