@@ -17,6 +17,7 @@
 - [x] Weapon evolutions (maxed weapon + paired passive via chest)
 - [x] Sound (WebAudio bleeps, M = mute)
 - [x] Pause key (P/Esc)
-- [ ] Sprites instead of circles, themed floor tiles
+- [x] Themed floor tiles (checker + stones/grass, run 9)
+- [ ] Sprites instead of circles
 - [ ] Spatial hash for collision to support 1000+ enemies
 - [ ] Character select, meta upgrades with gold
