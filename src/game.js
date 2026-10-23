@@ -184,7 +184,7 @@ function update(dt) {
 
   // spawn
   G.spawnAcc += spawnRate() * dt;
-  while (G.spawnAcc >= 1 && G.enemies.length < 400) { G.spawnAcc--; spawnEnemy(false); }
+  while (G.spawnAcc >= 1 && G.enemies.length < 800) { G.spawnAcc--; spawnEnemy(false); }
   if (G.t >= G.nextBoss) { G.nextBoss += BOSS_EVERY; spawnEnemy(true); }
 
   // weapons
@@ -285,16 +285,27 @@ function update(dt) {
   G.shots = G.shots.filter(s => s.life > 0);
 
   // enemies
+  const grid = new Map(), CELL = 48;
+  for (let i = 0; i < G.enemies.length; i++) {
+    const e = G.enemies[i]; e.idx = i;
+    const k = Math.floor(e.x / CELL) * 100003 + Math.floor(e.y / CELL);
+    const c = grid.get(k); if (c) c.push(e); else grid.set(k, [e]);
+  }
   for (let i = 0; i < G.enemies.length; i++) {
     const e = G.enemies[i];
     const a = Math.atan2(p.y - e.y, p.x - e.x);
     const sp = e.slow > 0 ? 0.6 : 1; e.slow = Math.max(0, (e.slow || 0) - dt);
     e.x += Math.cos(a) * e.speed * sp * dt; e.y += Math.sin(a) * e.speed * sp * dt;
     e.flash = Math.max(0, e.flash - dt);
-    // soft separation (cheap: only against next few)
-    for (let j = i + 1; j < Math.min(i + 6, G.enemies.length); j++) {
-      const o = G.enemies[j], d = Math.hypot(e.x - o.x, e.y - o.y) || 1, min = e.r + o.r;
-      if (d < min) { const k = (min - d) / 2 / d; e.x += (e.x - o.x) * k; e.y += (e.y - o.y) * k; o.x -= (e.x - o.x) * k; o.y -= (e.y - o.y) * k; }
+    // soft separation via spatial hash (cells of CELL px; each pair resolved once via index order)
+    const cx = Math.floor(e.x / CELL), cy = Math.floor(e.y / CELL);
+    for (let gx = cx - 1; gx <= cx + 1; gx++) for (let gy = cy - 1; gy <= cy + 1; gy++) {
+      const cell = grid.get(gx * 100003 + gy); if (!cell) continue;
+      for (const o of cell) {
+        if (o === e || o.idx < i) continue;
+        const dx = e.x - o.x, dy = e.y - o.y, min = e.r + o.r;
+        if (dx * dx + dy * dy < min * min) { const d = Math.hypot(dx, dy) || 1, k = (min - d) / 2 / d; e.x += dx * k; e.y += dy * k; o.x -= dx * k; o.y -= dy * k; }
+      }
     }
     if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= e.dmg; p.hurt = 0.6; G.shake = 0.25; sfx(120, 0.15, 'sawtooth', 0.06); }
   }
