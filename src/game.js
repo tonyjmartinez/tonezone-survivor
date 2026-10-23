@@ -51,7 +51,7 @@ function newGame() {
     cam: { x: 0, y: 0 },
     p: { x: 0, y: 0, r: 10, hp: 120, maxHp: 120, speed: 140, dmgMul: 1, magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 5 },
     w: { bolt: 1 }, pa: {},
-    enemies: [], shots: [], gems: [], booms: [], hearts: [], parts: [], shake: 0, fx: [], texts: [],
+    enemies: [], shots: [], gems: [], booms: [], hearts: [], chests: [], parts: [], shake: 0, fx: [], texts: [],
     timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
     choices: [],
   };
@@ -266,6 +266,7 @@ function update(dt) {
     G.kills++; sfx(260 + Math.random() * 80, 0.06);
     G.gems.push({ x: e.x, y: e.y, v: e.xp, big: e.boss });
     if (e.boss || Math.random() < 0.025) G.hearts.push({ x: e.x + 8, y: e.y, heal: e.boss ? 60 : 20 });
+    if (e.boss) G.chests.push({ x: e.x - 12, y: e.y });
     if (e.boss) for (let k = 0; k < 8; k++) G.gems.push({ x: e.x + rnd(-30, 30), y: e.y + rnd(-30, 30), v: 5 });
   }
   G.enemies = G.enemies.filter(e => e.hp > 0);
@@ -290,6 +291,13 @@ function update(dt) {
     else { const a = Math.atan2(p.y - h.y, p.x - h.x); h.x += Math.cos(a) * 200 * dt; h.y += Math.sin(a) * 200 * dt; }
   }
   G.hearts = G.hearts.filter(h => !h.dead);
+  for (const c of G.chests) if (dist2(p, c) < (p.r + 14) ** 2) {
+    c.dead = true; sfx(880, 0.3, 'triangle', 0.07);
+    const up = Object.keys(G.w).filter(k => G.w[k] < WEAPONS[k].max);
+    if (up.length) { const k = up[(Math.random() * up.length) | 0]; G.w[k]++; G.texts.push({ x: p.x, y: p.y - 24, s: WEAPONS[k].name + ' +1!', t: 1.4 }); }
+    else { p.hp = p.maxHp; G.texts.push({ x: p.x, y: p.y - 24, s: 'Full heal!', t: 1.4 }); }
+  }
+  G.chests = G.chests.filter(c => !c.dead);
   for (const q of G.parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.t -= dt; }
   G.parts = G.parts.filter(q => q.t > 0);
   G.shake = Math.max(0, G.shake - dt);
@@ -329,6 +337,7 @@ function render() {
   ctx.stroke();
   for (const g of G.gems) circle(g.x, g.y, g.big ? 7 : 4, g.v >= 5 ? '#f0abfc' : '#38bdf8');
   for (const h of G.hearts) circle(h.x, h.y, 6, '#f43f5e');
+  for (const c of G.chests) { ctx.fillStyle = '#b45309'; ctx.fillRect(c.x - 12, c.y - 9, 24, 18); ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2; ctx.strokeRect(c.x - 12, c.y - 9, 24, 18); }
   for (const e of G.enemies) {
     circle(e.x, e.y, e.r, e.flash > 0 ? '#fff' : e.color);
     if (e.boss) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 3, 0, 7); ctx.stroke(); }

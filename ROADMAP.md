@@ -10,7 +10,7 @@
 ## Next
 - [x] Balance pass v1 (idle ~50s, kiting bot ~2min; needs real playtest for 5+ min)
 - [x] Health pickups, screen shake / hit particles
-- [ ] Treasure chests
+- [x] Treasure chests (boss drop)
 - [x] Garlic aura
 - [x] Boomerang
 - [x] Whip (arc)
