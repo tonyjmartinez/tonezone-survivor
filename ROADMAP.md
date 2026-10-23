@@ -13,7 +13,8 @@
 - [ ] Treasure chests
 - [x] Garlic aura
 - [x] Boomerang
-- [ ] More weapons (whip/arc) and weapon evolutions
+- [x] Whip (arc)
+- [ ] Weapon evolutions
 - [x] Sound (WebAudio bleeps, M = mute)
 - [x] Pause key (P/Esc)
 - [ ] Sprites instead of circles, themed floor tiles

@@ -22,6 +22,7 @@ const WEAPONS = {
   orbit: { name: 'Orbiting Orbs', desc: 'Orbs circle you', max: 6 },
   nova:  { name: 'Pulse Nova', desc: 'Periodic shockwave', max: 6 },
   boomer: { name: 'Boomerang', desc: 'Flies out and returns, piercing', max: 6 },
+  whip:  { name: 'Whip', desc: 'Wide arc slash at nearest foe', max: 6 },
   garlic: { name: 'Garlic Aura', desc: 'Damages & slows nearby foes', max: 6 },
 };
 const PASSIVES = {
@@ -198,6 +199,24 @@ function update(dt) {
     if (b.age > 4) b.dead = true;
   }
   G.booms = G.booms.filter(b => !b.dead);
+  const ww = G.w.whip;
+  if (ww) {
+    G.timers.whip = (G.timers.whip || 0) - dt;
+    if (G.timers.whip <= 0) {
+      const t = nearest(p, 220);
+      if (t) {
+        G.timers.whip = (1.5 - ww * 0.1) * p.cdMul;
+        const a = Math.atan2(t.y - p.y, t.x - p.x), reach = 80 + ww * 12, half = 0.9 + ww * 0.1;
+        G.slash = { x: p.x, y: p.y, a, reach, half, t: 0.15 };
+        for (const e of G.enemies) {
+          if (dist2(p, e) > (reach + e.r) ** 2) continue;
+          let d = Math.atan2(e.y - p.y, e.x - p.x) - a; d = Math.atan2(Math.sin(d), Math.cos(d));
+          if (Math.abs(d) <= half) damage(e, 14 + ww * 5, Math.cos(a) * 12, Math.sin(a) * 12);
+        }
+      } else G.timers.whip = 0.1;
+    }
+  }
+  if (G.slash) { G.slash.t -= dt; if (G.slash.t <= 0) G.slash = null; }
   const wg = G.w.garlic;
   if (wg) {
     const gr = 50 + wg * 12;
@@ -319,6 +338,7 @@ function render() {
   for (const s of G.shots) circle(s.x, s.y, 5, '#fef08a');
   if (G.w.orbit) { const n = 1 + G.w.orbit, rad = 60 + G.w.orbit * 4; for (let i = 0; i < n; i++) { const a = G.orbAng + (i / n) * Math.PI * 2; circle(p.x + Math.cos(a) * rad, p.y + Math.sin(a) * rad, 7, '#c4b5fd'); } }
   if (G.w.garlic) { ctx.fillStyle = 'rgba(167,243,208,.12)'; ctx.beginPath(); ctx.arc(p.x, p.y, 50 + G.w.garlic * 12, 0, 7); ctx.fill(); }
+  if (G.slash) { const k = G.slash; ctx.fillStyle = 'rgba(253,230,138,' + (k.t / 0.15 * 0.6) + ')'; ctx.beginPath(); ctx.moveTo(k.x, k.y); ctx.arc(k.x, k.y, k.reach, k.a - k.half, k.a + k.half); ctx.closePath(); ctx.fill(); }
   if (G.novaRing) { ctx.strokeStyle = 'rgba(125,211,252,' + (G.novaRing.t / 0.3) + ')'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(p.x, p.y, G.novaRing.r, 0, 7); ctx.stroke(); }
   circle(p.x, p.y, p.r, p.hurt > 0 && ((p.hurt * 20) | 0) % 2 ? '#fca5a5' : '#f8fafc');
   circle(p.x, p.y - 2, 3, '#1e293b');
