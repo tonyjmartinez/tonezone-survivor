@@ -12,7 +12,8 @@
 - [x] Health pickups, screen shake / hit particles
 - [ ] Treasure chests
 - [x] Garlic aura
-- [ ] More weapons (whip/arc, boomerang) and weapon evolutions
+- [x] Boomerang
+- [ ] More weapons (whip/arc) and weapon evolutions
 - [ ] Sound (WebAudio bleeps)
 - [x] Pause key (P/Esc)
 - [ ] Sprites instead of circles, themed floor tiles
