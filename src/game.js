@@ -165,7 +165,7 @@ function spawnEnemy(boss) {
   const a = rnd(0, Math.PI * 2), d = Math.hypot(W, H) / 2 + 40;
   const hpScale = 1 + G.t / 90;
   const n = base.pack || 1;
-  for (let i = 0; i < n; i++) G.enemies.push({ x: G.p.x + Math.cos(a) * d + (i ? rnd(-30, 30) : 0), y: G.p.y + Math.sin(a) * d + (i ? rnd(-30, 30) : 0), r: base.r, hp: base.hp * hpScale * (boss ? 1 + G.t / 240 : 1), speed: base.speed * (1 + Math.min(G.t / 600, 0.6)), dmg: base.dmg, xp: base.xp, color: base.color, flash: 0, boss });
+  for (let i = 0; i < n; i++) G.enemies.push({ x: G.p.x + Math.cos(a) * d + (i ? rnd(-30, 30) : 0), y: G.p.y + Math.sin(a) * d + (i ? rnd(-30, 30) : 0), r: base.r, hp: base.hp * hpScale * (boss ? 1 + G.t / 240 : 1), speed: base.speed * (1 + Math.min(G.t / 600, 0.6)), dmg: base.dmg, xp: base.xp, color: base.color, flash: 0, boss, kind: base.name });
 }
 
 // ---------- update ----------
@@ -365,6 +365,29 @@ function update(dt) {
 // ---------- render ----------
 const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 function text(s, x, y, size, color = '#fff', align = 'center') { ctx.fillStyle = color; ctx.font = `bold ${size}px monospace`; ctx.textAlign = align; ctx.fillText(s, x, y); }
+// Procedural "sprites": body shape + per-type features, eyes face the player.
+function drawEnemy(e) {
+  const { x, y, r } = e, c = e.flash > 0 ? '#fff' : e.color;
+  const a = Math.atan2(G.p.y - y, G.p.x - x), ex = Math.cos(a) * r * 0.25, ey = Math.sin(a) * r * 0.25;
+  ctx.fillStyle = c;
+  if (e.kind === 'bat') { // flapping wings
+    const f = Math.sin(G.t * 18 + x * 0.1) * r * 0.5;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - r * 1.7, y - r * 0.6 + f); ctx.lineTo(x - r * 0.4, y + r * 0.6); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + r * 1.7, y - r * 0.6 + f); ctx.lineTo(x + r * 0.4, y + r * 0.6); ctx.closePath(); ctx.fill();
+    circle(x, y, r * 0.7, c);
+  } else if (e.kind === 'imp' || e.kind === 'brute') { // horns
+    circle(x, y, r, c);
+    ctx.beginPath(); ctx.moveTo(x - r * 0.8, y - r * 0.3); ctx.lineTo(x - r * 0.5, y - r * 1.3); ctx.lineTo(x - r * 0.1, y - r * 0.8); ctx.moveTo(x + r * 0.8, y - r * 0.3); ctx.lineTo(x + r * 0.5, y - r * 1.3); ctx.lineTo(x + r * 0.1, y - r * 0.8); ctx.fill();
+  } else if (e.kind === 'golem') { // blocky
+    ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.strokeStyle = '#475569'; ctx.lineWidth = 2; ctx.strokeRect(x - r, y - r, r * 2, r * 2);
+  } else if (e.kind === 'wisp') { // teardrop with a tail
+    circle(x, y, r, c); ctx.beginPath(); ctx.moveTo(x - Math.cos(a) * r * 2.2, y - Math.sin(a) * r * 2.2); ctx.lineTo(x - Math.sin(a) * r, y + Math.cos(a) * r); ctx.lineTo(x + Math.sin(a) * r, y - Math.cos(a) * r); ctx.fill();
+  } else circle(x, y, r, c);
+  if (e.kind === 'wisp') return;
+  const eo = r * 0.35, er = Math.max(1.5, r * 0.2);
+  circle(x - eo + ex, y - r * 0.1 + ey, er, '#fff'); circle(x + eo + ex, y - r * 0.1 + ey, er, '#fff');
+  circle(x - eo + ex * 1.6, y - r * 0.1 + ey * 1.6, er * 0.5, '#111'); circle(x + eo + ex * 1.6, y - r * 0.1 + ey * 1.6, er * 0.5, '#111');
+}
 function circle(x, y, r, color) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); }
 
 function render() {
@@ -398,7 +421,7 @@ function render() {
   for (const h of G.hearts) circle(h.x, h.y, 6, '#f43f5e');
   for (const c of G.chests) { ctx.fillStyle = '#b45309'; ctx.fillRect(c.x - 12, c.y - 9, 24, 18); ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2; ctx.strokeRect(c.x - 12, c.y - 9, 24, 18); }
   for (const e of G.enemies) {
-    circle(e.x, e.y, e.r, e.flash > 0 ? '#fff' : e.color);
+    drawEnemy(e);
     if (e.boss) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 3, 0, 7); ctx.stroke(); }
   }
   for (const q of G.parts) circle(q.x, q.y, 2, q.c);

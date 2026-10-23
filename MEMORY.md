@@ -17,5 +17,6 @@
 - 2026-10-23 run 11 (second branch session): reset to main; added Wisp (swarm of 5, from 2:00) and Golem (tanky, from 4:00) enemy types. Smoke + bot pass.
 - 2026-10-23 run 12: character select (title: left/right or A/D; saved in `tzs_char`): Mage/Knight/Druid/Rogue with different start weapon + stat tweaks (`CHARS` in game.js). Smoke covers it. Run-12 first attempt duplicated main again (PR #12 closed) - ALWAYS fetch origin/main first.
 - 2026-10-23 run 13: fetched origin/main first. Replaced O(n) neighbor-window separation with a per-frame spatial hash (CELL=48) in the enemy loop; enemy cap raised to 800. Smoke + bot (130-169s) unchanged. Hash is not yet used by weapon hit tests (still linear).
+- 2026-10-23 run 14: fetched origin/main first (my local branch was stale again; discarded duplicate run-2 work). Added `drawEnemy()` procedural sprites per enemy `kind` (bat wings, horned imp/brute, blocky golem, wisp tail, eyes track player). Smoke + bot (120-184s) pass.
 ## Next steps
 - Check `origin/main` before starting (parallel session branches exist). Sprites, use hash for weapon queries, character select, more enemy variety, real playtest balance (5+ min). See ROADMAP "Next".
