@@ -21,5 +21,6 @@
 - 2026-10-23 run 15: fetched origin/main first (my fresh run-2 duplicate discarded again; branch reset to main). Added `drawPlayer()` (shadow, cape, crown, facing eye) and bobbing `drawHeart()`. Smoke + bot (138-151s) pass.
 - 2026-10-23 run 16: fetched origin/main first (my stale branch again held duplicate work; reset to main). Faster early leveling (need 3, then x1.22+2). Bot 131-189s (was 120-184s), smoke passes.
 - 2026-10-23 run 17: fetched origin/main first. Gem diamond sprites (`drawGem`), bobbing chest sprite (`drawChest`), and far small-gem merging when >300 gems. Smoke + bot (140-168s) pass.
+- 2026-10-23 run 18: fetched origin/main first (stale branch again, reset). Added `drawBolt` (rotated glowing bolt w/ trail) and spinning `drawBoom` sprites.
 ## Next steps
 - Check `origin/main` before starting (parallel session branches exist). use hash for weapon queries (low value), more weapons/enemy variety, sprite polish for projectiles, real playtest balance (5+ min). See ROADMAP "Next".

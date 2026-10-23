@@ -428,6 +428,20 @@ function drawChest(c) {
   ctx.strokeStyle = '#78350f'; ctx.lineWidth = 1.5; ctx.strokeRect(x - 13, y - 4, 26, 14);
 }
 
+function drawBolt(s) {
+  const a = Math.atan2(s.vy, s.vx);
+  ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(a);
+  ctx.fillStyle = 'rgba(254,240,138,.25)'; ctx.beginPath(); ctx.moveTo(-16, 0); ctx.lineTo(-2, -4); ctx.lineTo(-2, 4); ctx.fill();
+  ctx.fillStyle = '#fef08a'; ctx.beginPath(); ctx.ellipse(0, 0, 7, 4, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(2, 0, 2, 0, 7); ctx.fill();
+  ctx.restore();
+}
+function drawBoom(b) {
+  ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.age * 18);
+  ctx.fillStyle = '#fdba74'; ctx.strokeStyle = '#9a3412'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-9, -9); ctx.lineTo(9, -3); ctx.lineTo(0, 0); ctx.lineTo(3, 9); ctx.lineTo(-9, -9); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
 function render() {
   ctx.fillStyle = '#1b1b26'; ctx.fillRect(0, 0, W, H);
   if (state === 'title') {
@@ -463,8 +477,8 @@ function render() {
     if (e.boss) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 3, 0, 7); ctx.stroke(); }
   }
   for (const q of G.parts) circle(q.x, q.y, 2, q.c);
-  for (const b of G.booms) circle(b.x, b.y, 8, '#fdba74');
-  for (const s of G.shots) circle(s.x, s.y, 5, '#fef08a');
+  for (const b of G.booms) drawBoom(b);
+  for (const s of G.shots) drawBolt(s);
   if (G.w.orbit) { const n = 1 + G.w.orbit, rad = 60 + G.w.orbit * 4; for (let i = 0; i < n; i++) { const a = G.orbAng + (i / n) * Math.PI * 2; circle(p.x + Math.cos(a) * rad, p.y + Math.sin(a) * rad, 7, '#c4b5fd'); } }
   if (G.w.garlic) { ctx.fillStyle = 'rgba(167,243,208,.12)'; ctx.beginPath(); ctx.arc(p.x, p.y, 50 + G.w.garlic * 12, 0, 7); ctx.fill(); }
   if (G.slash) { const k = G.slash; ctx.fillStyle = 'rgba(253,230,138,' + (k.t / 0.15 * 0.6) + ')'; ctx.beginPath(); ctx.moveTo(k.x, k.y); ctx.arc(k.x, k.y, k.reach, k.a - k.half, k.a + k.half); ctx.closePath(); ctx.fill(); }

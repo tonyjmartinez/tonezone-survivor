@@ -24,3 +24,4 @@
 - [x] Meta upgrades with gold (run 10)
 - [x] Character select (run 12)
 - [x] Gem + chest sprites, gem merging (run 17)
+- [x] Projectile sprites: bolt + boomerang (run 18)
