@@ -66,13 +66,23 @@ function buyMeta(k) {
   return true;
 }
 
+// ---------- characters (title: left/right to choose) ----------
+const CHARS = [
+  { name: 'Mage',   w: 'bolt',  desc: 'Magic Bolt. Balanced.',          hp: 0,  spd: 1,    dmg: 1,    color: '#f8fafc' },
+  { name: 'Knight', w: 'whip',  desc: 'Whip. +30 HP, slower.',          hp: 30, spd: 0.92, dmg: 1,    color: '#93c5fd' },
+  { name: 'Druid',  w: 'garlic',  desc: 'Garlic Aura. +10% speed.',       hp: 0,  spd: 1.1,  dmg: 1,    color: '#86efac' },
+  { name: 'Rogue',  w: 'boomer', desc: 'Boomerang. +15% dmg, -20 HP.',   hp: -20, spd: 1.05, dmg: 1.15, color: '#fda4af' },
+];
+let charIdx = Math.min(CHARS.length - 1, +(localStorage.getItem('tzs_char') || 0));
+function pickChar(d) { charIdx = (charIdx + d + CHARS.length) % CHARS.length; try { localStorage.setItem('tzs_char', charIdx); } catch (err) {} }
+
 function newGame() {
-  const mu = loadMeta();
+  const mu = loadMeta(), ch = CHARS[charIdx];
   G = {
     t: 0, kills: 0, spawnAcc: 0, nextBoss: BOSS_EVERY,
     cam: { x: 0, y: 0 },
-    p: { x: 0, y: 0, r: 10, hp: 120 + 10 * (mu.hp || 0), maxHp: 120 + 10 * (mu.hp || 0), speed: 140 * (1 + 0.03 * (mu.spd || 0)), dmgMul: 1 + 0.05 * (mu.dmg || 0), magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 5 },
-    w: { bolt: 1 }, pa: {},
+    p: { x: 0, y: 0, r: 10, hp: 120 + ch.hp + 10 * (mu.hp || 0), maxHp: 120 + ch.hp + 10 * (mu.hp || 0), speed: 140 * ch.spd * (1 + 0.03 * (mu.spd || 0)), dmgMul: ch.dmg * (1 + 0.05 * (mu.dmg || 0)), magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 5 },
+    w: { [ch.w]: 1 }, pa: {},
     enemies: [], shots: [], gems: [], booms: [], hearts: [], chests: [], parts: [], shake: 0, fx: [], texts: [],
     timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
     choices: [], gold: 0,
@@ -96,6 +106,8 @@ function sfx(freq, dur = 0.08, type = 'square', vol = 0.04) {
 function onKey(k, e) {
   if (k === 'm') { muted = !muted; return; }
   if ((k === 'p' || k === 'escape') && (state === 'play' || state === 'pause')) { state = state === 'play' ? 'pause' : 'play'; return; }
+  if (state === 'title' && (k === 'arrowleft' || k === 'a')) { pickChar(-1); return; }
+  if (state === 'title' && (k === 'arrowright' || k === 'd')) { pickChar(1); return; }
   if (state === 'title' && k >= '1' && k <= '3') { buyMeta(META_KEYS[+k - 1]); return; }
   if (state === 'title' && (k === ' ' || k === 'enter' || k === 'tap')) { newGame(); state = 'play'; }
   else if (state === 'dead' && (k === ' ' || k === 'enter' || k === 'tap')) { state = 'title'; }
@@ -349,7 +361,9 @@ function render() {
   if (state === 'title') {
     text('TONE ZONE SURVIVORS', W / 2, H / 2 - 40, 36, '#fde047');
     text('WASD / arrows / drag to move. Weapons fire automatically.', W / 2, H / 2, 16);
-    text('Press SPACE or tap to start', W / 2, H / 2 + 40, 20, '#6ee7b7');
+    const ch = CHARS[charIdx];
+    text(`< ${ch.name} >  ${ch.desc}`, W / 2, H / 2 + 22, 16, ch.color);
+    text('Press SPACE or tap to start', W / 2, H / 2 + 46, 20, '#6ee7b7');
     const b = +(localStorage.getItem('tzs_best') || 0);
     if (b) text('Best survival: ' + fmt(b), W / 2, H / 2 + 70, 16, '#aaa');
     const mu = loadMeta();
@@ -383,7 +397,7 @@ function render() {
   if (G.w.garlic) { ctx.fillStyle = 'rgba(167,243,208,.12)'; ctx.beginPath(); ctx.arc(p.x, p.y, 50 + G.w.garlic * 12, 0, 7); ctx.fill(); }
   if (G.slash) { const k = G.slash; ctx.fillStyle = 'rgba(253,230,138,' + (k.t / 0.15 * 0.6) + ')'; ctx.beginPath(); ctx.moveTo(k.x, k.y); ctx.arc(k.x, k.y, k.reach, k.a - k.half, k.a + k.half); ctx.closePath(); ctx.fill(); }
   if (G.novaRing) { ctx.strokeStyle = 'rgba(125,211,252,' + (G.novaRing.t / 0.3) + ')'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(p.x, p.y, G.novaRing.r, 0, 7); ctx.stroke(); }
-  circle(p.x, p.y, p.r, p.hurt > 0 && ((p.hurt * 20) | 0) % 2 ? '#fca5a5' : '#f8fafc');
+  circle(p.x, p.y, p.r, p.hurt > 0 && ((p.hurt * 20) | 0) % 2 ? '#fca5a5' : CHARS[charIdx].color);
   circle(p.x, p.y - 2, 3, '#1e293b');
   for (const t of G.texts) text(t.s, t.x, t.y, 12, '#fff');
   ctx.restore();
