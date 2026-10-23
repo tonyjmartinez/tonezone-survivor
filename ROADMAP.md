@@ -27,3 +27,4 @@
 - [x] Projectile sprites: bolt + boomerang (run 18)
 - [x] Recovery (regen) passive (run 19)
 - [x] Horde ring events every 75s (run 20)
+- [x] Lightning weapon (run 21)
