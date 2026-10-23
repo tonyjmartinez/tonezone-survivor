@@ -31,6 +31,7 @@ const PASSIVES = {
   health: { name: 'Vitality', desc: '+25 max HP, heal', max: 5 },
   magnet: { name: 'Magnet', desc: '+40% pickup range', max: 5 },
   haste:  { name: 'Haste', desc: '-10% cooldowns', max: 5 },
+  regen:  { name: 'Recovery', desc: '+0.5 HP per second', max: 5 },
 };
 // Evolution: a maxed weapon + its paired passive, opened via boss chest, jumps to level 8 (EVO).
 const EVOLVE = { bolt: 'haste', orbit: 'might', nova: 'magnet', boomer: 'speed', whip: 'health', garlic: 'haste' };
@@ -152,6 +153,7 @@ function applyChoice(c) {
     if (c.k === 'health') { p.maxHp += 25; p.hp = Math.min(p.maxHp, p.hp + 40); }
     if (c.k === 'magnet') p.magnet *= 1.4;
     if (c.k === 'haste') p.cdMul *= 0.9;
+    if (c.k === 'regen') p.regen = (p.regen || 0) + 0.5;
   }
 }
 const choiceRects = () => [0, 1, 2].map(i => ({ x: W / 2 - 150, y: H / 2 - 120 + i * 90, w: 300, h: 76 }));
@@ -180,6 +182,7 @@ function update(dt) {
   if (m > 1) { dx /= m; dy /= m; }
   p.x += dx * p.speed * dt; p.y += dy * p.speed * dt;
   p.hurt = Math.max(0, p.hurt - dt);
+  if (p.regen) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
   G.cam.x = p.x - W / 2; G.cam.y = p.y - H / 2;
 
   // spawn
