@@ -14,7 +14,7 @@
 - [x] Garlic aura
 - [x] Boomerang
 - [ ] More weapons (whip/arc) and weapon evolutions
-- [ ] Sound (WebAudio bleeps)
+- [x] Sound (WebAudio bleeps, M = mute)
 - [x] Pause key (P/Esc)
 - [ ] Sprites instead of circles, themed floor tiles
 - [ ] Spatial hash for collision to support 1000+ enemies
