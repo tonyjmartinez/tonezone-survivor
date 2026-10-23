@@ -10,5 +10,6 @@
 - 2026-10-23 run 4: added Boomerang weapon (outbound 0.7s then homes back, pierces, per-enemy 0.35s hit cooldown). Smoke passes.
 - 2026-10-23 run 5: WebAudio bleeps (hit/kill/heart/levelup/death), M toggles mute; silently disabled if AudioContext fails (headless safe).
 - 2026-10-23 run 6: Whip weapon (arc slash at nearest foe within 220px, dmg 14+5*lvl, wider/longer per level). Branch was re-synced to main (PR #4, a duplicate of run 2, closed).
+- 2026-10-23 run 7: treasure chests (bosses drop one; pickup = +1 level to a random owned non-maxed weapon, else full heal). Direct-pickup only (no magnet).
 ## Next steps
 - Check `origin/main` before starting (parallel session branches exist). More weapons (whip/boomerang) + evolutions, chests, sound, spatial hash. See ROADMAP "Next".
