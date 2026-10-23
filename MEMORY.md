@@ -5,8 +5,9 @@
 - Difficulty: `spawnRate()` = 1.2 + t/25 + (t/120)^2 per sec; enemy hp x(1+t/90); speed up to +60%.
 ## Log
 - 2026-10-22 run 1: repo was empty. Built full MVP (see ROADMAP). Smoke test passes. Repo had no `main` branch yet; work lives on `ccr-079477ac-9ewkoc`.
-- 2026-10-23 run 2: added pause (P/Esc/tap), health hearts (1.5% drop, bosses always), kill/hurt particles, screen shake on hit. Faster early leveling (need 4, x1.28+2; bats give 2xp; magnet 80). Added `tests/balance.js` (kiting bot via `__tzs.steer`); avg bot survival 145s -> ~214s. Idle player still dies ~32s.
-## Tools
-- `node tests/smoke.js` (pass/fail), `node tests/balance.js [runs]` (prints bot survival times).
+- 2026-10-22 run 2: gentler spawn ramp (0.8+t/30+(t/130)^2), 120 starting HP; heart pickups (2.5% drop, bosses always); hit particles + screen shake; pause (P/Esc). Idle player now dies ~50s; dumb kiting bot ~2min. Smoke passes. `main` still absent -> PR/merge attempted.
+- 2026-10-23 run 3: found main already had run 2's work (parallel branch had duplicated it; reset to main). Added Garlic Aura weapon (aura dmg tick + 40% slow), `tests/bot.js` kiting-bot balance probe (~135-165s), `keys` exposed on test hook.
+- 2026-10-23 run 4: added Boomerang weapon (outbound 0.7s then homes back, pierces, per-enemy 0.35s hit cooldown). Smoke passes.
+- 2026-10-23 run 5: WebAudio bleeps (hit/kill/heart/levelup/death), M toggles mute; silently disabled if AudioContext fails (headless safe).
 ## Next steps
-- More weapons (whip/arc, boomerang, garlic aura), treasure chests, sound, spatial hash. Bot dies ~200s; target 5+ min once more weapons exist. See ROADMAP "Next".
+- Check `origin/main` before starting (parallel session branches exist). More weapons (whip/boomerang) + evolutions, chests, sound, spatial hash. See ROADMAP "Next".
