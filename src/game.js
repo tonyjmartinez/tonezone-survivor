@@ -56,7 +56,22 @@ function newGame() {
   };
 }
 
+// ---------- sound (WebAudio bleeps; M toggles mute) ----------
+let ac = null, muted = false, lastSfx = 0;
+function sfx(freq, dur = 0.08, type = 'square', vol = 0.04) {
+  if (muted || typeof AudioContext === 'undefined') return;
+  try {
+    ac = ac || new AudioContext();
+    const now = ac.currentTime; if (now - lastSfx < 0.02) return; lastSfx = now;
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, now); o.frequency.exponentialRampToValueAtTime(freq * 0.5, now + dur);
+    g.gain.setValueAtTime(vol, now); g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    o.connect(g); g.connect(ac.destination); o.start(now); o.stop(now + dur);
+  } catch (err) { muted = true; }
+}
+
 function onKey(k, e) {
+  if (k === 'm') { muted = !muted; return; }
   if ((k === 'p' || k === 'escape') && (state === 'play' || state === 'pause')) { state = state === 'play' ? 'pause' : 'play'; return; }
   if (state === 'title' && (k === ' ' || k === 'enter' || k === 'tap')) { newGame(); state = 'play'; }
   else if (state === 'dead' && (k === ' ' || k === 'enter' || k === 'tap')) { state = 'title'; }
@@ -226,10 +241,10 @@ function update(dt) {
       const o = G.enemies[j], d = Math.hypot(e.x - o.x, e.y - o.y) || 1, min = e.r + o.r;
       if (d < min) { const k = (min - d) / 2 / d; e.x += (e.x - o.x) * k; e.y += (e.y - o.y) * k; o.x -= (e.x - o.x) * k; o.y -= (e.y - o.y) * k; }
     }
-    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= e.dmg; p.hurt = 0.6; G.shake = 0.25; }
+    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= e.dmg; p.hurt = 0.6; G.shake = 0.25; sfx(120, 0.15, 'sawtooth', 0.06); }
   }
   for (const e of G.enemies) if (e.hp <= 0) {
-    G.kills++;
+    G.kills++; sfx(260 + Math.random() * 80, 0.06);
     G.gems.push({ x: e.x, y: e.y, v: e.xp, big: e.boss });
     if (e.boss || Math.random() < 0.025) G.hearts.push({ x: e.x + 8, y: e.y, heal: e.boss ? 60 : 20 });
     if (e.boss) for (let k = 0; k < 8; k++) G.gems.push({ x: e.x + rnd(-30, 30), y: e.y + rnd(-30, 30), v: 5 });
@@ -249,10 +264,10 @@ function update(dt) {
   if (p.xp >= p.need && state === 'play') {
     p.xp -= p.need; p.lvl++; p.need = Math.round(p.need * 1.35 + 3);
     G.choices = rollChoices();
-    if (G.choices.length) state = 'levelup';
+    if (G.choices.length) { state = 'levelup'; sfx(660, 0.25, 'triangle', 0.07); }
   }
   for (const h of G.hearts) if (dist2(p, h) < (p.r + 10) ** 2 || (dist2(p, h) < mr2 && p.hp < p.maxHp)) {
-    if (dist2(p, h) < (p.r + 10) ** 2) { h.dead = true; p.hp = Math.min(p.maxHp, p.hp + h.heal); G.texts.push({ x: p.x, y: p.y - 16, s: '+' + h.heal, t: 0.8 }); }
+    if (dist2(p, h) < (p.r + 10) ** 2) { h.dead = true; sfx(520, 0.15, 'sine', 0.06); p.hp = Math.min(p.maxHp, p.hp + h.heal); G.texts.push({ x: p.x, y: p.y - 16, s: '+' + h.heal, t: 0.8 }); }
     else { const a = Math.atan2(p.y - h.y, p.x - h.x); h.x += Math.cos(a) * 200 * dt; h.y += Math.sin(a) * 200 * dt; }
   }
   G.hearts = G.hearts.filter(h => !h.dead);
@@ -263,7 +278,7 @@ function update(dt) {
   G.texts = G.texts.filter(t => t.t > 0);
 
   if (p.hp <= 0) {
-    state = 'dead';
+    state = 'dead'; sfx(90, 0.6, 'sawtooth', 0.08);
     const score = Math.floor(G.t);
     if (score > +(localStorage.getItem('tzs_best') || 0)) localStorage.setItem('tzs_best', score);
   }
