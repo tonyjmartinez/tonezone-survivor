@@ -22,4 +22,4 @@
 - [ ] Sprites instead of circles
 - [ ] Spatial hash for collision to support 1000+ enemies
 - [x] Meta upgrades with gold (run 10)
-- [ ] Character select
+- [x] Character select (run 12)

@@ -15,5 +15,6 @@
 - 2026-10-23 run 9: themed floor (checker tiles + hashed stone/grass decorations, no assets). Duplicate PR #8 (re-did run 2 work) closed; branch reset to main again.
 - 2026-10-23 run 10: gold + meta upgrades. Death awards gold (kills + t/10) into localStorage `tzs_gold`; title screen keys 1-3 buy Toughness/Power/Fleetfoot (`tzs_meta`, `META` in game.js), applied in `newGame()`. Smoke test covers a purchase; `__tzs.state` now settable.
 - 2026-10-23 run 11 (second branch session): reset to main; added Wisp (swarm of 5, from 2:00) and Golem (tanky, from 4:00) enemy types. Smoke + bot pass.
+- 2026-10-23 run 12: character select (title: left/right or A/D; saved in `tzs_char`): Mage/Knight/Druid/Rogue with different start weapon + stat tweaks (`CHARS` in game.js). Smoke covers it. Run-12 first attempt duplicated main again (PR #12 closed) - ALWAYS fetch origin/main first.
 ## Next steps
 - Check `origin/main` before starting (parallel session branches exist). Spatial hash, sprites, character select, more enemy variety, real playtest balance (5+ min). See ROADMAP "Next".

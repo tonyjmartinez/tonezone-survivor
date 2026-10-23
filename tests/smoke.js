@@ -20,6 +20,12 @@ const path = require('path');
     return { gold: g, maxHp: t.G.p.maxHp };
   });
   if (meta.gold !== 80 || meta.maxHp !== 130) { console.log('meta upgrade failed', JSON.stringify(meta)); errs.push('meta'); }
+  const chr = await pg.evaluate(() => {
+    const t = window.__tzs; t.state = 'title'; t.press('arrowright'); t.start();
+    const o = { w: Object.keys(t.G.w).join(), maxHp: t.G.p.maxHp };
+    t.state = 'title'; t.press('arrowleft'); return o;
+  });
+  if (chr.w !== 'whip' || chr.maxHp !== 160) { console.log('char select failed', JSON.stringify(chr)); errs.push('char'); }
   console.log(JSON.stringify(r), errs);
   await b.close();
   if (errs.length || r.kills < 1) process.exit(1);
