@@ -45,6 +45,7 @@ const ENEMY_TYPES = [
   { name: 'golem', hp: 220, speed: 35,  r: 22, dmg: 22, xp: 15, color: '#94a3b8', from: 240 },
 ];
 const BOSS_EVERY = 120; // seconds
+const HORDE_EVERY = 75; // seconds; ring of enemies closes in on the player
 
 // ---------- state ----------
 let state = 'title'; // title | play | levelup | dead | pause
@@ -80,7 +81,7 @@ function pickChar(d) { charIdx = (charIdx + d + CHARS.length) % CHARS.length; tr
 function newGame() {
   const mu = loadMeta(), ch = CHARS[charIdx];
   G = {
-    t: 0, kills: 0, spawnAcc: 0, nextBoss: BOSS_EVERY,
+    t: 0, kills: 0, spawnAcc: 0, nextBoss: BOSS_EVERY, nextHorde: HORDE_EVERY, hordeBanner: 0,
     cam: { x: 0, y: 0 },
     p: { x: 0, y: 0, r: 10, hp: 120 + ch.hp + 10 * (mu.hp || 0), maxHp: 120 + ch.hp + 10 * (mu.hp || 0), speed: 140 * ch.spd * (1 + 0.03 * (mu.spd || 0)), dmgMul: ch.dmg * (1 + 0.05 * (mu.dmg || 0)), magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 3 },
     w: { [ch.w]: 1 }, pa: {},
@@ -170,6 +171,16 @@ function spawnEnemy(boss) {
   for (let i = 0; i < n; i++) G.enemies.push({ x: G.p.x + Math.cos(a) * d + (i ? rnd(-30, 30) : 0), y: G.p.y + Math.sin(a) * d + (i ? rnd(-30, 30) : 0), r: base.r, hp: base.hp * hpScale * (boss ? 1 + G.t / 240 : 1), speed: base.speed * (1 + Math.min(G.t / 600, 0.6)), dmg: base.dmg, xp: base.xp, color: base.color, flash: 0, boss, kind: base.name });
 }
 
+function spawnHorde() {
+  const types = ENEMY_TYPES.filter(t => G.t >= t.from && !t.pack), base = types[types.length - 1 - ((Math.random() * Math.min(2, types.length)) | 0)];
+  const n = Math.min(40, 20 + Math.floor(G.t / 20)), d = Math.hypot(W, H) / 2 + 60, hpScale = 1 + G.t / 90;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    G.enemies.push({ x: G.p.x + Math.cos(a) * d, y: G.p.y + Math.sin(a) * d, r: base.r, hp: base.hp * hpScale, speed: base.speed * (1 + Math.min(G.t / 600, 0.6)), dmg: base.dmg, xp: base.xp, color: base.color, flash: 0, kind: base.name });
+  }
+  G.hordeBanner = 2.5; G.shake = Math.max(G.shake, 0.3);
+}
+
 // ---------- update ----------
 function update(dt) {
   const p = G.p;
@@ -188,6 +199,8 @@ function update(dt) {
   // spawn
   G.spawnAcc += spawnRate() * dt;
   while (G.spawnAcc >= 1 && G.enemies.length < 800) { G.spawnAcc--; spawnEnemy(false); }
+  if (G.t >= G.nextHorde) { G.nextHorde += HORDE_EVERY; spawnHorde(); }
+  G.hordeBanner = Math.max(0, G.hordeBanner - dt);
   if (G.t >= G.nextBoss) { G.nextBoss += BOSS_EVERY; spawnEnemy(true); }
 
   // weapons
@@ -497,6 +510,7 @@ function render() {
   ctx.fillStyle = '#333'; ctx.fillRect(16, 24, 160, 12);
   ctx.fillStyle = '#ef4444'; ctx.fillRect(16, 24, 160 * Math.max(0, p.hp / p.maxHp), 12);
   text(fmt(G.t), W / 2, 40, 22);
+  if (G.hordeBanner > 0) text('A HORDE APPROACHES!', W / 2, 70, 20, '#f87171');
   text('Kills ' + G.kills, W - 16, 40, 16, '#fff', 'right');
   let y = 56; ctx.textAlign = 'left';
   for (const k in G.w) { text(`${WEAPONS[k].name} ${G.w[k] >= EVO_LVL ? 'EVO' : G.w[k]}`, 16, y, 12, '#fde047', 'left'); y += 14; }
