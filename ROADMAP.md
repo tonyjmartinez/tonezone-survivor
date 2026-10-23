@@ -29,3 +29,4 @@
 - [x] Horde ring events every 75s (run 20)
 - [x] Lightning weapon (run 21)
 - [x] Vacuum pickup (run 22)
+- [x] Armor passive (run 23)

@@ -33,6 +33,7 @@ const PASSIVES = {
   magnet: { name: 'Magnet', desc: '+40% pickup range', max: 5 },
   haste:  { name: 'Haste', desc: '-10% cooldowns', max: 5 },
   regen:  { name: 'Recovery', desc: '+0.5 HP per second', max: 5 },
+  armor:  { name: 'Armor', desc: '-1 damage taken per hit', max: 5 },
 };
 // Evolution: a maxed weapon + its paired passive, opened via boss chest, jumps to level 8 (EVO).
 const EVOLVE = { bolt: 'haste', orbit: 'might', nova: 'magnet', boomer: 'speed', whip: 'health', garlic: 'haste', zap: 'regen' };
@@ -156,6 +157,7 @@ function applyChoice(c) {
     if (c.k === 'magnet') p.magnet *= 1.4;
     if (c.k === 'haste') p.cdMul *= 0.9;
     if (c.k === 'regen') p.regen = (p.regen || 0) + 0.5;
+    if (c.k === 'armor') p.armor = (p.armor || 0) + 1;
   }
 }
 const choiceRects = () => [0, 1, 2].map(i => ({ x: W / 2 - 150, y: H / 2 - 120 + i * 90, w: 300, h: 76 }));
@@ -340,7 +342,7 @@ function update(dt) {
         if (dx * dx + dy * dy < min * min) { const d = Math.hypot(dx, dy) || 1, k = (min - d) / 2 / d; e.x += dx * k; e.y += dy * k; o.x -= dx * k; o.y -= dy * k; }
       }
     }
-    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= e.dmg; p.hurt = 0.6; G.shake = 0.25; sfx(120, 0.15, 'sawtooth', 0.06); }
+    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= Math.max(1, e.dmg - (p.armor || 0)); p.hurt = 0.6; G.shake = 0.25; sfx(120, 0.15, 'sawtooth', 0.06); }
   }
   for (const e of G.enemies) if (e.hp <= 0) {
     G.kills++; sfx(260 + Math.random() * 80, 0.06);
