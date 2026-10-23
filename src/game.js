@@ -334,12 +334,15 @@ function render() {
   const { cam, p } = G;
   const sh = G.shake * 20;
   ctx.save(); ctx.translate(-cam.x + rnd(-sh, sh), -cam.y + rnd(-sh, sh));
-  // grid floor
-  ctx.strokeStyle = '#262636'; ctx.lineWidth = 1; ctx.beginPath();
-  const gs = 64, x0 = Math.floor(cam.x / gs) * gs, y0 = Math.floor(cam.y / gs) * gs;
-  for (let x = x0; x < cam.x + W + gs; x += gs) { ctx.moveTo(x, cam.y); ctx.lineTo(x, cam.y + H); }
-  for (let y = y0; y < cam.y + H + gs; y += gs) { ctx.moveTo(cam.x, y); ctx.lineTo(cam.x + W, y); }
-  ctx.stroke();
+  // themed floor: checker tiles + hashed decorations (stones/grass tufts), deterministic per tile
+  const gs = 64, x0 = Math.floor(cam.x / gs), y0 = Math.floor(cam.y / gs);
+  for (let ty = y0; ty <= y0 + Math.ceil(H / gs) + 1; ty++) for (let tx = x0; tx <= x0 + Math.ceil(W / gs) + 1; tx++) {
+    const h = (Math.imul(tx, 73856093) ^ Math.imul(ty, 19349663)) >>> 0, px = tx * gs, py = ty * gs;
+    if ((tx + ty) & 1) { ctx.fillStyle = '#1f1f2c'; ctx.fillRect(px, py, gs, gs); }
+    const d = h % 11;
+    if (d === 0) { ctx.fillStyle = '#2f2f42'; ctx.beginPath(); ctx.ellipse(px + (h >> 4) % 48 + 8, py + (h >> 9) % 48 + 8, 7, 4, 0, 0, 7); ctx.fill(); }
+    else if (d === 1) { ctx.strokeStyle = '#2f4a3c'; ctx.lineWidth = 2; const gx = px + (h >> 4) % 48 + 8, gy = py + (h >> 9) % 48 + 12; ctx.beginPath(); ctx.moveTo(gx - 4, gy); ctx.lineTo(gx - 6, gy - 7); ctx.moveTo(gx, gy); ctx.lineTo(gx, gy - 9); ctx.moveTo(gx + 4, gy); ctx.lineTo(gx + 6, gy - 7); ctx.stroke(); }
+  }
   for (const g of G.gems) circle(g.x, g.y, g.big ? 7 : 4, g.v >= 5 ? '#f0abfc' : '#38bdf8');
   for (const h of G.hearts) circle(h.x, h.y, 6, '#f43f5e');
   for (const c of G.chests) { ctx.fillStyle = '#b45309'; ctx.fillRect(c.x - 12, c.y - 9, 24, 18); ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2; ctx.strokeRect(c.x - 12, c.y - 9, 24, 18); }
