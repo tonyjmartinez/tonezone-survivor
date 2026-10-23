@@ -328,6 +328,13 @@ function update(dt) {
     if (d2 < (p.r + 6) ** 2) { g.dead = true; p.xp += g.v; }
   }
   G.gems = G.gems.filter(g => !g.dead);
+  // merge far-away small gems when too many pile up (keeps XP, saves frame time)
+  if (G.gems.length > 300) {
+    let pool = 0; const keep = [];
+    for (const g of G.gems) { if (!g.pull && !g.big && g.v < 5 && dist2(p, g) > 500 * 500) pool += g.v; else keep.push(g); }
+    if (pool) keep.push({ x: p.x + rnd(-1, 1) * 500 + 520, y: p.y + rnd(-1, 1) * 500, v: pool, big: pool >= 5 });
+    G.gems = keep;
+  }
   if (p.xp >= p.need && state === 'play') {
     p.xp -= p.need; p.lvl++; p.need = Math.round(p.need * 1.22 + 2);
     G.choices = rollChoices();
@@ -405,6 +412,22 @@ function drawEnemy(e) {
 }
 function circle(x, y, r, color) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); }
 
+function drawGem(g) {
+  const r = g.big ? 8 : g.v >= 5 ? 6 : 4.5;
+  ctx.fillStyle = g.v >= 5 ? '#f0abfc' : '#38bdf8';
+  ctx.beginPath(); ctx.moveTo(g.x, g.y - r); ctx.lineTo(g.x + r * 0.75, g.y); ctx.lineTo(g.x, g.y + r); ctx.lineTo(g.x - r * 0.75, g.y); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.55)';
+  ctx.beginPath(); ctx.moveTo(g.x, g.y - r); ctx.lineTo(g.x + r * 0.75, g.y); ctx.lineTo(g.x, g.y); ctx.closePath(); ctx.fill();
+}
+function drawChest(c) {
+  const x = c.x, y = c.y + Math.sin(G.t * 3) * 1.5;
+  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(c.x, c.y + 11, 14, 4, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#92400e'; ctx.fillRect(x - 13, y - 4, 26, 14);
+  ctx.fillStyle = '#b45309'; ctx.beginPath(); ctx.moveTo(x - 13, y - 4); ctx.quadraticCurveTo(x, y - 18, x + 13, y - 4); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#fde047'; ctx.fillRect(x - 13, y - 5, 26, 3); ctx.fillRect(x - 2, y - 3, 4, 7);
+  ctx.strokeStyle = '#78350f'; ctx.lineWidth = 1.5; ctx.strokeRect(x - 13, y - 4, 26, 14);
+}
+
 function render() {
   ctx.fillStyle = '#1b1b26'; ctx.fillRect(0, 0, W, H);
   if (state === 'title') {
@@ -432,9 +455,9 @@ function render() {
     if (d === 0) { ctx.fillStyle = '#2f2f42'; ctx.beginPath(); ctx.ellipse(px + (h >> 4) % 48 + 8, py + (h >> 9) % 48 + 8, 7, 4, 0, 0, 7); ctx.fill(); }
     else if (d === 1) { ctx.strokeStyle = '#2f4a3c'; ctx.lineWidth = 2; const gx = px + (h >> 4) % 48 + 8, gy = py + (h >> 9) % 48 + 12; ctx.beginPath(); ctx.moveTo(gx - 4, gy); ctx.lineTo(gx - 6, gy - 7); ctx.moveTo(gx, gy); ctx.lineTo(gx, gy - 9); ctx.moveTo(gx + 4, gy); ctx.lineTo(gx + 6, gy - 7); ctx.stroke(); }
   }
-  for (const g of G.gems) circle(g.x, g.y, g.big ? 7 : 4, g.v >= 5 ? '#f0abfc' : '#38bdf8');
+  for (const g of G.gems) drawGem(g);
   for (const h of G.hearts) drawHeart(h.x, h.y + Math.sin(G.t * 5 + h.x) * 1.5);
-  for (const c of G.chests) { ctx.fillStyle = '#b45309'; ctx.fillRect(c.x - 12, c.y - 9, 24, 18); ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2; ctx.strokeRect(c.x - 12, c.y - 9, 24, 18); }
+  for (const c of G.chests) drawChest(c);
   for (const e of G.enemies) {
     drawEnemy(e);
     if (e.boss) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 3, 0, 7); ctx.stroke(); }
