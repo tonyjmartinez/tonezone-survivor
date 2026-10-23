@@ -21,6 +21,7 @@ const WEAPONS = {
   bolt:  { name: 'Magic Bolt', desc: 'Fires at nearest enemy', max: 6 },
   orbit: { name: 'Orbiting Orbs', desc: 'Orbs circle you', max: 6 },
   nova:  { name: 'Pulse Nova', desc: 'Periodic shockwave', max: 6 },
+  garlic: { name: 'Garlic Aura', desc: 'Damages & slows nearby foes', max: 6 },
 };
 const PASSIVES = {
   might:  { name: 'Might', desc: '+20% damage', max: 5 },
@@ -159,6 +160,13 @@ function update(dt) {
       }
     }
   }
+  const wg = G.w.garlic;
+  if (wg) {
+    const gr = 50 + wg * 12;
+    G.timers.garlic = (G.timers.garlic || 0) - dt;
+    const tick = G.timers.garlic <= 0; if (tick) G.timers.garlic = 0.5 * p.cdMul;
+    for (const e of G.enemies) if (dist2(p, e) < (gr + e.r) ** 2) { e.slow = 0.1; if (tick) damage(e, 3 + wg * 1.5); }
+  }
   const wn = G.w.nova;
   if (wn) {
     G.timers.nova -= dt;
@@ -187,7 +195,8 @@ function update(dt) {
   for (let i = 0; i < G.enemies.length; i++) {
     const e = G.enemies[i];
     const a = Math.atan2(p.y - e.y, p.x - e.x);
-    e.x += Math.cos(a) * e.speed * dt; e.y += Math.sin(a) * e.speed * dt;
+    const sp = e.slow > 0 ? 0.6 : 1; e.slow = Math.max(0, (e.slow || 0) - dt);
+    e.x += Math.cos(a) * e.speed * sp * dt; e.y += Math.sin(a) * e.speed * sp * dt;
     e.flash = Math.max(0, e.flash - dt);
     // soft separation (cheap: only against next few)
     for (let j = i + 1; j < Math.min(i + 6, G.enemies.length); j++) {
@@ -270,6 +279,7 @@ function render() {
   for (const q of G.parts) circle(q.x, q.y, 2, q.c);
   for (const s of G.shots) circle(s.x, s.y, 5, '#fef08a');
   if (G.w.orbit) { const n = 1 + G.w.orbit, rad = 60 + G.w.orbit * 4; for (let i = 0; i < n; i++) { const a = G.orbAng + (i / n) * Math.PI * 2; circle(p.x + Math.cos(a) * rad, p.y + Math.sin(a) * rad, 7, '#c4b5fd'); } }
+  if (G.w.garlic) { ctx.fillStyle = 'rgba(167,243,208,.12)'; ctx.beginPath(); ctx.arc(p.x, p.y, 50 + G.w.garlic * 12, 0, 7); ctx.fill(); }
   if (G.novaRing) { ctx.strokeStyle = 'rgba(125,211,252,' + (G.novaRing.t / 0.3) + ')'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(p.x, p.y, G.novaRing.r, 0, 7); ctx.stroke(); }
   circle(p.x, p.y, p.r, p.hurt > 0 && ((p.hurt * 20) | 0) % 2 ? '#fca5a5' : '#f8fafc');
   circle(p.x, p.y - 2, 3, '#1e293b');
@@ -324,5 +334,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { get state() { return state; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey };
+window.__tzs = { keys, get state() { return state; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey };
 })();
