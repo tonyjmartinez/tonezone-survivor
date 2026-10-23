@@ -81,7 +81,7 @@ function newGame() {
   G = {
     t: 0, kills: 0, spawnAcc: 0, nextBoss: BOSS_EVERY,
     cam: { x: 0, y: 0 },
-    p: { x: 0, y: 0, r: 10, hp: 120 + ch.hp + 10 * (mu.hp || 0), maxHp: 120 + ch.hp + 10 * (mu.hp || 0), speed: 140 * ch.spd * (1 + 0.03 * (mu.spd || 0)), dmgMul: ch.dmg * (1 + 0.05 * (mu.dmg || 0)), magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 5 },
+    p: { x: 0, y: 0, r: 10, hp: 120 + ch.hp + 10 * (mu.hp || 0), maxHp: 120 + ch.hp + 10 * (mu.hp || 0), speed: 140 * ch.spd * (1 + 0.03 * (mu.spd || 0)), dmgMul: ch.dmg * (1 + 0.05 * (mu.dmg || 0)), magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 3 },
     w: { [ch.w]: 1 }, pa: {},
     enemies: [], shots: [], gems: [], booms: [], hearts: [], chests: [], parts: [], shake: 0, fx: [], texts: [],
     timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
@@ -329,7 +329,7 @@ function update(dt) {
   }
   G.gems = G.gems.filter(g => !g.dead);
   if (p.xp >= p.need && state === 'play') {
-    p.xp -= p.need; p.lvl++; p.need = Math.round(p.need * 1.35 + 3);
+    p.xp -= p.need; p.lvl++; p.need = Math.round(p.need * 1.22 + 2);
     G.choices = rollChoices();
     if (G.choices.length) { state = 'levelup'; sfx(660, 0.25, 'triangle', 0.07); }
   }
