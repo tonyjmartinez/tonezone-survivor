@@ -23,5 +23,6 @@
 - 2026-10-23 run 17: fetched origin/main first. Gem diamond sprites (`drawGem`), bobbing chest sprite (`drawChest`), and far small-gem merging when >300 gems. Smoke + bot (140-168s) pass.
 - 2026-10-23 run 18: fetched origin/main first (stale branch again, reset). Added `drawBolt` (rotated glowing bolt w/ trail) and spinning `drawBoom` sprites.
 - 2026-10-23 run 19: fetched origin/main first (branch was stale again; my duplicate run-2 work discarded). Added Recovery passive (+0.5 HP/s per level, `p.regen`).
+- 2026-10-23 run 20: fetched origin/main first (discarded my duplicate run-2 work again). Added horde events: every 75s a ring of 20-40 enemies spawns around the player with a banner (`spawnHorde`, `HORDE_EVERY`). Bot 135-149s (was ~160), smoke passes.
 ## Next steps
 - Check `origin/main` before starting (parallel session branches exist). use hash for weapon queries (low value), more weapons/enemy variety, sprite polish for projectiles, real playtest balance (5+ min). See ROADMAP "Next".
