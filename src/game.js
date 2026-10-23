@@ -21,6 +21,7 @@ const WEAPONS = {
   bolt:  { name: 'Magic Bolt', desc: 'Fires at nearest enemy', max: 6 },
   orbit: { name: 'Orbiting Orbs', desc: 'Orbs circle you', max: 6 },
   nova:  { name: 'Pulse Nova', desc: 'Periodic shockwave', max: 6 },
+  boomer: { name: 'Boomerang', desc: 'Flies out and returns, piercing', max: 6 },
   garlic: { name: 'Garlic Aura', desc: 'Damages & slows nearby foes', max: 6 },
 };
 const PASSIVES = {
@@ -49,7 +50,7 @@ function newGame() {
     cam: { x: 0, y: 0 },
     p: { x: 0, y: 0, r: 10, hp: 120, maxHp: 120, speed: 140, dmgMul: 1, magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 5 },
     w: { bolt: 1 }, pa: {},
-    enemies: [], shots: [], gems: [], hearts: [], parts: [], shake: 0, fx: [], texts: [],
+    enemies: [], shots: [], gems: [], booms: [], hearts: [], parts: [], shake: 0, fx: [], texts: [],
     timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
     choices: [],
   };
@@ -160,6 +161,28 @@ function update(dt) {
       }
     }
   }
+  const wbm = G.w.boomer;
+  if (wbm) {
+    G.timers.boomer = (G.timers.boomer || 0) - dt;
+    if (G.timers.boomer <= 0) {
+      const t = nearest(p, 600);
+      if (t) {
+        G.timers.boomer = (2.2 - wbm * 0.15) * p.cdMul;
+        const a = Math.atan2(t.y - p.y, t.x - p.x);
+        G.booms.push({ x: p.x, y: p.y, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, age: 0, dmg: 10 + wbm * 3 });
+      }
+    }
+  }
+  for (const b of G.booms) {
+    b.age += dt;
+    const k = b.age < 0.7 ? 1 : 0; // outbound, then home on player
+    if (!k) { const a = Math.atan2(p.y - b.y, p.x - b.x); b.vx = Math.cos(a) * 380; b.vy = Math.sin(a) * 380; }
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    for (const e of G.enemies) if (dist2(b, e) < (e.r + 9) ** 2 && !(e.boomHit > G.t)) { e.boomHit = G.t + 0.35; damage(e, b.dmg); }
+    if (!k && dist2(b, p) < (p.r + 8) ** 2) b.dead = true;
+    if (b.age > 4) b.dead = true;
+  }
+  G.booms = G.booms.filter(b => !b.dead);
   const wg = G.w.garlic;
   if (wg) {
     const gr = 50 + wg * 12;
@@ -277,6 +300,7 @@ function render() {
     if (e.boss) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 3, 0, 7); ctx.stroke(); }
   }
   for (const q of G.parts) circle(q.x, q.y, 2, q.c);
+  for (const b of G.booms) circle(b.x, b.y, 8, '#fdba74');
   for (const s of G.shots) circle(s.x, s.y, 5, '#fef08a');
   if (G.w.orbit) { const n = 1 + G.w.orbit, rad = 60 + G.w.orbit * 4; for (let i = 0; i < n; i++) { const a = G.orbAng + (i / n) * Math.PI * 2; circle(p.x + Math.cos(a) * rad, p.y + Math.sin(a) * rad, 7, '#c4b5fd'); } }
   if (G.w.garlic) { ctx.fillStyle = 'rgba(167,243,208,.12)'; ctx.beginPath(); ctx.arc(p.x, p.y, 50 + G.w.garlic * 12, 0, 7); ctx.fill(); }
