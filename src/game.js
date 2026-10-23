@@ -24,6 +24,7 @@ const WEAPONS = {
   boomer: { name: 'Boomerang', desc: 'Flies out and returns, piercing', max: 6 },
   whip:  { name: 'Whip', desc: 'Wide arc slash at nearest foe', max: 6 },
   garlic: { name: 'Garlic Aura', desc: 'Damages & slows nearby foes', max: 6 },
+  zap:   { name: 'Lightning', desc: 'Strikes random foes on screen', max: 6 },
 };
 const PASSIVES = {
   might:  { name: 'Might', desc: '+20% damage', max: 5 },
@@ -34,7 +35,7 @@ const PASSIVES = {
   regen:  { name: 'Recovery', desc: '+0.5 HP per second', max: 5 },
 };
 // Evolution: a maxed weapon + its paired passive, opened via boss chest, jumps to level 8 (EVO).
-const EVOLVE = { bolt: 'haste', orbit: 'might', nova: 'magnet', boomer: 'speed', whip: 'health', garlic: 'haste' };
+const EVOLVE = { bolt: 'haste', orbit: 'might', nova: 'magnet', boomer: 'speed', whip: 'health', garlic: 'haste', zap: 'regen' };
 const EVO_LVL = 8;
 const ENEMY_TYPES = [
   { name: 'bat',   hp: 8,   speed: 70,  r: 9,  dmg: 6,  xp: 1, color: '#a78bfa', from: 0 },
@@ -85,7 +86,7 @@ function newGame() {
     cam: { x: 0, y: 0 },
     p: { x: 0, y: 0, r: 10, hp: 120 + ch.hp + 10 * (mu.hp || 0), maxHp: 120 + ch.hp + 10 * (mu.hp || 0), speed: 140 * ch.spd * (1 + 0.03 * (mu.spd || 0)), dmgMul: ch.dmg * (1 + 0.05 * (mu.dmg || 0)), magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 3 },
     w: { [ch.w]: 1 }, pa: {},
-    enemies: [], shots: [], gems: [], booms: [], hearts: [], chests: [], parts: [], shake: 0, fx: [], texts: [],
+    enemies: [], shots: [], gems: [], booms: [], bolts: [], hearts: [], chests: [], parts: [], shake: 0, fx: [], texts: [],
     timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
     choices: [], gold: 0,
   };
@@ -269,6 +270,22 @@ function update(dt) {
     }
   }
   if (G.slash) { G.slash.t -= dt; if (G.slash.t <= 0) G.slash = null; }
+  const wz = G.w.zap;
+  if (wz) {
+    G.timers.zap = (G.timers.zap || 0) - dt;
+    if (G.timers.zap <= 0 && G.enemies.length) {
+      G.timers.zap = (2.0 - wz * 0.12) * p.cdMul;
+      const n = 1 + Math.ceil(wz / 2), rx = W / 2 + 40, ry = H / 2 + 40;
+      const vis = G.enemies.filter(e => Math.abs(e.x - p.x) < rx && Math.abs(e.y - p.y) < ry);
+      for (let i = 0; i < n && vis.length; i++) {
+        const e = vis.splice((Math.random() * vis.length) | 0, 1)[0];
+        damage(e, 18 + wz * 6);
+        G.bolts.push({ x: e.x, y: e.y, t: 0.2 });
+      }
+    }
+  }
+  for (const b of G.bolts) b.t -= dt;
+  G.bolts = G.bolts.filter(b => b.t > 0);
   const wg = G.w.garlic;
   if (wg) {
     const gr = 50 + wg * 12;
@@ -494,6 +511,12 @@ function render() {
   }
   for (const q of G.parts) circle(q.x, q.y, 2, q.c);
   for (const b of G.booms) drawBoom(b);
+  for (const b of G.bolts) {
+    ctx.strokeStyle = `rgba(253,224,71,${b.t / 0.2})`; ctx.lineWidth = 3; ctx.beginPath();
+    let x = b.x + rnd(-10, 10), y = b.y - 260; ctx.moveTo(x, y);
+    for (let i = 1; i <= 6; i++) { x = i === 6 ? b.x : b.x + rnd(-14, 14); y = b.y - 260 + i * 260 / 6; ctx.lineTo(x, y); }
+    ctx.stroke();
+  }
   for (const s of G.shots) drawBolt(s);
   if (G.w.orbit) { const n = 1 + G.w.orbit, rad = 60 + G.w.orbit * 4; for (let i = 0; i < n; i++) { const a = G.orbAng + (i / n) * Math.PI * 2; circle(p.x + Math.cos(a) * rad, p.y + Math.sin(a) * rad, 7, '#c4b5fd'); } }
   if (G.w.garlic) { ctx.fillStyle = 'rgba(167,243,208,.12)'; ctx.beginPath(); ctx.arc(p.x, p.y, 50 + G.w.garlic * 12, 0, 7); ctx.fill(); }
