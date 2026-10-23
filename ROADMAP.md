@@ -9,9 +9,12 @@
 - [x] Headless smoke test
 ## Next
 - [ ] Balance pass (playtest 5+ minute survival; currently idle player dies ~30s)
-- [ ] Health pickups, treasure chests, screen shake / hit particles
-- [ ] More weapons (whip/arc, boomerang, garlic aura) and weapon evolutions
-- [ ] Sound (WebAudio bleeps), pause key (P/Esc)
+- [x] Health pickups, screen shake / hit particles (run 2)
+- [ ] Treasure chests
+- [x] Garlic aura weapon (run 2)
+- [ ] More weapons (whip/arc, boomerang) and weapon evolutions
+- [x] Pause key P/Esc (run 2)
+- [ ] Sound (WebAudio bleeps)
 - [ ] Sprites instead of circles, themed floor tiles
 - [ ] Spatial hash for collision to support 1000+ enemies
 - [ ] Character select, meta upgrades with gold
