@@ -33,6 +33,7 @@ const PASSIVES = {
   magnet: { name: 'Magnet', desc: '+40% pickup range', max: 5 },
   haste:  { name: 'Haste', desc: '-10% cooldowns', max: 5 },
   regen:  { name: 'Recovery', desc: '+0.5 HP per second', max: 5 },
+  luck:   { name: 'Luck', desc: '+30% pickup drop chance', max: 5 },
   armor:  { name: 'Armor', desc: '-1 damage taken per hit', max: 5 },
 };
 // Evolution: a maxed weapon + its paired passive, opened via boss chest, jumps to level 8 (EVO).
@@ -157,6 +158,7 @@ function applyChoice(c) {
     if (c.k === 'magnet') p.magnet *= 1.4;
     if (c.k === 'haste') p.cdMul *= 0.9;
     if (c.k === 'regen') p.regen = (p.regen || 0) + 0.5;
+    if (c.k === 'luck') p.luck = (p.luck || 1) * 1.3;
     if (c.k === 'armor') p.armor = (p.armor || 0) + 1;
   }
 }
@@ -347,9 +349,9 @@ function update(dt) {
   for (const e of G.enemies) if (e.hp <= 0) {
     G.kills++; sfx(260 + Math.random() * 80, 0.06);
     G.gems.push({ x: e.x, y: e.y, v: e.xp, big: e.boss });
-    if (e.boss || Math.random() < 0.025) G.hearts.push({ x: e.x + 8, y: e.y, heal: e.boss ? 60 : 20 });
-    if (Math.random() < 0.006) G.vacs.push({ x: e.x - 8, y: e.y });
-    if (Math.random() < 0.004) G.bombs.push({ x: e.x + 8, y: e.y - 8 });
+    if (e.boss || Math.random() < 0.025 * (G.p.luck || 1)) G.hearts.push({ x: e.x + 8, y: e.y, heal: e.boss ? 60 : 20 });
+    if (Math.random() < 0.006 * (G.p.luck || 1)) G.vacs.push({ x: e.x - 8, y: e.y });
+    if (Math.random() < 0.004 * (G.p.luck || 1)) G.bombs.push({ x: e.x + 8, y: e.y - 8 });
     if (e.boss) G.chests.push({ x: e.x - 12, y: e.y });
     if (e.boss) for (let k = 0; k < 8; k++) G.gems.push({ x: e.x + rnd(-30, 30), y: e.y + rnd(-30, 30), v: 5 });
   }
