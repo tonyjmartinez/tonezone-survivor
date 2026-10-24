@@ -14,7 +14,7 @@ const path = require('path');
         for (const e of G.enemies) { const dx = p.x - e.x, dy = p.y - e.y, d2 = dx * dx + dy * dy + 1; if (d2 < 250 * 250) { fx += dx / d2; fy += dy / d2; } }
         for (const g of G.gems) { const dx = g.x - p.x, dy = g.y - p.y, d2 = dx * dx + dy * dy + 1; if (d2 < 200 * 200) { fx += dx / d2 * 0.02; fy += dy / d2 * 0.02; } }
         const k = t.keys; k.a = fx < -1e-5; k.d = fx > 1e-5; k.w = fy < -1e-5; k.s = fy > 1e-5;
-        t.update(1 / 60); if (t.state === 'levelup') t.press('1'); if (t.state === 'dead') break;
+        t.update(1 / 60); if (t.state === 'levelup') { const c = t.G.choices; const i = c.findIndex(x => x.kind === 'w'); t.press(String((i < 0 ? 0 : i) + 1)); } if (t.state === 'dead') break;
       }
       out.push(Math.round(t.G.t));
     }
