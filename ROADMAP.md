@@ -31,3 +31,4 @@
 - [x] Vacuum pickup (run 22)
 - [x] Armor passive (run 23)
 - [x] Bomb pickup (run 25)
+- [x] Luck passive (run 26)
