@@ -32,5 +32,6 @@
 - 2026-10-24 run 26: fetched origin/main first (my branch was stale again; discarded a duplicate of runs 2-25). Added Luck passive (`p.luck` multiplies heart/vacuum/bomb drop chance). Smoke passes.
 - 2026-10-24 run 27: fetched origin/main first (reset). Added Growth passive (+15% XP per level, `p.xpMul`). Smoke passes.
 - 2026-10-24 run 28: fetched origin/main first; my branch held a duplicate of runs 2-27 again (PR #30 conflicted; closed). Reset to main, added Freeze pickup (0.4% drop, `G.ices`, `G.freeze` stops enemy movement 4s). Smoke + bot (126-156s) pass.
+- 2026-10-24 run 29: fetched origin/main first (branch stale again; discarded a duplicate of runs 2-28 incl. a re-done pause/hearts/particles). Added frozen-screen blue tint while Freeze is active. Smoke passes.
 ## Next steps
 - Check `origin/main` before starting (parallel session branches exist). use hash for weapon queries (low value), more weapons/enemy variety, sprite polish for projectiles, real playtest balance (5+ min). See ROADMAP "Next".
