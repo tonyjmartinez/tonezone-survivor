@@ -37,3 +37,4 @@
 - [x] Boss HP bar (run 31)
 - [x] Win condition: survive 10:00 for 'YOU SURVIVED' + 200 bonus gold (run 32)
 - [x] Hard mode toggle on title (H): +40% spawns, +50% gold (run 35)
+- [x] 'NEW BEST!' marker on end screen (run 37)
