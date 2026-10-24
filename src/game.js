@@ -90,7 +90,7 @@ function newGame() {
   G = {
     t: 0, kills: 0, spawnAcc: 0, nextBoss: BOSS_EVERY, nextHorde: HORDE_EVERY, hordeBanner: 0,
     cam: { x: 0, y: 0 },
-    p: { x: 0, y: 0, r: 10, hp: 120 + ch.hp + 10 * (mu.hp || 0), maxHp: 120 + ch.hp + 10 * (mu.hp || 0), speed: 140 * ch.spd * (1 + 0.03 * (mu.spd || 0)), dmgMul: ch.dmg * (1 + 0.05 * (mu.dmg || 0)), magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 3 },
+    p: { x: 0, y: 0, r: 10, hp: 120 + ch.hp + 10 * (mu.hp || 0), maxHp: 120 + ch.hp + 10 * (mu.hp || 0), speed: 140 * ch.spd * (1 + 0.03 * (mu.spd || 0)), dmgMul: ch.dmg * (1 + 0.05 * (mu.dmg || 0)), magnet: 60, cdMul: 1, hurt: 0, dashT: 0, dashCd: 0, face: { x: 1, y: 0 }, xp: 0, lvl: 1, need: 3 },
     w: { [ch.w]: 1 }, pa: {},
     enemies: [], shots: [], gems: [], booms: [], bolts: [], hearts: [], vacs: [], bombs: [], ices: [], freeze: 0, chests: [], parts: [], shake: 0, fx: [], texts: [],
     timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
@@ -114,6 +114,7 @@ function sfx(freq, dur = 0.08, type = 'square', vol = 0.04) {
 
 function onKey(k, e) {
   if (k === 'm') { muted = !muted; return; }
+  if (state === 'play' && (k === 'shift' || k === ' ') && G.p.dashCd <= 0 && G.p.face) { G.p.dashT = 0.16; G.p.dashCd = 2.5; G.p.hurt = Math.max(G.p.hurt, 0.2); sfx(300, 0.08, 'triangle', 0.05); return; }
   if ((k === 'p' || k === 'escape') && (state === 'play' || state === 'pause')) { state = state === 'play' ? 'pause' : 'play'; return; }
   if (state === 'title' && (k === 'arrowleft' || k === 'a')) { pickChar(-1); return; }
   if (state === 'title' && (k === 'arrowright' || k === 'd')) { pickChar(1); return; }
@@ -202,7 +203,10 @@ function update(dt) {
   if (touch) { dx = touch.x - touch.sx; dy = touch.y - touch.sy; const tm = Math.hypot(dx, dy); if (tm > 8) { const k = Math.min(tm, 60) / 60; dx = dx / tm * k; dy = dy / tm * k; } else { dx = dy = 0; } }
   const m = Math.hypot(dx, dy);
   if (m > 1) { dx /= m; dy /= m; }
-  p.x += dx * p.speed * dt; p.y += dy * p.speed * dt;
+  const fm = Math.hypot(dx, dy); if (fm > 0.05) p.face = { x: dx / fm, y: dy / fm };
+  p.dashCd = Math.max(0, p.dashCd - dt);
+  if (p.dashT > 0) { p.dashT -= dt; p.x += p.face.x * p.speed * 4 * dt; p.y += p.face.y * p.speed * 4 * dt; }
+  else { p.x += dx * p.speed * dt; p.y += dy * p.speed * dt; }
   p.hurt = Math.max(0, p.hurt - dt);
   if (p.regen) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
   G.cam.x = p.x - W / 2; G.cam.y = p.y - H / 2;
@@ -569,6 +573,7 @@ function render() {
   text('goal ' + fmt(WIN_TIME), W / 2, 54, 11, '#888');
   if (G.hordeBanner > 0) text('A HORDE APPROACHES!', W / 2, 70, 20, '#f87171');
   text('Kills ' + G.kills, W - 16, 40, 16, '#fff', 'right');
+  text(p.dashCd > 0 ? 'Dash ' + p.dashCd.toFixed(1) : 'Dash READY (Shift/Space)', W - 16, 58, 12, p.dashCd > 0 ? '#888' : '#6ee7b7', 'right');
   let y = 56; ctx.textAlign = 'left';
   for (const k in G.w) { text(`${WEAPONS[k].name} ${G.w[k] >= EVO_LVL ? 'EVO' : G.w[k]}`, 16, y, 12, '#fde047', 'left'); y += 14; }
   for (const k in G.pa) { text(`${PASSIVES[k].name} ${G.pa[k]}`, 16, y, 12, '#a7f3d0', 'left'); y += 14; }
