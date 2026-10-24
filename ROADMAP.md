@@ -38,3 +38,4 @@
 - [x] Win condition: survive 10:00 for 'YOU SURVIVED' + 200 bonus gold (run 32)
 - [x] Hard mode toggle on title (H): +40% spawns, +50% gold (run 35)
 - [x] 'NEW BEST!' marker on end screen (run 37)
+- [x] Dash ability with cooldown + i-frames (run 40)

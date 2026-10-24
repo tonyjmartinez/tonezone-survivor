@@ -43,5 +43,6 @@
 - 2026-10-24 run 37: fetched origin/main first this time (branch was stale again, reset before real work; re-did run-2 build first, discarded). Added 'NEW BEST!' marker on the death screen (`G.newBest`). Smoke passes.
 - 2026-10-24 run 38: AGAIN built the run-2 duplicate (pause/hearts/particles + balance bot) on a stale branch before fetching main; PR #41 conflicted, closed. Reset to main. Added 'goal 10:00' under the HUD timer.
 - 2026-10-24 run 39: stale branch once more (rebuilt run-2 features before checking main; discarded). Added step 0 (sync to origin/main) to CLAUDE.md. ROADMAP has no unchecked items; no gameplay change.
+- 2026-10-24 run 40: fetched origin/main first. Added Dash (Shift/Space, 0.16s at 4x speed + brief i-frames, 2.5s cooldown, HUD readout; `p.dashT/dashCd/face`). Smoke covers it.
 ## Next steps
 - Check `origin/main` before starting (parallel session branches exist). use hash for weapon queries (low value), more weapons/enemy variety, sprite polish for projectiles, real playtest balance (5+ min). See ROADMAP "Next".

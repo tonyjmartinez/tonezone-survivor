@@ -32,6 +32,11 @@ const path = require('path');
     return { state: t.state, won: t.G.won, gold: t.G.gold };
   });
   if (win.state !== 'dead' || !win.won || win.gold < 200) { console.log('win failed', JSON.stringify(win)); errs.push('win'); }
+  const dash = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const x0 = t.G.p.x; t.press('shift'); t.update(0.05); t.render();
+    return { dx: t.G.p.x - x0, cd: t.G.p.dashCd };
+  });
+  if (dash.dx < 20 || dash.cd <= 0) { console.log('dash failed', JSON.stringify(dash)); errs.push('dash'); }
   console.log(JSON.stringify(r), errs);
   await b.close();
   if (errs.length || r.kills < 1) process.exit(1);
