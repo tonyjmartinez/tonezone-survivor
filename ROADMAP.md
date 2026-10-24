@@ -32,3 +32,4 @@
 - [x] Armor passive (run 23)
 - [x] Bomb pickup (run 25)
 - [x] Luck passive (run 26)
+- [x] Growth (XP) passive (run 27)

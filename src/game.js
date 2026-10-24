@@ -35,6 +35,7 @@ const PASSIVES = {
   regen:  { name: 'Recovery', desc: '+0.5 HP per second', max: 5 },
   luck:   { name: 'Luck', desc: '+30% pickup drop chance', max: 5 },
   armor:  { name: 'Armor', desc: '-1 damage taken per hit', max: 5 },
+  growth: { name: 'Growth', desc: '+15% XP from gems', max: 5 },
 };
 // Evolution: a maxed weapon + its paired passive, opened via boss chest, jumps to level 8 (EVO).
 const EVOLVE = { bolt: 'haste', orbit: 'might', nova: 'magnet', boomer: 'speed', whip: 'health', garlic: 'haste', zap: 'regen' };
@@ -160,6 +161,7 @@ function applyChoice(c) {
     if (c.k === 'regen') p.regen = (p.regen || 0) + 0.5;
     if (c.k === 'luck') p.luck = (p.luck || 1) * 1.3;
     if (c.k === 'armor') p.armor = (p.armor || 0) + 1;
+    if (c.k === 'growth') p.xpMul = (p.xpMul || 1) + 0.15;
   }
 }
 const choiceRects = () => [0, 1, 2].map(i => ({ x: W / 2 - 150, y: H / 2 - 120 + i * 90, w: 300, h: 76 }));
@@ -364,7 +366,7 @@ function update(dt) {
   for (const g of G.gems) {
     const d2 = dist2(p, g);
     if (d2 < mr2 || g.pull) { g.pull = true; const a = Math.atan2(p.y - g.y, p.x - g.x); g.x += Math.cos(a) * 320 * dt; g.y += Math.sin(a) * 320 * dt; }
-    if (d2 < (p.r + 6) ** 2) { g.dead = true; p.xp += g.v; }
+    if (d2 < (p.r + 6) ** 2) { g.dead = true; p.xp += g.v * (p.xpMul || 1); }
   }
   G.gems = G.gems.filter(g => !g.dead);
   // merge far-away small gems when too many pile up (keeps XP, saves frame time)

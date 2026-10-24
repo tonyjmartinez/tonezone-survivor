@@ -30,5 +30,6 @@
 - 2026-10-24 run 24: fetched origin/main first; my session branch was stale again and my pause/aura/hearts/particles work was a full duplicate of main, so discarded it. No gameplay change; smoke passes on main. Tip: scheduled sessions start from an old branch - ALWAYS `git fetch origin main && git reset --hard origin/main` before coding.
 - 2026-10-24 run 25: fetched origin/main first (stale branch, reset). Added Bomb pickup (0.4% drop, `G.bombs`; kills on-screen foes, 120 dmg to bosses). Smoke + bot (117-309s) pass.
 - 2026-10-24 run 26: fetched origin/main first (my branch was stale again; discarded a duplicate of runs 2-25). Added Luck passive (`p.luck` multiplies heart/vacuum/bomb drop chance). Smoke passes.
+- 2026-10-24 run 27: fetched origin/main first (reset). Added Growth passive (+15% XP per level, `p.xpMul`). Smoke passes.
 ## Next steps
 - Check `origin/main` before starting (parallel session branches exist). use hash for weapon queries (low value), more weapons/enemy variety, sprite polish for projectiles, real playtest balance (5+ min). See ROADMAP "Next".
