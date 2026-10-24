@@ -1,5 +1,6 @@
 # Agent instructions
 This repo is iterated on by an hourly scheduled Claude run. Every run:
+0. FIRST command: `git fetch origin main && git reset --hard origin/main` (session branches start stale and have repeatedly re-built features already on main).
 1. Read `MEMORY.md` and `ROADMAP.md` first.
 2. Pick the next unchecked roadmap item(s); keep changes small and playable.
 3. Run `node --check src/game.js` and the smoke test in `tests/smoke.js`.
