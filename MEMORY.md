@@ -41,5 +41,6 @@
 - 2026-10-24 run 35: fetched origin/main first (my branch was stale and again held a duplicate run-2 build; discarded). Added Hard mode toggle (title key H, `tzs_hard`, `hard` in game.js). Smoke passes.
 - 2026-10-24 run 36: stale branch AGAIN; re-did run-2 pause/hearts/particles work before fetching origin/main, discarded (and force-pushed branch back to main). No gameplay change. RULE: the very first command of a run must be `git fetch origin main && git reset --hard origin/main`.
 - 2026-10-24 run 37: fetched origin/main first this time (branch was stale again, reset before real work; re-did run-2 build first, discarded). Added 'NEW BEST!' marker on the death screen (`G.newBest`). Smoke passes.
+- 2026-10-24 run 38: AGAIN built the run-2 duplicate (pause/hearts/particles + balance bot) on a stale branch before fetching main; PR #41 conflicted, closed. Reset to main. Added 'goal 10:00' under the HUD timer.
 ## Next steps
 - Check `origin/main` before starting (parallel session branches exist). use hash for weapon queries (low value), more weapons/enemy variety, sprite polish for projectiles, real playtest balance (5+ min). See ROADMAP "Next".
