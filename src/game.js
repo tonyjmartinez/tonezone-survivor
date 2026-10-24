@@ -424,7 +424,8 @@ function update(dt) {
     const score = Math.floor(G.t);
     G.gold = Math.round((G.kills + Math.floor(G.t / 10) + (G.won ? 200 : 0)) * (hard ? 1.5 : 1));
     localStorage.setItem('tzs_gold', getGold() + G.gold);
-    if (score > +(localStorage.getItem('tzs_best') || 0)) localStorage.setItem('tzs_best', score);
+    G.newBest = score > +(localStorage.getItem('tzs_best') || 0);
+    if (G.newBest) localStorage.setItem('tzs_best', score);
   }
 }
 
@@ -592,7 +593,8 @@ function render() {
     if (G.won) text('YOU SURVIVED!', W / 2, H / 2 - 30, 40, '#fde047'); else text('YOU DIED', W / 2, H / 2 - 30, 40, '#ef4444');
     text(`Survived ${fmt(G.t)}  |  Kills ${G.kills}  |  Level ${p.lvl}`, W / 2, H / 2 + 10, 18);
     text('Best: ' + fmt(+(localStorage.getItem('tzs_best') || 0)) + '   Gold earned: +' + G.gold, W / 2, H / 2 + 40, 16, '#aaa');
-    text('SPACE or tap to continue', W / 2, H / 2 + 80, 18, '#6ee7b7');
+    if (G.newBest) text('NEW BEST!', W / 2, H / 2 + 62, 16, '#fde047');
+    text('SPACE or tap to continue', W / 2, H / 2 + 90, 18, '#6ee7b7');
   }
 }
 
