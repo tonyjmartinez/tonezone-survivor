@@ -21,6 +21,7 @@ const WEAPONS = {
   bolt:  { name: 'Magic Bolt', desc: 'Fires at nearest enemy', max: 6 },
   orbit: { name: 'Orbiting Orbs', desc: 'Orbs circle you', max: 6 },
   nova:  { name: 'Pulse Nova', desc: 'Periodic shockwave', max: 6 },
+  aura:  { name: 'Garlic Aura', desc: 'Hurts everything nearby', max: 6 },
 };
 const PASSIVES = {
   might:  { name: 'Might', desc: '+20% damage', max: 5 },
@@ -38,7 +39,7 @@ const ENEMY_TYPES = [
 const BOSS_EVERY = 120; // seconds
 
 // ---------- state ----------
-let state = 'title'; // title | play | levelup | dead
+let state = 'title'; // title | play | pause | levelup | dead
 let G; // game world
 const best = +(localStorage.getItem('tzs_best') || 0);
 
@@ -48,7 +49,7 @@ function newGame() {
     cam: { x: 0, y: 0 },
     p: { x: 0, y: 0, r: 10, hp: 100, maxHp: 100, speed: 140, dmgMul: 1, magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 5 },
     w: { bolt: 1 }, pa: {},
-    enemies: [], shots: [], gems: [], fx: [], texts: [],
+    enemies: [], shots: [], gems: [], hearts: [], fx: [], texts: [], shake: 0, auraT: 0,
     timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
     choices: [],
   };
@@ -56,6 +57,7 @@ function newGame() {
 
 function onKey(k, e) {
   if (state === 'title' && (k === ' ' || k === 'enter' || k === 'tap')) { newGame(); state = 'play'; }
+  else if ((k === 'p' || k === 'escape') && (state === 'play' || state === 'pause')) state = state === 'play' ? 'pause' : 'play';
   else if (state === 'dead' && (k === ' ' || k === 'enter' || k === 'tap')) { state = 'title'; }
   else if (state === 'levelup') {
     let i = -1;
@@ -77,6 +79,10 @@ function damage(e, amt, kx, ky) {
   amt *= G.p.dmgMul; e.hp -= amt; e.flash = 0.08;
   if (kx !== undefined) { e.x += kx; e.y += ky; }
   G.texts.push({ x: e.x, y: e.y - e.r, s: Math.round(amt), t: 0.5 });
+}
+
+function burst(x, y, color, n) {
+  for (let i = 0; i < n; i++) { const a = rnd(0, 7), v = rnd(40, 140); G.fx.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: rnd(0.25, 0.5), color }); }
 }
 
 // ---------- level up ----------
@@ -167,6 +173,15 @@ function update(dt) {
       for (const e of G.enemies) if (dist2(p, e) < (r + e.r) ** 2) { const a = Math.atan2(e.y - p.y, e.x - p.x); damage(e, 14 + wn * 6, Math.cos(a) * 25, Math.sin(a) * 25); }
     }
   }
+  const wa = G.w.aura;
+  if (wa) {
+    G.auraT -= dt;
+    if (G.auraT <= 0) {
+      G.auraT = 0.5 * p.cdMul;
+      const r = 50 + wa * 10;
+      for (const e of G.enemies) if (dist2(p, e) < (r + e.r) ** 2) damage(e, 3 + wa * 1.5);
+    }
+  }
   if (G.novaRing) { G.novaRing.t -= dt; G.novaRing.r = G.novaRing.max * (1 - G.novaRing.t / 0.3); if (G.novaRing.t <= 0) G.novaRing = null; }
 
   // shots
@@ -192,11 +207,13 @@ function update(dt) {
       const o = G.enemies[j], d = Math.hypot(e.x - o.x, e.y - o.y) || 1, min = e.r + o.r;
       if (d < min) { const k = (min - d) / 2 / d; e.x += (e.x - o.x) * k; e.y += (e.y - o.y) * k; o.x -= (e.x - o.x) * k; o.y -= (e.y - o.y) * k; }
     }
-    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= e.dmg; p.hurt = 0.6; }
+    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= e.dmg; p.hurt = 0.6; G.shake = 0.25; burst(p.x, p.y, '#fca5a5', 6); }
   }
   for (const e of G.enemies) if (e.hp <= 0) {
     G.kills++;
     G.gems.push({ x: e.x, y: e.y, v: e.xp, big: e.boss });
+    burst(e.x, e.y, e.color, e.boss ? 24 : 5);
+    if (e.boss || Math.random() < 0.025) G.hearts.push({ x: e.x + 8, y: e.y + 8 });
     if (e.boss) for (let k = 0; k < 8; k++) G.gems.push({ x: e.x + rnd(-30, 30), y: e.y + rnd(-30, 30), v: 5 });
   }
   G.enemies = G.enemies.filter(e => e.hp > 0);
@@ -216,6 +233,11 @@ function update(dt) {
     G.choices = rollChoices();
     if (G.choices.length) state = 'levelup';
   }
+  for (const h of G.hearts) if (dist2(p, h) < (p.r + 10) ** 2) { h.dead = true; p.hp = Math.min(p.maxHp, p.hp + 25); G.texts.push({ x: p.x, y: p.y - 14, s: '+25', t: 0.6 }); }
+  G.hearts = G.hearts.filter(h => !h.dead);
+  for (const f of G.fx) { f.x += f.vx * dt; f.y += f.vy * dt; f.t -= dt; }
+  G.fx = G.fx.filter(f => f.t > 0);
+  G.shake = Math.max(0, G.shake - dt);
   for (const t of G.texts) { t.t -= dt; t.y -= 24 * dt; }
   G.texts = G.texts.filter(t => t.t > 0);
 
@@ -235,14 +257,14 @@ function render() {
   ctx.fillStyle = '#1b1b26'; ctx.fillRect(0, 0, W, H);
   if (state === 'title') {
     text('TONE ZONE SURVIVORS', W / 2, H / 2 - 40, 36, '#fde047');
-    text('WASD / arrows / drag to move. Weapons fire automatically.', W / 2, H / 2, 16);
+    text('WASD / arrows / drag to move. Weapons fire automatically. P pauses.', W / 2, H / 2, 16);
     text('Press SPACE or tap to start', W / 2, H / 2 + 40, 20, '#6ee7b7');
     const b = +(localStorage.getItem('tzs_best') || 0);
     if (b) text('Best survival: ' + fmt(b), W / 2, H / 2 + 80, 16, '#aaa');
     return;
   }
   const { cam, p } = G;
-  ctx.save(); ctx.translate(-cam.x, -cam.y);
+  ctx.save(); ctx.translate(-cam.x + (G.shake ? rnd(-1, 1) * G.shake * 16 : 0), -cam.y + (G.shake ? rnd(-1, 1) * G.shake * 16 : 0));
   // grid floor
   ctx.strokeStyle = '#262636'; ctx.lineWidth = 1; ctx.beginPath();
   const gs = 64, x0 = Math.floor(cam.x / gs) * gs, y0 = Math.floor(cam.y / gs) * gs;
@@ -250,6 +272,8 @@ function render() {
   for (let y = y0; y < cam.y + H + gs; y += gs) { ctx.moveTo(cam.x, y); ctx.lineTo(cam.x + W, y); }
   ctx.stroke();
   for (const g of G.gems) circle(g.x, g.y, g.big ? 7 : 4, g.v >= 5 ? '#f0abfc' : '#38bdf8');
+  for (const h of G.hearts) circle(h.x, h.y, 6, '#f43f5e');
+  if (G.w.aura) { ctx.fillStyle = 'rgba(167,243,208,.12)'; ctx.beginPath(); ctx.arc(p.x, p.y, 50 + G.w.aura * 10, 0, 7); ctx.fill(); }
   for (const e of G.enemies) {
     circle(e.x, e.y, e.r, e.flash > 0 ? '#fff' : e.color);
     if (e.boss) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 3, 0, 7); ctx.stroke(); }
@@ -259,6 +283,8 @@ function render() {
   if (G.novaRing) { ctx.strokeStyle = 'rgba(125,211,252,' + (G.novaRing.t / 0.3) + ')'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(p.x, p.y, G.novaRing.r, 0, 7); ctx.stroke(); }
   circle(p.x, p.y, p.r, p.hurt > 0 && ((p.hurt * 20) | 0) % 2 ? '#fca5a5' : '#f8fafc');
   circle(p.x, p.y - 2, 3, '#1e293b');
+  for (const f of G.fx) { ctx.globalAlpha = Math.min(1, f.t * 3); circle(f.x, f.y, 2.5, f.color); }
+  ctx.globalAlpha = 1;
   for (const t of G.texts) text(t.s, t.x, t.y, 12, '#fff');
   ctx.restore();
 
@@ -274,6 +300,7 @@ function render() {
   for (const k in G.w) { text(`${WEAPONS[k].name} ${G.w[k]}`, 16, y, 12, '#fde047', 'left'); y += 14; }
   for (const k in G.pa) { text(`${PASSIVES[k].name} ${G.pa[k]}`, 16, y, 12, '#a7f3d0', 'left'); y += 14; }
 
+  if (state === 'pause') { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, H); text('PAUSED (P / Esc to resume)', W / 2, H / 2, 24, '#fde047'); }
   if (state === 'levelup') {
     ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(0, 0, W, H);
     text('LEVEL UP! Pick one (1-3 or tap)', W / 2, H / 2 - 150, 22, '#fde047');
