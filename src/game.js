@@ -87,7 +87,7 @@ function newGame() {
     cam: { x: 0, y: 0 },
     p: { x: 0, y: 0, r: 10, hp: 120 + ch.hp + 10 * (mu.hp || 0), maxHp: 120 + ch.hp + 10 * (mu.hp || 0), speed: 140 * ch.spd * (1 + 0.03 * (mu.spd || 0)), dmgMul: ch.dmg * (1 + 0.05 * (mu.dmg || 0)), magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 3 },
     w: { [ch.w]: 1 }, pa: {},
-    enemies: [], shots: [], gems: [], booms: [], bolts: [], hearts: [], vacs: [], chests: [], parts: [], shake: 0, fx: [], texts: [],
+    enemies: [], shots: [], gems: [], booms: [], bolts: [], hearts: [], vacs: [], bombs: [], chests: [], parts: [], shake: 0, fx: [], texts: [],
     timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
     choices: [], gold: 0,
   };
@@ -349,6 +349,7 @@ function update(dt) {
     G.gems.push({ x: e.x, y: e.y, v: e.xp, big: e.boss });
     if (e.boss || Math.random() < 0.025) G.hearts.push({ x: e.x + 8, y: e.y, heal: e.boss ? 60 : 20 });
     if (Math.random() < 0.006) G.vacs.push({ x: e.x - 8, y: e.y });
+    if (Math.random() < 0.004) G.bombs.push({ x: e.x + 8, y: e.y - 8 });
     if (e.boss) G.chests.push({ x: e.x - 12, y: e.y });
     if (e.boss) for (let k = 0; k < 8; k++) G.gems.push({ x: e.x + rnd(-30, 30), y: e.y + rnd(-30, 30), v: 5 });
   }
@@ -385,6 +386,11 @@ function update(dt) {
     v.dead = true; sfx(700, 0.25, 'triangle', 0.07); for (const g of G.gems) g.pull = true; G.texts.push({ x: p.x, y: p.y - 16, s: 'VACUUM!', t: 1 });
   }
   G.vacs = G.vacs.filter(v => !v.dead);
+  for (const b of G.bombs) if (dist2(p, b) < (p.r + 12) ** 2) {
+    b.dead = true; sfx(90, 0.4, 'sawtooth', 0.09); G.shake = 0.5; G.texts.push({ x: p.x, y: p.y - 16, s: 'BOMB!', t: 1 });
+    for (const e of G.enemies) if (Math.abs(e.x - p.x) < W / 2 + 40 && Math.abs(e.y - p.y) < H / 2 + 40) damage(e, e.boss ? 120 : 9999);
+  }
+  G.bombs = G.bombs.filter(b => !b.dead);
   for (const c of G.chests) if (dist2(p, c) < (p.r + 14) ** 2) {
     c.dead = true; sfx(880, 0.3, 'triangle', 0.07);
     const evo = Object.keys(G.w).filter(k => G.w[k] === WEAPONS[k].max && G.pa[EVOLVE[k]]);
@@ -511,6 +517,7 @@ function render() {
   }
   for (const g of G.gems) drawGem(g);
   for (const h of G.hearts) drawHeart(h.x, h.y + Math.sin(G.t * 5 + h.x) * 1.5);
+  for (const b of G.bombs) { const y = b.y + Math.sin(G.t * 5 + b.x) * 1.5; circle(b.x, y, 8, '#1f2937'); ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(b.x + 4, y - 6); ctx.lineTo(b.x + 8, y - 11); ctx.stroke(); circle(b.x + 8, y - 11, 2, '#f97316'); }
   for (const v of G.vacs) { const y = v.y + Math.sin(G.t * 5 + v.x) * 1.5; ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(v.x, y, 8, 0, 7); ctx.stroke(); circle(v.x, y, 3, '#f0abfc'); }
   for (const c of G.chests) drawChest(c);
   for (const e of G.enemies) {
