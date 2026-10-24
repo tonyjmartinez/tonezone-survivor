@@ -8,10 +8,12 @@
 - [x] HUD, death screen, best-time via localStorage
 - [x] Headless smoke test
 ## Next
-- [ ] Balance pass (playtest 5+ minute survival; currently idle player dies ~30s)
-- [ ] Health pickups, treasure chests, screen shake / hit particles
+- [x] Balance pass 1 (bot survives ~3 min; still tune toward 5+ min for humans)
+- [x] Health pickups, screen shake / hit particles
+- [ ] Treasure chests
 - [ ] More weapons (whip/arc, boomerang, garlic aura) and weapon evolutions
-- [ ] Sound (WebAudio bleeps), pause key (P/Esc)
+- [x] Pause key (P/Esc)
+- [ ] Sound (WebAudio bleeps)
 - [ ] Sprites instead of circles, themed floor tiles
 - [ ] Spatial hash for collision to support 1000+ enemies
 - [ ] Character select, meta upgrades with gold
