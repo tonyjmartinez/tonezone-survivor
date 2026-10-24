@@ -26,6 +26,7 @@ const path = require('path');
     t.state = 'title'; t.press('arrowleft'); return o;
   });
   if (chr.w !== 'whip' || chr.maxHp !== 160) { console.log('char select failed', JSON.stringify(chr)); errs.push('char'); }
+  const hm = await pg.evaluate(() => { const t = window.__tzs; t.state = 'title'; t.press('h'); t.start(); t.update(0.1); t.render(); t.state = 'title'; t.press('h'); return true; });
   const win = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); t.G.t = 599.99; t.G.p.hp = t.G.p.maxHp = 1e9; t.update(0.05); t.render();
     return { state: t.state, won: t.G.won, gold: t.G.gold };

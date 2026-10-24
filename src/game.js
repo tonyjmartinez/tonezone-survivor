@@ -81,6 +81,8 @@ const CHARS = [
   { name: 'Rogue',  w: 'boomer', desc: 'Boomerang. +15% dmg, -20 HP.',   hp: -20, spd: 1.05, dmg: 1.15, color: '#fda4af' },
 ];
 let charIdx = Math.min(CHARS.length - 1, +(localStorage.getItem('tzs_char') || 0));
+let hard = localStorage.getItem('tzs_hard') === '1'; // Hard: +40% spawns, +50% gold
+function toggleHard() { hard = !hard; try { localStorage.setItem('tzs_hard', hard ? '1' : '0'); } catch (err) {} }
 function pickChar(d) { charIdx = (charIdx + d + CHARS.length) % CHARS.length; try { localStorage.setItem('tzs_char', charIdx); } catch (err) {} }
 
 function newGame() {
@@ -115,6 +117,7 @@ function onKey(k, e) {
   if ((k === 'p' || k === 'escape') && (state === 'play' || state === 'pause')) { state = state === 'play' ? 'pause' : 'play'; return; }
   if (state === 'title' && (k === 'arrowleft' || k === 'a')) { pickChar(-1); return; }
   if (state === 'title' && (k === 'arrowright' || k === 'd')) { pickChar(1); return; }
+  if (state === 'title' && k === 'h') { toggleHard(); return; }
   if (state === 'title' && k >= '1' && k <= '3') { buyMeta(META_KEYS[+k - 1]); return; }
   if (state === 'title' && (k === ' ' || k === 'enter' || k === 'tap')) { newGame(); state = 'play'; }
   else if (state === 'dead' && (k === ' ' || k === 'enter' || k === 'tap')) { state = 'title'; }
@@ -205,7 +208,7 @@ function update(dt) {
   G.cam.x = p.x - W / 2; G.cam.y = p.y - H / 2;
 
   // spawn
-  G.spawnAcc += spawnRate() * dt;
+  G.spawnAcc += spawnRate() * (hard ? 1.4 : 1) * dt;
   while (G.spawnAcc >= 1 && G.enemies.length < 800) { G.spawnAcc--; spawnEnemy(false); }
   if (G.t >= G.nextHorde) { G.nextHorde += HORDE_EVERY; spawnHorde(); }
   G.hordeBanner = Math.max(0, G.hordeBanner - dt);
@@ -419,7 +422,7 @@ function update(dt) {
     G.won = p.hp > 0;
     state = 'dead'; sfx(G.won ? 660 : 90, 0.6, G.won ? 'triangle' : 'sawtooth', 0.08);
     const score = Math.floor(G.t);
-    G.gold = G.kills + Math.floor(G.t / 10) + (G.won ? 200 : 0);
+    G.gold = Math.round((G.kills + Math.floor(G.t / 10) + (G.won ? 200 : 0)) * (hard ? 1.5 : 1));
     localStorage.setItem('tzs_gold', getGold() + G.gold);
     if (score > +(localStorage.getItem('tzs_best') || 0)) localStorage.setItem('tzs_best', score);
   }
@@ -509,6 +512,7 @@ function render() {
     const b = +(localStorage.getItem('tzs_best') || 0);
     if (b) text('Best survival: ' + fmt(b), W / 2, H / 2 + 70, 16, '#aaa');
     const mu = loadMeta();
+    text('Mode: ' + (hard ? 'HARD (+40% enemies, +50% gold)' : 'Normal') + '  -  H to toggle', W / 2, H / 2 + 135, 14, hard ? '#f87171' : '#aaa');
     text('Gold: ' + getGold() + '  -  press 1-3 to buy upgrades', W / 2, H / 2 + 110, 16, '#fde047');
     META_KEYS.forEach((k, i) => { const d = META[k], l = mu[k] || 0; text(`${i + 1}. ${d.name} ${l}/${d.max}  ${d.desc}  ` + (l >= d.max ? 'MAX' : d.cost(l) + 'g'), W / 2, H / 2 + 136 + i * 22, 14, l < d.max && getGold() >= d.cost(l) ? '#6ee7b7' : '#888'); });
     return;

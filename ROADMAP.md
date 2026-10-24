@@ -36,3 +36,4 @@
 - [x] Freeze pickup (run 28)
 - [x] Boss HP bar (run 31)
 - [x] Win condition: survive 10:00 for 'YOU SURVIVED' + 200 bonus gold (run 32)
+- [x] Hard mode toggle on title (H): +40% spawns, +50% gold (run 35)
