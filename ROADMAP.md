@@ -30,3 +30,4 @@
 - [x] Lightning weapon (run 21)
 - [x] Vacuum pickup (run 22)
 - [x] Armor passive (run 23)
+- [x] Bomb pickup (run 25)
