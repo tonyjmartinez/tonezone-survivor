@@ -46,6 +46,7 @@ const ENEMY_TYPES = [
   { name: 'imp',   hp: 14,  speed: 105, r: 8,  dmg: 8,  xp: 2, color: '#fb923c', from: 90 },
   { name: 'brute', hp: 90,  speed: 45,  r: 18, dmg: 16, xp: 8, color: '#f87171', from: 150 },
   { name: 'wisp',  hp: 6,   speed: 120, r: 6,  dmg: 5,  xp: 1, color: '#67e8f9', from: 120, pack: 5 }, // spawns in a swarm
+  { name: 'bloat', hp: 40,  speed: 50,  r: 14, dmg: 10, xp: 3, color: '#bef264', from: 180, split: 3 }, // bursts into mini bloats
   { name: 'golem', hp: 220, speed: 35,  r: 22, dmg: 22, xp: 15, color: '#94a3b8', from: 240 },
 ];
 const BOSS_EVERY = 120; // seconds
@@ -357,6 +358,7 @@ function update(dt) {
     if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= Math.max(1, e.dmg - (p.armor || 0)); p.hurt = 0.6; G.shake = 0.25; sfx(120, 0.15, 'sawtooth', 0.06); }
   }
   for (const e of G.enemies) if (e.hp <= 0) {
+    if (e.kind === 'bloat') for (let k = 0; k < 3; k++) G.enemies.push({ x: e.x + rnd(-14, 14), y: e.y + rnd(-14, 14), r: 7, hp: e.maxHp * 0.15, maxHp: e.maxHp * 0.15, speed: e.speed * 1.8, dmg: 4, xp: 1, color: e.color, flash: 0, kind: 'minibloat' });
     G.kills++; sfx(260 + Math.random() * 80, 0.06);
     G.gems.push({ x: e.x, y: e.y, v: e.xp, big: e.boss });
     if (e.boss || Math.random() < 0.025 * (G.p.luck || 1)) G.hearts.push({ x: e.x + 8, y: e.y, heal: e.boss ? 60 : 20 });
