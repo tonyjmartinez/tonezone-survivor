@@ -48,14 +48,16 @@ function newGame() {
     cam: { x: 0, y: 0 },
     p: { x: 0, y: 0, r: 10, hp: 100, maxHp: 100, speed: 140, dmgMul: 1, magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 5 },
     w: { bolt: 1 }, pa: {},
-    enemies: [], shots: [], gems: [], fx: [], texts: [],
+    enemies: [], shots: [], gems: [], hearts: [], parts: [], shake: 0, texts: [],
     timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
     choices: [],
   };
 }
 
 function onKey(k, e) {
-  if (state === 'title' && (k === ' ' || k === 'enter' || k === 'tap')) { newGame(); state = 'play'; }
+  if (state === 'play' && (k === 'p' || k === 'escape')) state = 'pause';
+  else if (state === 'pause' && (k === 'p' || k === 'escape' || k === 'tap')) state = 'play';
+  else if (state === 'title' && (k === ' ' || k === 'enter' || k === 'tap')) { newGame(); state = 'play'; }
   else if (state === 'dead' && (k === ' ' || k === 'enter' || k === 'tap')) { state = 'title'; }
   else if (state === 'levelup') {
     let i = -1;
@@ -77,6 +79,7 @@ function damage(e, amt, kx, ky) {
   amt *= G.p.dmgMul; e.hp -= amt; e.flash = 0.08;
   if (kx !== undefined) { e.x += kx; e.y += ky; }
   G.texts.push({ x: e.x, y: e.y - e.r, s: Math.round(amt), t: 0.5 });
+  if (G.parts.length < 300) for (let i = 0; i < 2; i++) G.parts.push({ x: e.x, y: e.y, vx: rnd(-80, 80), vy: rnd(-80, 80), t: 0.3, c: e.color });
 }
 
 // ---------- level up ----------
@@ -192,10 +195,11 @@ function update(dt) {
       const o = G.enemies[j], d = Math.hypot(e.x - o.x, e.y - o.y) || 1, min = e.r + o.r;
       if (d < min) { const k = (min - d) / 2 / d; e.x += (e.x - o.x) * k; e.y += (e.y - o.y) * k; o.x -= (e.x - o.x) * k; o.y -= (e.y - o.y) * k; }
     }
-    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= e.dmg; p.hurt = 0.6; }
+    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= e.dmg; p.hurt = 0.6; G.shake = 8; }
   }
   for (const e of G.enemies) if (e.hp <= 0) {
     G.kills++;
+    if (Math.random() < (e.boss ? 1 : 0.04)) G.hearts.push({ x: e.x, y: e.y + 10 });
     G.gems.push({ x: e.x, y: e.y, v: e.xp, big: e.boss });
     if (e.boss) for (let k = 0; k < 8; k++) G.gems.push({ x: e.x + rnd(-30, 30), y: e.y + rnd(-30, 30), v: 5 });
   }
@@ -211,6 +215,11 @@ function update(dt) {
     if (d2 < (p.r + 6) ** 2) { g.dead = true; p.xp += g.v; }
   }
   G.gems = G.gems.filter(g => !g.dead);
+  for (const h of G.hearts) if (dist2(p, h) < (p.r + 10) ** 2) { h.dead = true; p.hp = Math.min(p.maxHp, p.hp + 20); G.texts.push({ x: p.x, y: p.y - 14, s: '+20', t: 0.6 }); }
+  G.hearts = G.hearts.filter(h => !h.dead);
+  for (const q of G.parts) { q.t -= dt; q.x += q.vx * dt; q.y += q.vy * dt; }
+  G.parts = G.parts.filter(q => q.t > 0);
+  G.shake = Math.max(0, G.shake - 30 * dt);
   if (p.xp >= p.need && state === 'play') {
     p.xp -= p.need; p.lvl++; p.need = Math.round(p.need * 1.35 + 3);
     G.choices = rollChoices();
@@ -242,7 +251,7 @@ function render() {
     return;
   }
   const { cam, p } = G;
-  ctx.save(); ctx.translate(-cam.x, -cam.y);
+  ctx.save(); ctx.translate(-cam.x + (Math.random() - 0.5) * G.shake, -cam.y + (Math.random() - 0.5) * G.shake);
   // grid floor
   ctx.strokeStyle = '#262636'; ctx.lineWidth = 1; ctx.beginPath();
   const gs = 64, x0 = Math.floor(cam.x / gs) * gs, y0 = Math.floor(cam.y / gs) * gs;
@@ -250,6 +259,8 @@ function render() {
   for (let y = y0; y < cam.y + H + gs; y += gs) { ctx.moveTo(cam.x, y); ctx.lineTo(cam.x + W, y); }
   ctx.stroke();
   for (const g of G.gems) circle(g.x, g.y, g.big ? 7 : 4, g.v >= 5 ? '#f0abfc' : '#38bdf8');
+  for (const h of G.hearts) circle(h.x, h.y, 6, '#f43f5e');
+  for (const q of G.parts) circle(q.x, q.y, 2, q.c);
   for (const e of G.enemies) {
     circle(e.x, e.y, e.r, e.flash > 0 ? '#fff' : e.color);
     if (e.boss) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 3, 0, 7); ctx.stroke(); }
@@ -286,6 +297,7 @@ function render() {
       text(d.desc, r.x + 12, r.y + 56, 14, '#bbb', 'left');
     });
   }
+  if (state === 'pause') { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, H); text('PAUSED', W / 2, H / 2, 36, '#fde047'); text('P / Esc / tap to resume', W / 2, H / 2 + 34, 16); }
   if (state === 'dead') {
     ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, W, H);
     text('YOU DIED', W / 2, H / 2 - 30, 40, '#ef4444');
