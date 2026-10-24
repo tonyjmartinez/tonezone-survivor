@@ -550,6 +550,7 @@ function render() {
   for (const t of G.texts) text(t.s, t.x, t.y, 12, '#fff');
   ctx.restore();
 
+  if (G.freeze > 0) { ctx.fillStyle = 'rgba(125,211,252,' + Math.min(0.18, G.freeze * 0.1) + ')'; ctx.fillRect(0, 0, W, H); }
   // HUD
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, 14);
   ctx.fillStyle = '#38bdf8'; ctx.fillRect(0, 0, W * Math.min(1, p.xp / p.need), 14);
