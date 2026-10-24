@@ -21,6 +21,7 @@ const WEAPONS = {
   bolt:  { name: 'Magic Bolt', desc: 'Fires at nearest enemy', max: 6 },
   orbit: { name: 'Orbiting Orbs', desc: 'Orbs circle you', max: 6 },
   nova:  { name: 'Pulse Nova', desc: 'Periodic shockwave', max: 6 },
+  aura:  { name: 'Garlic Aura', desc: 'Damages enemies near you', max: 6 },
 };
 const PASSIVES = {
   might:  { name: 'Might', desc: '+20% damage', max: 5 },
@@ -38,7 +39,7 @@ const ENEMY_TYPES = [
 const BOSS_EVERY = 120; // seconds
 
 // ---------- state ----------
-let state = 'title'; // title | play | levelup | dead
+let state = 'title'; // title | play | pause | levelup | dead
 let G; // game world
 const best = +(localStorage.getItem('tzs_best') || 0);
 
@@ -46,16 +47,18 @@ function newGame() {
   G = {
     t: 0, kills: 0, spawnAcc: 0, nextBoss: BOSS_EVERY,
     cam: { x: 0, y: 0 },
-    p: { x: 0, y: 0, r: 10, hp: 100, maxHp: 100, speed: 140, dmgMul: 1, magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 5 },
+    p: { x: 0, y: 0, r: 10, hp: 100, maxHp: 100, speed: 150, dmgMul: 1, magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 5 },
     w: { bolt: 1 }, pa: {},
-    enemies: [], shots: [], gems: [], fx: [], texts: [],
-    timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
+    enemies: [], shots: [], gems: [], fx: [], texts: [], hearts: [], parts: [], shake: 0,
+    timers: { bolt: 0, nova: 0, aura: 0 }, orbAng: 0, novaRing: null,
     choices: [],
   };
 }
 
 function onKey(k, e) {
   if (state === 'title' && (k === ' ' || k === 'enter' || k === 'tap')) { newGame(); state = 'play'; }
+  else if (state === 'play' && (k === 'p' || k === 'escape')) state = 'pause';
+  else if (state === 'pause' && (k === 'p' || k === 'escape' || k === ' ' || k === 'tap')) state = 'play';
   else if (state === 'dead' && (k === ' ' || k === 'enter' || k === 'tap')) { state = 'title'; }
   else if (state === 'levelup') {
     let i = -1;
@@ -136,7 +139,7 @@ function update(dt) {
   if (wb) {
     G.timers.bolt -= dt;
     if (G.timers.bolt <= 0) {
-      G.timers.bolt = 0.9 * p.cdMul;
+      G.timers.bolt = 0.65 * p.cdMul;
       const n = 1 + Math.floor((wb - 1) / 2) + (wb >= 6 ? 1 : 0);
       for (let i = 0; i < n; i++) {
         const t = nearest(p, 500);
@@ -155,6 +158,15 @@ function update(dt) {
       for (const e of G.enemies) {
         if (dist2(o, e) < (e.r + 7) ** 2 && !(e.orbHit > G.t)) { e.orbHit = G.t + 0.4; damage(e, 6 + wo * 2.5, Math.cos(a + 1.57) * 4, Math.sin(a + 1.57) * 4); }
       }
+    }
+  }
+  const wa = G.w.aura;
+  if (wa) {
+    G.timers.aura -= dt;
+    if (G.timers.aura <= 0) {
+      G.timers.aura = 0.5 * p.cdMul;
+      const r = 55 + wa * 9;
+      for (const e of G.enemies) if (dist2(p, e) < (r + e.r) ** 2) damage(e, 4 + wa * 2.5);
     }
   }
   const wn = G.w.nova;
@@ -192,16 +204,25 @@ function update(dt) {
       const o = G.enemies[j], d = Math.hypot(e.x - o.x, e.y - o.y) || 1, min = e.r + o.r;
       if (d < min) { const k = (min - d) / 2 / d; e.x += (e.x - o.x) * k; e.y += (e.y - o.y) * k; o.x -= (e.x - o.x) * k; o.y -= (e.y - o.y) * k; }
     }
-    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= e.dmg; p.hurt = 0.6; }
+    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= e.dmg; p.hurt = 0.6; G.shake = 0.25; }
   }
   for (const e of G.enemies) if (e.hp <= 0) {
     G.kills++;
     G.gems.push({ x: e.x, y: e.y, v: e.xp, big: e.boss });
+    for (let k = 0; k < (e.boss ? 16 : 5); k++) { const a = rnd(0, 7), v = rnd(40, 140); G.parts.push({ x: e.x, y: e.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0.4, c: e.color }); }
+    if (e.boss || Math.random() < 0.03) G.hearts.push({ x: e.x, y: e.y });
     if (e.boss) for (let k = 0; k < 8; k++) G.gems.push({ x: e.x + rnd(-30, 30), y: e.y + rnd(-30, 30), v: 5 });
   }
   G.enemies = G.enemies.filter(e => e.hp > 0);
   // despawn very far
   G.enemies = G.enemies.filter(e => e.boss || dist2(p, e) < 1600 * 1600);
+
+  // hearts (heal 20) + particles + shake
+  for (const h of G.hearts) if (dist2(p, h) < (p.r + 10) ** 2) { h.dead = true; p.hp = Math.min(p.maxHp, p.hp + 20); G.texts.push({ x: p.x, y: p.y - 14, s: '+20', t: 0.6 }); }
+  G.hearts = G.hearts.filter(h => !h.dead);
+  for (const q of G.parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.t -= dt; }
+  G.parts = G.parts.filter(q => q.t > 0);
+  G.shake = Math.max(0, G.shake - dt);
 
   // gems
   const mr2 = p.magnet * p.magnet;
@@ -235,14 +256,15 @@ function render() {
   ctx.fillStyle = '#1b1b26'; ctx.fillRect(0, 0, W, H);
   if (state === 'title') {
     text('TONE ZONE SURVIVORS', W / 2, H / 2 - 40, 36, '#fde047');
-    text('WASD / arrows / drag to move. Weapons fire automatically.', W / 2, H / 2, 16);
+    text('WASD / arrows / drag to move. Weapons fire automatically. P = pause.', W / 2, H / 2, 16);
     text('Press SPACE or tap to start', W / 2, H / 2 + 40, 20, '#6ee7b7');
     const b = +(localStorage.getItem('tzs_best') || 0);
     if (b) text('Best survival: ' + fmt(b), W / 2, H / 2 + 80, 16, '#aaa');
     return;
   }
   const { cam, p } = G;
-  ctx.save(); ctx.translate(-cam.x, -cam.y);
+  const sh = G.shake > 0 ? G.shake * 24 : 0;
+  ctx.save(); ctx.translate(-cam.x + rnd(-sh, sh), -cam.y + rnd(-sh, sh));
   // grid floor
   ctx.strokeStyle = '#262636'; ctx.lineWidth = 1; ctx.beginPath();
   const gs = 64, x0 = Math.floor(cam.x / gs) * gs, y0 = Math.floor(cam.y / gs) * gs;
@@ -250,10 +272,13 @@ function render() {
   for (let y = y0; y < cam.y + H + gs; y += gs) { ctx.moveTo(cam.x, y); ctx.lineTo(cam.x + W, y); }
   ctx.stroke();
   for (const g of G.gems) circle(g.x, g.y, g.big ? 7 : 4, g.v >= 5 ? '#f0abfc' : '#38bdf8');
+  for (const h of G.hearts) { circle(h.x, h.y, 7, '#ef4444'); circle(h.x - 2, h.y - 2, 2, '#fecaca'); }
+  if (G.w.aura) { ctx.fillStyle = 'rgba(190,242,100,.12)'; ctx.beginPath(); ctx.arc(p.x, p.y, 55 + G.w.aura * 9, 0, 7); ctx.fill(); }
   for (const e of G.enemies) {
     circle(e.x, e.y, e.r, e.flash > 0 ? '#fff' : e.color);
     if (e.boss) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 3, 0, 7); ctx.stroke(); }
   }
+  for (const q of G.parts) circle(q.x, q.y, 2.5, q.c);
   for (const s of G.shots) circle(s.x, s.y, 5, '#fef08a');
   if (G.w.orbit) { const n = 1 + G.w.orbit, rad = 60 + G.w.orbit * 4; for (let i = 0; i < n; i++) { const a = G.orbAng + (i / n) * Math.PI * 2; circle(p.x + Math.cos(a) * rad, p.y + Math.sin(a) * rad, 7, '#c4b5fd'); } }
   if (G.novaRing) { ctx.strokeStyle = 'rgba(125,211,252,' + (G.novaRing.t / 0.3) + ')'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(p.x, p.y, G.novaRing.r, 0, 7); ctx.stroke(); }
@@ -274,6 +299,11 @@ function render() {
   for (const k in G.w) { text(`${WEAPONS[k].name} ${G.w[k]}`, 16, y, 12, '#fde047', 'left'); y += 14; }
   for (const k in G.pa) { text(`${PASSIVES[k].name} ${G.pa[k]}`, 16, y, 12, '#a7f3d0', 'left'); y += 14; }
 
+  if (state === 'pause') {
+    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, H);
+    text('PAUSED', W / 2, H / 2, 40, '#fde047');
+    text('P / Esc / tap to resume', W / 2, H / 2 + 34, 16, '#aaa');
+  }
   if (state === 'levelup') {
     ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(0, 0, W, H);
     text('LEVEL UP! Pick one (1-3 or tap)', W / 2, H / 2 - 150, 22, '#fde047');
