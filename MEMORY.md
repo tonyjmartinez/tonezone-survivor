@@ -36,5 +36,6 @@
 - 2026-10-24 run 30: fetched origin/main first (branch stale AGAIN; re-did duplicate run-2 work, discarded). Bot now prefers weapon choices at level-up (survival 152-209s vs ~130s) - more representative of a real player. No gameplay change.
 - 2026-10-24 run 31: fetched origin/main first (reset). Added boss HP bar above bosses (`maxHp` on enemies). Smoke passes.
 - 2026-10-24 run 32: fetched origin/main first (stale branch, reset). Added win condition: surviving `WIN_TIME` (600s) ends the run as a win (`G.won`, +200 gold). Smoke covers it.
+- 2026-10-24 run 33: fetched origin/main first (stale branch AGAIN; duplicate run-2 work discarded). No gameplay change; smoke passes on main.
 ## Next steps
 - Check `origin/main` before starting (parallel session branches exist). use hash for weapon queries (low value), more weapons/enemy variety, sprite polish for projectiles, real playtest balance (5+ min). See ROADMAP "Next".
