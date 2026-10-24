@@ -26,6 +26,11 @@ const path = require('path');
     t.state = 'title'; t.press('arrowleft'); return o;
   });
   if (chr.w !== 'whip' || chr.maxHp !== 160) { console.log('char select failed', JSON.stringify(chr)); errs.push('char'); }
+  const win = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); t.G.t = 599.99; t.G.p.hp = t.G.p.maxHp = 1e9; t.update(0.05); t.render();
+    return { state: t.state, won: t.G.won, gold: t.G.gold };
+  });
+  if (win.state !== 'dead' || !win.won || win.gold < 200) { console.log('win failed', JSON.stringify(win)); errs.push('win'); }
   console.log(JSON.stringify(r), errs);
   await b.close();
   if (errs.length || r.kills < 1) process.exit(1);
