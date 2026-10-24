@@ -33,3 +33,4 @@
 - [x] Bomb pickup (run 25)
 - [x] Luck passive (run 26)
 - [x] Growth (XP) passive (run 27)
+- [x] Freeze pickup (run 28)
