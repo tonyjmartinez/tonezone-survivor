@@ -566,6 +566,7 @@ function render() {
   ctx.fillStyle = '#333'; ctx.fillRect(16, 24, 160, 12);
   ctx.fillStyle = '#ef4444'; ctx.fillRect(16, 24, 160 * Math.max(0, p.hp / p.maxHp), 12);
   text(fmt(G.t), W / 2, 40, 22);
+  text('goal ' + fmt(WIN_TIME), W / 2, 54, 11, '#888');
   if (G.hordeBanner > 0) text('A HORDE APPROACHES!', W / 2, 70, 20, '#f87171');
   text('Kills ' + G.kills, W - 16, 40, 16, '#fff', 'right');
   let y = 56; ctx.textAlign = 'left';
