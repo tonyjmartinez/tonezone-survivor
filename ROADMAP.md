@@ -39,3 +39,4 @@
 - [x] Hard mode toggle on title (H): +40% spawns, +50% gold (run 35)
 - [x] 'NEW BEST!' marker on end screen (run 37)
 - [x] Dash ability with cooldown + i-frames (run 40)
+- [x] Bloat enemy that splits on death (run 41)
