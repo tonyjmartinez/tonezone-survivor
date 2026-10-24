@@ -34,3 +34,4 @@
 - [x] Luck passive (run 26)
 - [x] Growth (XP) passive (run 27)
 - [x] Freeze pickup (run 28)
+- [x] Boss HP bar (run 31)
