@@ -49,6 +49,7 @@ const ENEMY_TYPES = [
   { name: 'golem', hp: 220, speed: 35,  r: 22, dmg: 22, xp: 15, color: '#94a3b8', from: 240 },
 ];
 const BOSS_EVERY = 120; // seconds
+const WIN_TIME = 600; // survive this long to win (10:00)
 const HORDE_EVERY = 75; // seconds; ring of enemies closes in on the player
 
 // ---------- state ----------
@@ -414,10 +415,11 @@ function update(dt) {
   for (const t of G.texts) { t.t -= dt; t.y -= 24 * dt; }
   G.texts = G.texts.filter(t => t.t > 0);
 
-  if (p.hp <= 0) {
-    state = 'dead'; sfx(90, 0.6, 'sawtooth', 0.08);
+  if (p.hp <= 0 || G.t >= WIN_TIME) {
+    G.won = p.hp > 0;
+    state = 'dead'; sfx(G.won ? 660 : 90, 0.6, G.won ? 'triangle' : 'sawtooth', 0.08);
     const score = Math.floor(G.t);
-    G.gold = G.kills + Math.floor(G.t / 10);
+    G.gold = G.kills + Math.floor(G.t / 10) + (G.won ? 200 : 0);
     localStorage.setItem('tzs_gold', getGold() + G.gold);
     if (score > +(localStorage.getItem('tzs_best') || 0)) localStorage.setItem('tzs_best', score);
   }
@@ -583,7 +585,7 @@ function render() {
   }
   if (state === 'dead') {
     ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, W, H);
-    text('YOU DIED', W / 2, H / 2 - 30, 40, '#ef4444');
+    if (G.won) text('YOU SURVIVED!', W / 2, H / 2 - 30, 40, '#fde047'); else text('YOU DIED', W / 2, H / 2 - 30, 40, '#ef4444');
     text(`Survived ${fmt(G.t)}  |  Kills ${G.kills}  |  Level ${p.lvl}`, W / 2, H / 2 + 10, 18);
     text('Best: ' + fmt(+(localStorage.getItem('tzs_best') || 0)) + '   Gold earned: +' + G.gold, W / 2, H / 2 + 40, 16, '#aaa');
     text('SPACE or tap to continue', W / 2, H / 2 + 80, 18, '#6ee7b7');
