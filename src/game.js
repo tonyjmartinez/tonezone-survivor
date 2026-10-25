@@ -38,7 +38,7 @@ const ENEMY_TYPES = [
 const BOSS_EVERY = 120; // seconds
 
 // ---------- state ----------
-let state = 'title'; // title | play | levelup | dead
+let state = 'title'; // title | play | pause | levelup | dead
 let G; // game world
 const best = +(localStorage.getItem('tzs_best') || 0);
 
@@ -48,13 +48,14 @@ function newGame() {
     cam: { x: 0, y: 0 },
     p: { x: 0, y: 0, r: 10, hp: 100, maxHp: 100, speed: 140, dmgMul: 1, magnet: 60, cdMul: 1, hurt: 0, xp: 0, lvl: 1, need: 5 },
     w: { bolt: 1 }, pa: {},
-    enemies: [], shots: [], gems: [], fx: [], texts: [],
+    enemies: [], shots: [], gems: [], hearts: [], fx: [], texts: [], shake: 0,
     timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
     choices: [],
   };
 }
 
 function onKey(k, e) {
+  if ((k === 'p' || k === 'escape') && (state === 'play' || state === 'pause')) { state = state === 'play' ? 'pause' : 'play'; return; }
   if (state === 'title' && (k === ' ' || k === 'enter' || k === 'tap')) { newGame(); state = 'play'; }
   else if (state === 'dead' && (k === ' ' || k === 'enter' || k === 'tap')) { state = 'title'; }
   else if (state === 'levelup') {
@@ -77,6 +78,11 @@ function damage(e, amt, kx, ky) {
   amt *= G.p.dmgMul; e.hp -= amt; e.flash = 0.08;
   if (kx !== undefined) { e.x += kx; e.y += ky; }
   G.texts.push({ x: e.x, y: e.y - e.r, s: Math.round(amt), t: 0.5 });
+  burst(e.x, e.y, e.color, 2, 90);
+}
+
+function burst(x, y, color, n, spd) {
+  for (let i = 0; i < n; i++) { const a = rnd(0, 7), v = rnd(spd * 0.4, spd); G.fx.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: rnd(0.2, 0.45), color }); }
 }
 
 // ---------- level up ----------
@@ -136,7 +142,7 @@ function update(dt) {
   if (wb) {
     G.timers.bolt -= dt;
     if (G.timers.bolt <= 0) {
-      G.timers.bolt = 0.9 * p.cdMul;
+      G.timers.bolt = 0.75 * p.cdMul;
       const n = 1 + Math.floor((wb - 1) / 2) + (wb >= 6 ? 1 : 0);
       for (let i = 0; i < n; i++) {
         const t = nearest(p, 500);
@@ -192,11 +198,13 @@ function update(dt) {
       const o = G.enemies[j], d = Math.hypot(e.x - o.x, e.y - o.y) || 1, min = e.r + o.r;
       if (d < min) { const k = (min - d) / 2 / d; e.x += (e.x - o.x) * k; e.y += (e.y - o.y) * k; o.x -= (e.x - o.x) * k; o.y -= (e.y - o.y) * k; }
     }
-    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= e.dmg; p.hurt = 0.6; }
+    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= e.dmg; p.hurt = 0.6; G.shake = Math.min(12, G.shake + 4 + e.dmg / 4); }
   }
   for (const e of G.enemies) if (e.hp <= 0) {
     G.kills++;
     G.gems.push({ x: e.x, y: e.y, v: e.xp, big: e.boss });
+    burst(e.x, e.y, e.color, e.boss ? 24 : 6, 160);
+    if (e.boss || Math.random() < 0.015) G.hearts.push({ x: e.x + rnd(-10, 10), y: e.y + rnd(-10, 10), heal: e.boss ? 50 : 20 });
     if (e.boss) for (let k = 0; k < 8; k++) G.gems.push({ x: e.x + rnd(-30, 30), y: e.y + rnd(-30, 30), v: 5 });
   }
   G.enemies = G.enemies.filter(e => e.hp > 0);
@@ -211,6 +219,14 @@ function update(dt) {
     if (d2 < (p.r + 6) ** 2) { g.dead = true; p.xp += g.v; }
   }
   G.gems = G.gems.filter(g => !g.dead);
+  for (const h of G.hearts) if (dist2(p, h) < (p.r + 10) ** 2 || (dist2(p, h) < mr2 && (h.pull = true))) {
+    if (dist2(p, h) < (p.r + 10) ** 2) { h.dead = true; p.hp = Math.min(p.maxHp, p.hp + h.heal); G.texts.push({ x: p.x, y: p.y - 16, s: '+' + h.heal, t: 0.8 }); }
+    else { const a = Math.atan2(p.y - h.y, p.x - h.x); h.x += Math.cos(a) * 200 * dt; h.y += Math.sin(a) * 200 * dt; }
+  }
+  G.hearts = G.hearts.filter(h => !h.dead);
+  for (const f of G.fx) { f.t -= dt; f.x += f.vx * dt; f.y += f.vy * dt; }
+  G.fx = G.fx.filter(f => f.t > 0);
+  G.shake = Math.max(0, G.shake - 30 * dt);
   if (p.xp >= p.need && state === 'play') {
     p.xp -= p.need; p.lvl++; p.need = Math.round(p.need * 1.35 + 3);
     G.choices = rollChoices();
@@ -242,7 +258,7 @@ function render() {
     return;
   }
   const { cam, p } = G;
-  ctx.save(); ctx.translate(-cam.x, -cam.y);
+  ctx.save(); ctx.translate(-cam.x + (G.shake ? rnd(-G.shake, G.shake) : 0), -cam.y + (G.shake ? rnd(-G.shake, G.shake) : 0));
   // grid floor
   ctx.strokeStyle = '#262636'; ctx.lineWidth = 1; ctx.beginPath();
   const gs = 64, x0 = Math.floor(cam.x / gs) * gs, y0 = Math.floor(cam.y / gs) * gs;
@@ -250,6 +266,7 @@ function render() {
   for (let y = y0; y < cam.y + H + gs; y += gs) { ctx.moveTo(cam.x, y); ctx.lineTo(cam.x + W, y); }
   ctx.stroke();
   for (const g of G.gems) circle(g.x, g.y, g.big ? 7 : 4, g.v >= 5 ? '#f0abfc' : '#38bdf8');
+  for (const h of G.hearts) { circle(h.x - 3, h.y - 2, 4, '#f43f5e'); circle(h.x + 3, h.y - 2, 4, '#f43f5e'); circle(h.x, h.y + 3, 4, '#f43f5e'); }
   for (const e of G.enemies) {
     circle(e.x, e.y, e.r, e.flash > 0 ? '#fff' : e.color);
     if (e.boss) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 3, 0, 7); ctx.stroke(); }
@@ -259,6 +276,8 @@ function render() {
   if (G.novaRing) { ctx.strokeStyle = 'rgba(125,211,252,' + (G.novaRing.t / 0.3) + ')'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(p.x, p.y, G.novaRing.r, 0, 7); ctx.stroke(); }
   circle(p.x, p.y, p.r, p.hurt > 0 && ((p.hurt * 20) | 0) % 2 ? '#fca5a5' : '#f8fafc');
   circle(p.x, p.y - 2, 3, '#1e293b');
+  for (const f of G.fx) { ctx.globalAlpha = Math.min(1, f.t * 4); circle(f.x, f.y, 2, f.color); }
+  ctx.globalAlpha = 1;
   for (const t of G.texts) text(t.s, t.x, t.y, 12, '#fff');
   ctx.restore();
 
@@ -285,6 +304,11 @@ function render() {
       text(`${i + 1}. ${d.name} (Lv ${c.lvl})`, r.x + 12, r.y + 30, 18, '#fff', 'left');
       text(d.desc, r.x + 12, r.y + 56, 14, '#bbb', 'left');
     });
+  }
+  if (state === 'pause') {
+    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, H);
+    text('PAUSED', W / 2, H / 2, 36, '#fde047');
+    text('Press P or Esc to resume', W / 2, H / 2 + 30, 16);
   }
   if (state === 'dead') {
     ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, W, H);
