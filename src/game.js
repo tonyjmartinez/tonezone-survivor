@@ -537,6 +537,44 @@ function drawBoom(b) {
   ctx.beginPath(); ctx.moveTo(-9, -9); ctx.lineTo(9, -3); ctx.lineTo(0, 0); ctx.lineTo(3, 9); ctx.lineTo(-9, -9); ctx.fill(); ctx.stroke();
   ctx.restore();
 }
+// --- woodland floor art: cached once, reused every frame ---
+// Midnight/navy tiles with moss patches, stones, grass tufts and faint gold/cyan motes.
+// The pattern is 4x4 cells of 64px (256px total) and every decoration stays inside its cell,
+// so the tile repeats seamlessly. Decorations use cell indices (i, j) modulo 4.
+let FLOOR_PAT = null, SHADOW_IMG = null;
+function woodlandFloor() {
+  if (FLOOR_PAT) return FLOOR_PAT;
+  const N = 4, cs = 64, c = document.createElement('canvas');
+  c.width = c.height = N * cs;
+  const g = c.getContext('2d');
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const h = (Math.imul(i, 73856093) ^ Math.imul(j, 19349663)) >>> 0, px = i * cs, py = j * cs;
+    g.fillStyle = (i + j) & 1 ? '#18213a' : '#1d2740'; g.fillRect(px, py, cs, cs);
+    if (h % 3 === 0) { // moss patch, drawn at the 9 wrap offsets so it stays seamless
+      const mx = px + 16 + (h >> 4) % 32, my = py + 16 + (h >> 9) % 32;
+      for (let dy = -N * cs; dy <= N * cs; dy += N * cs) for (let dx = -N * cs; dx <= N * cs; dx += N * cs) {
+        g.fillStyle = 'rgba(62,102,58,0.38)'; g.beginPath(); g.ellipse(mx + dx, my + dy, 16, 10, (h & 3) * 0.4, 0, 7); g.fill();
+      }
+    }
+    const d = h % 11;
+    if (d === 0) { g.fillStyle = '#2f3a52'; g.beginPath(); g.ellipse(px + (h >> 4) % 48 + 8, py + (h >> 9) % 48 + 8, 7, 4, 0, 0, 7); g.fill(); }
+    else if (d === 1) { g.strokeStyle = '#2f5a46'; g.lineWidth = 2; const gx = px + (h >> 4) % 48 + 8, gy = py + (h >> 9) % 48 + 12; g.beginPath(); g.moveTo(gx - 4, gy); g.lineTo(gx - 6, gy - 7); g.moveTo(gx, gy); g.lineTo(gx, gy - 9); g.moveTo(gx + 4, gy); g.lineTo(gx + 6, gy - 7); g.stroke(); }
+    if (h % 4 === 1) { g.fillStyle = 'rgba(253,230,138,0.55)'; g.fillRect(px + (h >> 6) % 56 + 4, py + (h >> 12) % 56 + 4, 2, 2); } // gold mote
+    if (h % 5 === 2) { g.fillStyle = 'rgba(103,232,249,0.45)'; g.fillRect(px + (h >> 8) % 56 + 4, py + (h >> 14) % 56 + 4, 2, 2); } // cyan mote
+  }
+  FLOOR_PAT = ctx.createPattern(c, 'repeat');
+  return FLOOR_PAT;
+}
+// cached radial shadow sprite; drawImage per entity instead of a fresh path each frame
+function groundShadow(x, y, r) {
+  if (!SHADOW_IMG) {
+    SHADOW_IMG = document.createElement('canvas'); SHADOW_IMG.width = SHADOW_IMG.height = 32;
+    const g = SHADOW_IMG.getContext('2d'), gr = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+    gr.addColorStop(0, 'rgba(0,0,0,0.45)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
+  }
+  ctx.drawImage(SHADOW_IMG, x - r * 1.1, y - r * 0.55, r * 2.2, r * 1.1);
+}
 function render() {
   ctx.fillStyle = '#1b1b26'; ctx.fillRect(0, 0, W, H);
   if (state === 'title') {
@@ -556,15 +594,10 @@ function render() {
   const { cam, p } = G;
   const sh = G.shake * 20;
   ctx.save(); ctx.translate(-cam.x + rnd(-sh, sh), -cam.y + rnd(-sh, sh));
-  // themed floor: checker tiles + hashed decorations (stones/grass tufts), deterministic per tile
-  const gs = 64, x0 = Math.floor(cam.x / gs), y0 = Math.floor(cam.y / gs);
-  for (let ty = y0; ty <= y0 + Math.ceil(H / gs) + 1; ty++) for (let tx = x0; tx <= x0 + Math.ceil(W / gs) + 1; tx++) {
-    const h = (Math.imul(tx, 73856093) ^ Math.imul(ty, 19349663)) >>> 0, px = tx * gs, py = ty * gs;
-    if ((tx + ty) & 1) { ctx.fillStyle = '#1f1f2c'; ctx.fillRect(px, py, gs, gs); }
-    const d = h % 11;
-    if (d === 0) { ctx.fillStyle = '#2f2f42'; ctx.beginPath(); ctx.ellipse(px + (h >> 4) % 48 + 8, py + (h >> 9) % 48 + 8, 7, 4, 0, 0, 7); ctx.fill(); }
-    else if (d === 1) { ctx.strokeStyle = '#2f4a3c'; ctx.lineWidth = 2; const gx = px + (h >> 4) % 48 + 8, gy = py + (h >> 9) % 48 + 12; ctx.beginPath(); ctx.moveTo(gx - 4, gy); ctx.lineTo(gx - 6, gy - 7); ctx.moveTo(gx, gy); ctx.lineTo(gx, gy - 9); ctx.moveTo(gx + 4, gy); ctx.lineTo(gx + 6, gy - 7); ctx.stroke(); }
-  }
+  // themed floor: one cached 4x4-tile pattern (see woodlandFloor), filled over the visible area
+  ctx.fillStyle = woodlandFloor(); ctx.fillRect(cam.x - 64, cam.y - 64, W + 128, H + 128);
+  // soft ground shadows for enemies go under every sprite (player shadow is drawn in drawPlayer)
+  for (const e of G.enemies) groundShadow(e.x, e.y + e.r * 0.6, e.r);
   for (const g of G.gems) drawGem(g);
   for (const h of G.hearts) drawHeart(h.x, h.y + Math.sin(G.t * 5 + h.x) * 1.5);
   for (const b of G.bombs) { const y = b.y + Math.sin(G.t * 5 + b.x) * 1.5; circle(b.x, y, 8, '#1f2937'); ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(b.x + 4, y - 6); ctx.lineTo(b.x + 8, y - 11); ctx.stroke(); circle(b.x + 8, y - 11, 2, '#f97316'); }
