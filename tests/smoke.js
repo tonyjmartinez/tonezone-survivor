@@ -55,6 +55,14 @@ const path = require('path');
     return { early, late: e.hp };
   });
   if (tr.early !== 35 || !(tr.late > 40)) { console.log('troll failed', JSON.stringify(tr)); errs.push('troll'); }
+  const fr = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.w.frost = 1; G.timers.frost = 0;
+    t.update(0.02); const n = G.shots.filter(s => s.frost).length;
+    const e = { x: G.p.x + 40, y: G.p.y, r: 10, hp: 500, maxHp: 500, speed: 0, dmg: 0, xp: 1, color: '#fff', flash: 0, kind: 'bat' };
+    G.enemies.push(e); G.shots.forEach(s => { s.x = e.x; s.y = e.y; }); t.update(0.02); t.render();
+    return { n, slow: e.slow };
+  });
+  if (fr.n !== 4 || !(fr.slow > 0)) { console.log('frost failed', JSON.stringify(fr)); errs.push('frost'); }
   const mn = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.w.mine = 1;
     t.update(0.02); const placed = G.mines.length; G.mines[0].age = 1;
