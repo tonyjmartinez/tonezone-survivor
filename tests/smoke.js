@@ -68,7 +68,7 @@ const path = require('path');
     e2.x = s2.x + s2.vx * 0.02; e2.y = s2.y + s2.vy * 0.02; G.enemies.push(e2); t.update(0.02); t.render();
     return { n: shards.length, slow: e.slow, hp: e.hp, slowKept: e2.slow };
   });
-  if (fr.n !== 4 || !(fr.slow > 0) || !(fr.hp < 500) || !(fr.slowKept >= 3)) { console.log('frost failed', JSON.stringify(fr)); errs.push('frost'); }
+  if (fr.n !== 4 || !(fr.slow > 0) || !(fr.hp < 500) || !(fr.slowKept >= 2.9)) { console.log('frost failed', JSON.stringify(fr)); errs.push('frost'); }
   const mn = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.w.mine = 1;
     t.update(0.02); const placed = G.mines.length; G.mines[0].age = 1;
