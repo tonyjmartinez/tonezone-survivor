@@ -604,8 +604,9 @@ function render() {
     if (G.newBest) text('NEW BEST!', W / 2, H / 2 + 62, 16, '#fde047');
     const wl = Object.keys(G.w).map(k => WEAPONS[k].name + (G.w[k] >= EVO_LVL ? ' (EVO)' : ' ' + G.w[k])).join(', ');
     const pl = Object.keys(G.pa).map(k => PASSIVES[k].name + ' ' + G.pa[k]).join(', ');
-    text('Weapons: ' + wl, W / 2, H / 2 + 118, 13, '#93c5fd');
-    if (pl) text('Passives: ' + pl, W / 2, H / 2 + 136, 13, '#a7f3d0');
+    const fs = str => Math.max(8, Math.min(13, Math.floor((W - 24) / (str.length * 0.62))));
+    text('Weapons: ' + wl, W / 2, H / 2 + 118, fs('Weapons: ' + wl), '#93c5fd');
+    if (pl) text('Passives: ' + pl, W / 2, H / 2 + 136, fs('Passives: ' + pl), '#a7f3d0');
     text('SPACE or tap to continue', W / 2, H / 2 + 90, 18, '#6ee7b7');
   }
 }
