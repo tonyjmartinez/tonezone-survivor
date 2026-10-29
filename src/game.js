@@ -47,6 +47,7 @@ const ENEMY_TYPES = [
   { name: 'brute', hp: 90,  speed: 45,  r: 18, dmg: 16, xp: 8, color: '#f87171', from: 150 },
   { name: 'wisp',  hp: 6,   speed: 120, r: 6,  dmg: 5,  xp: 1, color: '#67e8f9', from: 120, pack: 5 }, // spawns in a swarm
   { name: 'bloat', hp: 40,  speed: 50,  r: 14, dmg: 10, xp: 3, color: '#bef264', from: 180, split: 3 }, // bursts into mini bloats
+  { name: 'dasher', hp: 30, speed: 60,  r: 10, dmg: 12, xp: 4, color: '#f472b6', from: 200, lunges: true }, // periodic 3.5x speed lunge
   { name: 'golem', hp: 220, speed: 35,  r: 22, dmg: 22, xp: 15, color: '#94a3b8', from: 240 },
 ];
 const BOSS_EVERY = 120; // seconds
@@ -343,7 +344,9 @@ function update(dt) {
     const e = G.enemies[i];
     const a = Math.atan2(p.y - e.y, p.x - e.x);
     const sp = G.freeze > 0 ? 0 : e.slow > 0 ? 0.6 : 1; e.slow = Math.max(0, (e.slow || 0) - dt);
-    e.x += Math.cos(a) * e.speed * sp * dt; e.y += Math.sin(a) * e.speed * sp * dt;
+    let lm = 1;
+    if (e.kind === 'dasher') { e.ct = (e.ct === undefined ? rnd(1, 3) : e.ct) - dt; if (e.ct <= 0) { e.ct = 3; e.lunge = 0.5; } if (e.lunge > 0) { e.lunge -= dt; lm = 3.5; } }
+    e.x += Math.cos(a) * e.speed * sp * lm * dt; e.y += Math.sin(a) * e.speed * sp * lm * dt;
     e.flash = Math.max(0, e.flash - dt);
     // soft separation via spatial hash (cells of CELL px; each pair resolved once via index order)
     const cx = Math.floor(e.x / CELL), cy = Math.floor(e.y / CELL);
