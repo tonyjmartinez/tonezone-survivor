@@ -65,10 +65,17 @@ const path = require('path');
     // a longer existing slow (e.g. from a stronger effect) must not be shortened by a frost hit
     G.shots.length = 0; G.enemies.length = 0; const e2 = { x: 0, y: 0, r: 10, hp: 500, maxHp: 500, speed: 0, dmg: 0, xp: 1, color: '#fff', flash: 0, kind: 'bat', slow: 3 };
     G.timers.frost = 0; t.update(0.02); const s2 = G.shots.find(s => s.frost);
-    e2.x = s2.x + s2.vx * 0.02; e2.y = s2.y + s2.vy * 0.02; G.enemies.push(e2); t.update(0.02); t.render();
-    return { n: shards.length, slow: e.slow, hp: e.hp, slowKept: e2.slow };
+    e2.x = s2.x + s2.vx * 0.02; e2.y = s2.y + s2.vy * 0.02; G.enemies.push(e2);
+    const slowBefore = e2.slow; t.update(0.02); t.render();
+    // evolve path: maxed frost + maxed armor passive opened by a boss chest -> level 8 (EVO)
+    G.enemies.length = 0; G.shots.length = 0; G.w.frost = 6; G.pa.armor = 5; G.texts.length = 0;
+    G.chests.length = 0; G.chests.push({ x: G.p.x, y: G.p.y, dead: false }); t.update(0.02);
+    return { n: shards.length, slow: e.slow, hp: e.hp, slowBefore, slowKept: e2.slow, e2hp: e2.hp, evoLvl: G.w.frost, evoText: G.texts.some(x => /EVOLVED/.test(x.s)) };
   });
-  if (fr.n !== 4 || !(fr.slow > 0) || !(fr.hp < 500) || !(fr.slowKept >= 2.9)) { console.log('frost failed', JSON.stringify(fr)); errs.push('frost'); }
+  // the hit must land in the same tick, and must not shorten the existing slow (only one tick of decay allowed)
+  const frOk = fr.n === 4 && fr.slow > 0 && fr.hp < 500 && fr.e2hp < 500 && fr.slowKept > 1.5 && fr.slowKept >= fr.slowBefore - 0.021;
+  const evoOk = fr.evoLvl === 8 && fr.evoText;
+  if (!frOk || !evoOk) { console.log('frost failed', JSON.stringify(fr)); errs.push('frost'); }
   const mn = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.w.mine = 1;
     t.update(0.02); const placed = G.mines.length; G.mines[0].age = 1;
