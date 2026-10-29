@@ -48,6 +48,13 @@ const path = require('path');
     return { dx: x0 - e.x, lunge: e.lunge };
   });
   if (dsh.dx < 15 || !(dsh.lunge > 0)) { console.log('dasher failed', JSON.stringify(dsh)); errs.push('dasher'); }
+  const tr = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.t = 300;
+    const e = { x: G.p.x + 600, y: G.p.y, r: 15, hp: 35, maxHp: 70, speed: 0, dmg: 0, xp: 6, color: '#65a30d', flash: 0, kind: 'troll', hitT: 1.5 };
+    G.enemies.push(e); t.update(0.5); const early = e.hp; t.update(1.5); t.render();
+    return { early, late: e.hp };
+  });
+  if (tr.early !== 35 || !(tr.late > 40)) { console.log('troll failed', JSON.stringify(tr)); errs.push('troll'); }
   const mn = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.w.mine = 1;
     t.update(0.02); const placed = G.mines.length; G.mines[0].age = 1;

@@ -48,5 +48,6 @@
 - 2026-10-25 pd loop: End screen now lists final weapons/passives (EVO marker). CI (GitHub Actions, PR #47) is now on main.
 - 2026-10-25 pd loop: Added Dasher enemy (from 3:20; lunges at 3.5x speed for 0.5s every 3s). Smoke covers it.
 - 2026-10-25 pd loop: Added Mines weapon (`G.mines`; drops mines that blast foes, evolves with Luck). Smoke covers it.
+- 2026-10-26 pd loop: Added Troll enemy (from 4:30; regenerates 8% max HP/s unless hit in last 1.5s). Smoke covers it.
 ## Next steps
 - Check `origin/main` before starting (parallel session branches exist). use hash for weapon queries (low value), more weapons/enemy variety, sprite polish for projectiles, real playtest balance (5+ min). See ROADMAP "Next".

@@ -43,3 +43,4 @@
 - [x] End-screen build summary: weapons + passives (pd loop)
 - [x] Dasher enemy that lunges periodically (pd loop)
 - [x] Mines weapon (pd loop)
+- [x] Troll enemy that regenerates unless hit (pd loop)
