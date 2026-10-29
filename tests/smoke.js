@@ -8,7 +8,9 @@ try { ({ chromium } = require('playwright')); } catch (e) {
 }
 const path = require('path');
 const executablePath = process.env.CHROMIUM || '/opt/pw-browsers/chromium';
-if (!fs.existsSync(executablePath)) {
+let runnable = false;
+try { fs.accessSync(executablePath, fs.constants.X_OK); runnable = true; } catch (e) {}
+if (!runnable) {
   console.error('smoke: no browser at ' + executablePath + '. Set CHROMIUM=/path/to/chromium or run `npx playwright install chromium` and point CHROMIUM at it.');
   process.exit(2);
 }
