@@ -1,8 +1,19 @@
 // Headless smoke test: node tests/smoke.js  (needs playwright + chromium)
-const { chromium } = require('playwright');
+// Env: CHROMIUM=/path/to/chrome overrides the browser; NODE_PATH points at a dir containing 'playwright'.
+const fs = require('fs');
+let chromium;
+try { ({ chromium } = require('playwright')); } catch (e) {
+  console.error("smoke: cannot load 'playwright'. Install it (npm i -g playwright) and run with NODE_PATH=$(npm root -g) node tests/smoke.js");
+  process.exit(2);
+}
 const path = require('path');
+const executablePath = process.env.CHROMIUM || '/opt/pw-browsers/chromium';
+if (!fs.existsSync(executablePath)) {
+  console.error('smoke: no browser at ' + executablePath + '. Set CHROMIUM=/path/to/chromium or run `npx playwright install chromium` and point CHROMIUM at it.');
+  process.exit(2);
+}
 (async () => {
-  const b = await chromium.launch({ executablePath: process.env.CHROMIUM || '/opt/pw-browsers/chromium' });
+  const b = await chromium.launch({ executablePath });
   const pg = await b.newPage({ viewport: { width: 900, height: 600 } });
   const errs = [];
   pg.on('pageerror', e => errs.push(e.message));
