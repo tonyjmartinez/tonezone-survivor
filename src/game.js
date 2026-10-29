@@ -602,6 +602,10 @@ function render() {
     text(`Survived ${fmt(G.t)}  |  Kills ${G.kills}  |  Level ${p.lvl}`, W / 2, H / 2 + 10, 18);
     text('Best: ' + fmt(+(localStorage.getItem('tzs_best') || 0)) + '   Gold earned: +' + G.gold, W / 2, H / 2 + 40, 16, '#aaa');
     if (G.newBest) text('NEW BEST!', W / 2, H / 2 + 62, 16, '#fde047');
+    const wl = Object.keys(G.w).map(k => WEAPONS[k].name + (G.w[k] >= EVO_LVL ? ' (EVO)' : ' ' + G.w[k])).join(', ');
+    const pl = Object.keys(G.pa).map(k => PASSIVES[k].name + ' ' + G.pa[k]).join(', ');
+    text('Weapons: ' + wl, W / 2, H / 2 + 118, 13, '#93c5fd');
+    if (pl) text('Passives: ' + pl, W / 2, H / 2 + 136, 13, '#a7f3d0');
     text('SPACE or tap to continue', W / 2, H / 2 + 90, 18, '#6ee7b7');
   }
 }

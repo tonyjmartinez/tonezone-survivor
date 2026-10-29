@@ -40,3 +40,4 @@
 - [x] 'NEW BEST!' marker on end screen (run 37)
 - [x] Dash ability with cooldown + i-frames (run 40)
 - [x] Bloat enemy that splits on death (run 41)
+- [x] End-screen build summary: weapons + passives (pd loop)
