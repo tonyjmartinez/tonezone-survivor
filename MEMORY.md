@@ -45,6 +45,6 @@
 - 2026-10-24 run 39: stale branch once more (rebuilt run-2 features before checking main; discarded). Added step 0 (sync to origin/main) to CLAUDE.md. ROADMAP has no unchecked items; no gameplay change.
 - 2026-10-24 run 40: fetched origin/main first. Added Dash (Shift/Space, 0.16s at 4x speed + brief i-frames, 2.5s cooldown, HUD readout; `p.dashT/dashCd/face`). Smoke covers it.
 - 2026-10-24 run 41: stale branch AGAIN (rebuilt run-2 pause/hearts/particles, discarded after seeing main had 40 runs; PR not opened for it). Reset to main. Added Bloat enemy (from 3:00; splits into 3 fast mini bloats on death).
-- 2026-10-25 pd loop: End screen now lists final weapons/passives (EVO marker). Synced to origin/main via factory flow. CI workflow proposed in PR #47 (Tony must merge).
+- 2026-10-25 pd loop: End screen now lists final weapons/passives (EVO marker). CI (GitHub Actions, PR #47) is now on main.
 ## Next steps
 - Check `origin/main` before starting (parallel session branches exist). use hash for weapon queries (low value), more weapons/enemy variety, sprite polish for projectiles, real playtest balance (5+ min). See ROADMAP "Next".

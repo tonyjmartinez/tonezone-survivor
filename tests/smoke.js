@@ -37,6 +37,10 @@ const path = require('path');
     return { dx: t.G.p.x - x0, cd: t.G.p.dashCd };
   });
   if (dash.dx < 20 || dash.cd <= 0) { console.log('dash failed', JSON.stringify(dash)); errs.push('dash'); }
+  const sum = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); t.G.w.bolt = 8; t.G.pa.haste = 2; return t.buildSummary();
+  });
+  if (!/\(EVO\)/.test(sum.wl) || !/ 2$/.test(sum.pl)) { console.log('summary failed', JSON.stringify(sum)); errs.push('summary'); }
   console.log(JSON.stringify(r), errs);
   await b.close();
   if (errs.length || r.kills < 1) process.exit(1);

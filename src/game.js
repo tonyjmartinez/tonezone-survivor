@@ -437,6 +437,11 @@ function update(dt) {
 
 // ---------- render ----------
 const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+function buildSummary() {
+  const wl = Object.keys(G.w).map(k => WEAPONS[k].name + (G.w[k] >= EVO_LVL ? ' (EVO)' : ' ' + G.w[k])).join(', ');
+  const pl = Object.keys(G.pa).map(k => PASSIVES[k].name + ' ' + G.pa[k]).join(', ');
+  return { wl, pl };
+}
 function text(s, x, y, size, color = '#fff', align = 'center') { ctx.fillStyle = color; ctx.font = `bold ${size}px monospace`; ctx.textAlign = align; ctx.fillText(s, x, y); }
 // Procedural "sprites": body shape + per-type features, eyes face the player.
 function drawHeart(x, y) {
@@ -602,10 +607,9 @@ function render() {
     text(`Survived ${fmt(G.t)}  |  Kills ${G.kills}  |  Level ${p.lvl}`, W / 2, H / 2 + 10, 18);
     text('Best: ' + fmt(+(localStorage.getItem('tzs_best') || 0)) + '   Gold earned: +' + G.gold, W / 2, H / 2 + 40, 16, '#aaa');
     if (G.newBest) text('NEW BEST!', W / 2, H / 2 + 62, 16, '#fde047');
-    const wl = Object.keys(G.w).map(k => WEAPONS[k].name + (G.w[k] >= EVO_LVL ? ' (EVO)' : ' ' + G.w[k])).join(', ');
-    const pl = Object.keys(G.pa).map(k => PASSIVES[k].name + ' ' + G.pa[k]).join(', ');
+    const { wl, pl } = buildSummary();
     const fs = str => Math.max(8, Math.min(13, Math.floor((W - 24) / (str.length * 0.62))));
-    text('Weapons: ' + wl, W / 2, H / 2 + 118, fs('Weapons: ' + wl), '#93c5fd');
+    if (wl) text('Weapons: ' + wl, W / 2, H / 2 + 118, fs('Weapons: ' + wl), '#93c5fd');
     if (pl) text('Passives: ' + pl, W / 2, H / 2 + 136, fs('Passives: ' + pl), '#a7f3d0');
     text('SPACE or tap to continue', W / 2, H / 2 + 90, 18, '#6ee7b7');
   }
@@ -622,5 +626,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey };
+window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, buildSummary };
 })();
