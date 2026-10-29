@@ -3,9 +3,15 @@
 // Run: node tests/preflight.js
 const { spawnSync } = require('child_process');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 const smoke = path.join(__dirname, 'smoke.js');
+// a regular file without the execute bit must be rejected by the preflight, not passed on to launch
+const nonExec = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'tzs-pf-')), 'chrome');
+fs.writeFileSync(nonExec, '#!/bin/sh\n', { mode: 0o644 });
 const cases = [
-  { name: 'missing browser', env: { CHROMIUM: '/nonexistent-tzs/chrome', PW_CHROMIUM: '' }, want: 'no browser at' },
+  { name: 'missing browser', env: { CHROMIUM: '/nonexistent-tzs/chrome' }, want: 'no browser at' },
+  { name: 'non-executable browser file', env: { CHROMIUM: nonExec }, want: 'no browser at' },
   { name: 'missing playwright', env: { TZS_SMOKE_FORCE_NO_PLAYWRIGHT: '1' }, want: "cannot load 'playwright'" },
 ];
 let failed = 0;
