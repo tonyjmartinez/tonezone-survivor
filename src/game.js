@@ -95,7 +95,7 @@ function newGame() {
     cam: { x: 0, y: 0 },
     p: { x: 0, y: 0, r: 10, hp: 120 + ch.hp + 10 * (mu.hp || 0), maxHp: 120 + ch.hp + 10 * (mu.hp || 0), speed: 140 * ch.spd * (1 + 0.03 * (mu.spd || 0)), dmgMul: ch.dmg * (1 + 0.05 * (mu.dmg || 0)), magnet: 60, cdMul: 1, hurt: 0, dashT: 0, dashCd: 0, face: { x: 1, y: 0 }, xp: 0, lvl: 1, need: 3 },
     w: { [ch.w]: 1 }, pa: {},
-    enemies: [], shots: [], gems: [], booms: [], mines: [], bolts: [], hearts: [], vacs: [], bombs: [], ices: [], freeze: 0, chests: [], parts: [], shake: 0, fx: [], texts: [],
+    enemies: [], shots: [], gems: [], booms: [], mines: [], bolts: [], hearts: [], vacs: [], bombs: [], ices: [], freeze: 0, chests: [], parts: [], shake: 0, fx: [], mineFx: [], texts: [],
     timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
     choices: [], gold: 0,
   };
@@ -312,13 +312,13 @@ function update(dt) {
     if (G.enemies.some(e => dist2(m, e) < (e.r + 16) ** 2)) {
       m.dead = true; const br = 60 + wm * 6;
       for (const e of G.enemies) if (dist2(m, e) < (br + e.r) ** 2) damage(e, 25 + wm * 8, (e.x - m.x) * 0.1, (e.y - m.y) * 0.1);
-      G.fx.push({ x: m.x, y: m.y, r: br, t: 0.25, max: 0.25 });
+      G.mineFx.push({ x: m.x, y: m.y, r: br, t: 0.25, max: 0.25 });
     }
     if (m.age > 20) m.dead = true;
   }
   G.mines = G.mines.filter(m => !m.dead);
-  for (const f of G.fx) f.t -= dt;
-  G.fx = G.fx.filter(f => f.t > 0);
+  for (const f of G.mineFx) f.t -= dt;
+  G.mineFx = G.mineFx.filter(f => f.t > 0);
   for (const b of G.bolts) b.t -= dt;
   G.bolts = G.bolts.filter(b => b.t > 0);
   const wg = G.w.garlic;
@@ -587,7 +587,7 @@ function render() {
   if (G.w.orbit) { const n = 1 + G.w.orbit, rad = 60 + G.w.orbit * 4; for (let i = 0; i < n; i++) { const a = G.orbAng + (i / n) * Math.PI * 2; circle(p.x + Math.cos(a) * rad, p.y + Math.sin(a) * rad, 7, '#c4b5fd'); } }
   if (G.w.garlic) { ctx.fillStyle = 'rgba(167,243,208,.12)'; ctx.beginPath(); ctx.arc(p.x, p.y, 50 + G.w.garlic * 12, 0, 7); ctx.fill(); }
   if (G.slash) { const k = G.slash; ctx.fillStyle = 'rgba(253,230,138,' + (k.t / 0.15 * 0.6) + ')'; ctx.beginPath(); ctx.moveTo(k.x, k.y); ctx.arc(k.x, k.y, k.reach, k.a - k.half, k.a + k.half); ctx.closePath(); ctx.fill(); }
-  for (const f of G.fx) { ctx.fillStyle = 'rgba(245,158,11,' + (f.t / f.max * 0.6) + ')'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 - f.t / f.max * 0.4), 0, 7); ctx.fill(); }
+  for (const f of G.mineFx) { ctx.fillStyle = 'rgba(245,158,11,' + (f.t / f.max * 0.6) + ')'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 - f.t / f.max * 0.4), 0, 7); ctx.fill(); }
   if (G.novaRing) { ctx.strokeStyle = 'rgba(125,211,252,' + (G.novaRing.t / 0.3) + ')'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(p.x, p.y, G.novaRing.r, 0, 7); ctx.stroke(); }
   drawPlayer(p);
   for (const t of G.texts) text(t.s, t.x, t.y, 12, '#fff');
