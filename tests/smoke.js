@@ -62,9 +62,13 @@ const path = require('path');
     // place the enemy on a live shard before the next update so the shard hits it deterministically
     const s = shards[0]; e.x = s.x + s.vx * 0.02; e.y = s.y + s.vy * 0.02; G.enemies.push(e);
     t.update(0.02); t.render();
-    return { n: shards.length, slow: e.slow, hp: e.hp };
+    // a longer existing slow (e.g. from a stronger effect) must not be shortened by a frost hit
+    G.shots.length = 0; G.enemies.length = 0; const e2 = { x: 0, y: 0, r: 10, hp: 500, maxHp: 500, speed: 0, dmg: 0, xp: 1, color: '#fff', flash: 0, kind: 'bat', slow: 3 };
+    G.timers.frost = 0; t.update(0.02); const s2 = G.shots.find(s => s.frost);
+    e2.x = s2.x + s2.vx * 0.02; e2.y = s2.y + s2.vy * 0.02; G.enemies.push(e2); t.update(0.02); t.render();
+    return { n: shards.length, slow: e.slow, hp: e.hp, slowKept: e2.slow };
   });
-  if (fr.n !== 4 || !(fr.slow > 0) || !(fr.hp < 500)) { console.log('frost failed', JSON.stringify(fr)); errs.push('frost'); }
+  if (fr.n !== 4 || !(fr.slow > 0) || !(fr.hp < 500) || !(fr.slowKept >= 3)) { console.log('frost failed', JSON.stringify(fr)); errs.push('frost'); }
   const mn = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.w.mine = 1;
     t.update(0.02); const placed = G.mines.length; G.mines[0].age = 1;
