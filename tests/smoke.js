@@ -48,6 +48,14 @@ const path = require('path');
     return { dx: x0 - e.x, lunge: e.lunge };
   });
   if (dsh.dx < 15 || !(dsh.lunge > 0)) { console.log('dasher failed', JSON.stringify(dsh)); errs.push('dasher'); }
+  const mn = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.w.mine = 1;
+    t.update(0.02); const placed = G.mines.length; G.mines[0].age = 1;
+    const e = { x: G.mines[0].x + 5, y: G.mines[0].y, r: 10, hp: 500, maxHp: 500, speed: 0, dmg: 0, xp: 1, color: '#fff', flash: 0, kind: 'bat' };
+    G.enemies.push(e); t.update(0.02); t.render();
+    return { placed, hp: e.hp, left: G.mines.length };
+  });
+  if (mn.placed !== 1 || mn.hp >= 500) { console.log('mine failed', JSON.stringify(mn)); errs.push('mine'); }
   console.log(JSON.stringify(r), errs);
   await b.close();
   if (errs.length || r.kills < 1) process.exit(1);
