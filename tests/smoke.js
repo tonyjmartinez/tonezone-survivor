@@ -60,9 +60,14 @@ const path = require('path');
     t.update(0.02); const n = G.shots.filter(s => s.frost).length;
     const e = { x: G.p.x + 40, y: G.p.y, r: 10, hp: 500, maxHp: 500, speed: 0, dmg: 0, xp: 1, color: '#fff', flash: 0, kind: 'bat' };
     G.enemies.push(e); G.shots.forEach(s => { s.x = e.x; s.y = e.y; }); t.update(0.02); t.render();
-    return { n, slow: e.slow };
+    // movement check: a slowed enemy covers ~60% of the distance an unslowed one does in the same step
+    const mk = (x, y) => ({ x, y, r: 10, hp: 500, maxHp: 500, speed: 100, dmg: 0, xp: 1, color: '#fff', flash: 0, kind: 'bat' });
+    const a1 = mk(G.p.x + 400, G.p.y - 300), a2 = mk(G.p.x - 400, G.p.y + 300); a1.slow = 1.5; G.enemies.length = 0; G.enemies.push(a1, a2);
+    const x1 = [a1.x, a1.y], x2 = [a2.x, a2.y]; t.update(0.1); t.render();
+    const d1 = Math.hypot(a1.x - x1[0], a1.y - x1[1]), d2 = Math.hypot(a2.x - x2[0], a2.y - x2[1]);
+    return { n, slow: a1.slow, ratio: d1 / d2 };
   });
-  if (fr.n !== 4 || !(fr.slow > 0)) { console.log('frost failed', JSON.stringify(fr)); errs.push('frost'); }
+  if (fr.n !== 4 || !(fr.slow > 0) || !(fr.ratio < 0.7 && fr.ratio > 0.5)) { console.log('frost failed', JSON.stringify(fr)); errs.push('frost'); }
   const mn = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.w.mine = 1;
     t.update(0.02); const placed = G.mines.length; G.mines[0].age = 1;
