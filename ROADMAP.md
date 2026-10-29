@@ -42,3 +42,4 @@
 - [x] Bloat enemy that splits on death (run 41)
 - [x] End-screen build summary: weapons + passives (pd loop)
 - [x] Dasher enemy that lunges periodically (pd loop)
+- [x] Mines weapon (pd loop)
