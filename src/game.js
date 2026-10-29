@@ -597,7 +597,9 @@ function render() {
   // themed floor: one cached 4x4-tile pattern (see woodlandFloor), filled over the visible area
   ctx.fillStyle = woodlandFloor(); ctx.fillRect(cam.x - 64, cam.y - 64, W + 128, H + 128);
   // soft ground shadows for enemies go under every sprite (player shadow is drawn in drawPlayer)
-  for (const e of G.enemies) groundShadow(e.x, e.y + e.r * 0.6, e.r);
+  // (shadows outside the visible area are culled; crowded scenes can hold hundreds of enemies)
+  const vx0 = cam.x - 64, vy0 = cam.y - 64, vx1 = cam.x + W + 64, vy1 = cam.y + H + 64;
+  for (const e of G.enemies) if (e.x > vx0 && e.x < vx1 && e.y > vy0 && e.y < vy1) groundShadow(e.x, e.y + e.r * 0.6, e.r);
   for (const g of G.gems) drawGem(g);
   for (const h of G.hearts) drawHeart(h.x, h.y + Math.sin(G.t * 5 + h.x) * 1.5);
   for (const b of G.bombs) { const y = b.y + Math.sin(G.t * 5 + b.x) * 1.5; circle(b.x, y, 8, '#1f2937'); ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(b.x + 4, y - 6); ctx.lineTo(b.x + 8, y - 11); ctx.stroke(); circle(b.x + 8, y - 11, 2, '#f97316'); }
