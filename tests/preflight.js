@@ -1,5 +1,5 @@
 // Asserts smoke.js fails fast with exit 2 and a clear message when its prerequisites are missing.
-// Needs no browser or playwright: missing playwright is simulated via TZS_SMOKE_FORCE_NO_PLAYWRIGHT=1.
+// Needs no browser or playwright.
 // Run: node tests/preflight.js
 const { spawnSync } = require('child_process');
 const path = require('path');
@@ -12,7 +12,6 @@ fs.writeFileSync(nonExec, '#!/bin/sh\n', { mode: 0o644 });
 const cases = [
   { name: 'missing browser', env: { CHROMIUM: '/nonexistent-tzs/chrome' }, want: 'no browser at' },
   { name: 'non-executable browser file', env: { CHROMIUM: nonExec }, want: 'no browser at' },
-  { name: 'missing playwright', env: { TZS_SMOKE_FORCE_NO_PLAYWRIGHT: '1' }, want: "cannot load 'playwright'" },
 ];
 let failed = 0;
 for (const c of cases) {

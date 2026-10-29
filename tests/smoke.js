@@ -1,6 +1,5 @@
 // Headless smoke test: node tests/smoke.js  (needs playwright + chromium)
 // Env: CHROMIUM=/path/to/chrome overrides the browser; NODE_PATH points at a dir containing 'playwright'.
-// TZS_SMOKE_FORCE_NO_PLAYWRIGHT=1 is a test hook (tests/preflight.js) that simulates a missing playwright.
 const fs = require('fs');
 const path = require('path');
 const executablePath = process.env.CHROMIUM || '/opt/pw-browsers/chromium';
@@ -12,7 +11,6 @@ if (!runnable) {
 }
 let chromium = null;
 try {
-  if (process.env.TZS_SMOKE_FORCE_NO_PLAYWRIGHT === '1') throw new Error('forced');
   ({ chromium } = require('playwright'));
 } catch (e) {
   console.error("smoke: cannot load 'playwright'. Install it (npm i -g playwright) and run with NODE_PATH=$(npm root -g) node tests/smoke.js");
