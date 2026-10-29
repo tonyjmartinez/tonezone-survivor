@@ -63,18 +63,22 @@ const path = require('path');
     return { placed, hp: e.hp, left: G.mines.length };
   });
   if (mn.placed !== 1 || mn.hp >= 500) { console.log('mine failed', JSON.stringify(mn)); errs.push('mine'); }
-  // enemy ground shadows: only enemies near the view get a drawImage (the game's only drawImage call); far ones are culled
+  // enemy ground shadows: the game's only drawImage call is groundShadow, so drawImage count == shadows drawn.
+  // Expect 40 on-screen enemies + a boss (r 34) whose centre is inside the 160px cull margin; a boss outside the margin and 40 far enemies are culled.
   const sh = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.w.mine = 0;
     const cx = G.cam.x + 450, cy = G.cam.y + 300;
-    for (let i = 0; i < 40; i++) G.enemies.push({ x: cx + (i % 8) * 50 - 175, y: cy + ((i / 8) | 0) * 50 - 100, r: 12, hp: 999, maxHp: 999, speed: 0, dmg: 0, xp: 1, color: '#fff', flash: 0, kind: 'bat' });
-    for (let i = 0; i < 40; i++) G.enemies.push({ x: cx + 3000 + i * 10, y: cy, r: 12, hp: 999, maxHp: 999, speed: 0, dmg: 0, xp: 1, color: '#fff', flash: 0, kind: 'bat' });
+    const mk = (x, y, r) => ({ x, y, r, hp: 999, maxHp: 999, speed: 0, dmg: 0, xp: 1, color: '#fff', flash: 0, kind: 'bat' });
+    for (let i = 0; i < 40; i++) G.enemies.push(mk(cx + (i % 8) * 50 - 175, cy + ((i / 8) | 0) * 50 - 100, 12));
+    for (let i = 0; i < 40; i++) G.enemies.push(mk(cx + 3000 + i * 10, cy, 12));
+    G.enemies.push(mk(G.cam.x - 150, cy, 34)); // boss-size, inside margin -> drawn
+    G.enemies.push(mk(G.cam.x - 200, cy, 34)); // boss-size, outside margin -> culled
     const C = CanvasRenderingContext2D.prototype, orig = C.drawImage; let n = 0;
-    C.drawImage = function (...a) { if (a[0] && a[0].width === 32) n++; return orig.apply(this, a); };
+    C.drawImage = function (...a) { n++; return orig.apply(this, a); };
     try { t.render(); } finally { C.drawImage = orig; }
-    return { onscreen: 40, drawn: n };
+    return { expected: 41, drawn: n };
   });
-  if (sh.drawn !== sh.onscreen) { console.log('shadow cull failed', JSON.stringify(sh)); errs.push('shadow-cull'); }
+  if (sh.drawn !== sh.expected) { console.log('shadow cull failed', JSON.stringify(sh)); errs.push('shadow-cull'); }
   console.log(JSON.stringify(r), errs);
   await b.close();
   if (errs.length || r.kills < 1) process.exit(1);
