@@ -49,6 +49,7 @@ const ENEMY_TYPES = [
   { name: 'wisp',  hp: 6,   speed: 120, r: 6,  dmg: 5,  xp: 1, color: '#67e8f9', from: 120, pack: 5 }, // spawns in a swarm
   { name: 'bloat', hp: 40,  speed: 50,  r: 14, dmg: 10, xp: 3, color: '#bef264', from: 180, split: 3 }, // bursts into mini bloats
   { name: 'dasher', hp: 30, speed: 60,  r: 10, dmg: 12, xp: 4, color: '#f472b6', from: 200, lunges: true }, // periodic 3.5x speed lunge
+  { name: 'troll', hp: 70, speed: 50,  r: 15, dmg: 14, xp: 6, color: '#65a30d', from: 270, regen: true }, // heals 8% max HP/s unless hit in the last 1.5s
   { name: 'golem', hp: 220, speed: 35,  r: 22, dmg: 22, xp: 15, color: '#94a3b8', from: 240 },
 ];
 const BOSS_EVERY = 120; // seconds
@@ -142,7 +143,7 @@ function nearest(from, maxD) {
   return best;
 }
 function damage(e, amt, kx, ky) {
-  amt *= G.p.dmgMul; e.hp -= amt; e.flash = 0.08;
+  amt *= G.p.dmgMul; e.hp -= amt; e.flash = 0.08; e.hitT = 1.5;
   if (kx !== undefined) { e.x += kx; e.y += ky; }
   G.texts.push({ x: e.x, y: e.y - e.r, s: Math.round(amt), t: 0.5 });
   if (G.parts.length < 200) for (let i = 0; i < 2; i++) G.parts.push({ x: e.x, y: e.y, vx: rnd(-80, 80), vy: rnd(-80, 80), t: 0.3, c: e.color });
@@ -364,6 +365,7 @@ function update(dt) {
     const a = Math.atan2(p.y - e.y, p.x - e.x);
     const sp = G.freeze > 0 ? 0 : e.slow > 0 ? 0.6 : 1; e.slow = Math.max(0, (e.slow || 0) - dt);
     let lm = 1;
+    if (e.kind === 'troll') { e.hitT = (e.hitT || 0) - dt; if (e.hitT <= 0 && e.hp < e.maxHp) e.hp = Math.min(e.maxHp, e.hp + e.maxHp * 0.08 * dt); }
     if (e.kind === 'dasher') { e.ct = (e.ct === undefined ? rnd(1, 3) : e.ct) - dt; if (e.ct <= 0) { e.ct = 3; e.lunge = 0.5; } if (e.lunge > 0) { e.lunge -= dt; lm = 3.5; } }
     e.x += Math.cos(a) * e.speed * sp * lm * dt; e.y += Math.sin(a) * e.speed * sp * lm * dt;
     e.flash = Math.max(0, e.flash - dt);
@@ -490,7 +492,7 @@ function drawEnemy(e) {
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - r * 1.7, y - r * 0.6 + f); ctx.lineTo(x - r * 0.4, y + r * 0.6); ctx.closePath(); ctx.fill();
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + r * 1.7, y - r * 0.6 + f); ctx.lineTo(x + r * 0.4, y + r * 0.6); ctx.closePath(); ctx.fill();
     circle(x, y, r * 0.7, c);
-  } else if (e.kind === 'imp' || e.kind === 'brute') { // horns
+  } else if (e.kind === 'imp' || e.kind === 'brute' || e.kind === 'troll') { // horns
     circle(x, y, r, c);
     ctx.beginPath(); ctx.moveTo(x - r * 0.8, y - r * 0.3); ctx.lineTo(x - r * 0.5, y - r * 1.3); ctx.lineTo(x - r * 0.1, y - r * 0.8); ctx.moveTo(x + r * 0.8, y - r * 0.3); ctx.lineTo(x + r * 0.5, y - r * 1.3); ctx.lineTo(x + r * 0.1, y - r * 0.8); ctx.fill();
   } else if (e.kind === 'golem') { // blocky
