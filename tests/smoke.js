@@ -67,7 +67,7 @@ const path = require('path');
     const d1 = Math.hypot(a1.x - x1[0], a1.y - x1[1]), d2 = Math.hypot(a2.x - x2[0], a2.y - x2[1]);
     return { n, slow: a1.slow, ratio: d1 / d2 };
   });
-  if (fr.n !== 4 || !(fr.slow > 0) || !(fr.ratio < 0.7 && fr.ratio > 0.5)) { console.log('frost failed', JSON.stringify(fr)); errs.push('frost'); }
+  if (fr.n !== 4 || !(fr.slow > 0) || !(Math.abs(fr.ratio - 0.6) < 0.05)) { console.log('frost failed', JSON.stringify(fr)); errs.push('frost'); }
   const mn = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.w.mine = 1;
     t.update(0.02); const placed = G.mines.length; G.mines[0].age = 1;

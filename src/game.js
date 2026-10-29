@@ -359,7 +359,7 @@ function update(dt) {
     s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt;
     for (const e of G.enemies) {
       if (s.life > 0 && dist2(s, e) < (e.r + 5) ** 2) {
-        damage(e, s.dmg); if (s.frost) e.slow = 1.5; s.pierce--; if (s.pierce <= 0) s.life = 0;
+        damage(e, s.dmg); if (s.frost) e.slow = Math.max(e.slow || 0, 1.5); s.pierce--; if (s.pierce <= 0) s.life = 0;
         if (s.life <= 0) break;
       }
     }
