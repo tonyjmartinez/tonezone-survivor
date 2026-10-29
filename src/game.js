@@ -598,7 +598,7 @@ function render() {
   ctx.fillStyle = woodlandFloor(); ctx.fillRect(cam.x - 64, cam.y - 64, W + 128, H + 128);
   // soft ground shadows for enemies go under every sprite (player shadow is drawn in drawPlayer)
   // (shadows outside the visible area are culled; crowded scenes can hold hundreds of enemies)
-  const vx0 = cam.x - 64, vy0 = cam.y - 64, vx1 = cam.x + W + 64, vy1 = cam.y + H + 64;
+  const vx0 = cam.x - 160, vy0 = cam.y - 160, vx1 = cam.x + W + 160, vy1 = cam.y + H + 160; // margin > largest shadow (boss r*1.1)
   for (const e of G.enemies) if (e.x > vx0 && e.x < vx1 && e.y > vy0 && e.y < vy1) groundShadow(e.x, e.y + e.r * 0.6, e.r);
   for (const g of G.gems) drawGem(g);
   for (const h of G.hearts) drawHeart(h.x, h.y + Math.sin(G.t * 5 + h.x) * 1.5);
