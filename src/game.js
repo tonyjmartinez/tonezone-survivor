@@ -479,6 +479,8 @@ function buildSummary() {
   const pl = Object.keys(G.pa).map(k => PASSIVES[k].name + ' ' + G.pa[k]).join(', ');
   return { wl, pl };
 }
+// Dark navy plate with a thin gold rim behind HUD readouts (cheap: one fill + one stroke, no allocation).
+function hudPlate(x, y, w, h) { ctx.fillStyle = 'rgba(8,12,30,0.62)'; ctx.fillRect(x, y, w, h); ctx.strokeStyle = 'rgba(251,191,36,0.35)'; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); }
 function text(s, x, y, size, color = '#fff', align = 'center') { ctx.fillStyle = color; ctx.font = `bold ${size}px monospace`; ctx.textAlign = align; ctx.fillText(s, x, y); }
 // Procedural "sprites": body shape + per-type features, eyes face the player.
 function drawHeart(x, y) {
@@ -650,11 +652,18 @@ function render() {
   text('LV ' + p.lvl, W / 2, 11, 12);
   ctx.fillStyle = '#333'; ctx.fillRect(16, 24, 160, 12);
   ctx.fillStyle = '#ef4444'; ctx.fillRect(16, 24, 160 * Math.max(0, p.hp / p.maxHp), 12);
+  // Readout plates keep text legible over busy floor art; narrow screens drop the key hint so the
+  // timer block (center) and dash/kills block (right) never overlap at 390px.
+  const narrow = W < 480;
+  hudPlate(W / 2 - 62, 22, 124, 46);
+  hudPlate(W - (narrow ? 130 : 196), 22, narrow ? 122 : 188, 44);
   text(fmt(G.t), W / 2, 40, 22);
-  text('goal ' + fmt(WIN_TIME), W / 2, 54, 11, '#888');
-  if (G.hordeBanner > 0) text('A HORDE APPROACHES!', W / 2, 70, 20, '#f87171');
+  text('goal ' + fmt(WIN_TIME), W / 2, 54, 11, '#94a3b8');
+  // Narrow screens move the banner off the top-left weapon list (it would overlap at 390px).
+  if (G.hordeBanner > 0) narrow ? text('A HORDE APPROACHES!', W / 2, Math.round(H * 0.3), 16, '#f87171') : text('A HORDE APPROACHES!', W / 2, 70, 20, '#f87171');
   text('Kills ' + G.kills, W - 16, 40, 16, '#fff', 'right');
-  text(p.dashCd > 0 ? 'Dash ' + p.dashCd.toFixed(1) : 'Dash READY (Shift/Space)', W - 16, 58, 12, p.dashCd > 0 ? '#888' : '#6ee7b7', 'right');
+  const dashTxt = p.dashCd > 0 ? 'Dash ' + p.dashCd.toFixed(1) : (narrow ? 'Dash READY' : 'Dash READY (Shift/Space)');
+  text(dashTxt, W - 16, 58, 12, p.dashCd > 0 ? '#94a3b8' : '#6ee7b7', 'right');
   let y = 56; ctx.textAlign = 'left';
   for (const k in G.w) { text(`${WEAPONS[k].name} ${G.w[k] >= EVO_LVL ? 'EVO' : G.w[k]}`, 16, y, 12, '#fde047', 'left'); y += 14; }
   for (const k in G.pa) { text(`${PASSIVES[k].name} ${G.pa[k]}`, 16, y, 12, '#a7f3d0', 'left'); y += 14; }
