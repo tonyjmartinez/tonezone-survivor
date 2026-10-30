@@ -126,6 +126,15 @@ const BOSS_LEGS = [
   ['....hbbbbbbbbbbb', '....hbbbbbbbbbbb', '....hbbbbbBBBBBB', '....hbbbB.......', '....hbbbB.......', '...BBBBBB.......'],
 ];
 DEFS.boss = { size: 32, anims: { walk: BOSS_LEGS.map(l => { const r = BOSS_TOP.concat(l).map(mirror); r.unshift(mirror('................')); while (r.length < 32) r.push(mirror('................')); return r; }) } };
+
+// Pickups (8x8, 1-frame 'idle'; art stays inside the 6x6 centre so the baked outline fits).
+// Tinted by variant(): gem cyan / pink, heart rose, chest brown.
+const PICKUP = {
+  gem: ['........', '...hb...', '..hbbB..', '.hwbbbB.', '.hbbbbB.', '..BbbB..', '...BB...', '........'],
+  heart: ['........', '.bb..bb.', '.hbbbbB.', '.bbbbbB.', '.BbbbbB.', '..BbbB..', '...BB...', '........'],
+  chest: ['........', '.hbbbbB.', '.hbbbbB.', '.yyyyyy.', '.bbyyBB.', '.bbbbbB.', '.BBBBBB.', '........'],
+};
+for (const k in PICKUP) DEFS[k] = { size: 8, anims: { idle: [PICKUP[k]] } };
 DEFS.minibloat = DEFS.bloat;
 
 // ---- baking ----
