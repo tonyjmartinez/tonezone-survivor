@@ -500,7 +500,15 @@ function drawPlayer(p) {
   if (moved) SPR.drawSprite(ctx, spr, 'walk', (G.t * 10) | 0, p.x, p.y - 4, 2, { flash, flip });
   else SPR.drawSprite(ctx, spr, 'idle', (G.t * 2) | 0, p.x, p.y - 4, 2, { flash, flip });
 }
+const ENEMY_SPR = {};
 function drawEnemy(e) {
+  const S = window.TZS_SPRITES, base = S && S.baked[e.kind];
+  if (!base || e.boss) return drawEnemyLegacy(e); // bosses keep the old shapes until slice 3
+  const spr = ENEMY_SPR[e.kind + e.color] || (ENEMY_SPR[e.kind + e.color] = S.variant(e.kind, e.color));
+  const f = Math.floor(G.t * (e.kind === 'bat' || e.kind === 'wisp' ? 12 : 7) + e.x * 0.07);
+  S.drawSprite(ctx, spr, 'walk', f, e.x, e.y, e.r <= 15 ? 2 : 3, { flash: e.flash > 0 });
+}
+function drawEnemyLegacy(e) {
   const { x, y, r } = e, c = e.flash > 0 ? '#fff' : e.color;
   const a = Math.atan2(G.p.y - y, G.p.x - x), ex = Math.cos(a) * r * 0.25, ey = Math.sin(a) * r * 0.25;
   ctx.fillStyle = c;
@@ -625,6 +633,7 @@ function render() {
   for (const v of G.vacs) { const y = v.y + Math.sin(G.t * 5 + v.x) * 1.5; ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(v.x, y, 8, 0, 7); ctx.stroke(); circle(v.x, y, 3, '#f0abfc'); }
   for (const c of G.chests) drawChest(c);
   for (const e of G.enemies) {
+    if (!e.boss && !(e.x > vx0 && e.x < vx1 && e.y > vy0 && e.y < vy1)) continue; // view cull (bosses keep drawing for the HP bar)
     drawEnemy(e);
     if (e.boss) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 3, 0, 7); ctx.stroke();
       const bw = e.r * 2.4, f = Math.max(0, e.hp / e.maxHp); ctx.fillStyle = '#000a'; ctx.fillRect(e.x - bw / 2, e.y - e.r - 14, bw, 6); ctx.fillStyle = '#ef4444'; ctx.fillRect(e.x - bw / 2, e.y - e.r - 14, bw * f, 6); }
