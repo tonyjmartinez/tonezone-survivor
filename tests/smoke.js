@@ -116,7 +116,7 @@ try {
   });
   if (sh.drawn !== sh.expected) { console.log('shadow cull failed', JSON.stringify(sh)); errs.push('shadow-cull'); }
   // sprite pipeline: every sprite bakes with the expected size and frame count (plus flip + hit-flash copies)
-  const EXPECT = { player: { size: 16, idle: 2, walk: 4 }, boss: { size: 32, walk: 2 }, gem: { size: 8, idle: 1 }, heart: { size: 8, idle: 1 }, chest: { size: 8, idle: 1 } };
+  const EXPECT = { player: { size: 16, idle: 2, walk: 4 }, boss: { size: 32, walk: 2 }, gem: { size: 8, idle: 1 }, heart: { size: 8, idle: 1 }, chest: { size: 8, idle: 1 }, bolt: { size: 8, idle: 1 }, orb: { size: 8, idle: 1 }, mine: { size: 8, idle: 1 } };
   for (const n of ['bat', 'ghoul', 'imp', 'brute', 'golem', 'wisp', 'bloat', 'minibloat', 'dasher', 'troll']) EXPECT[n] = { size: 16, walk: 2 };
   const spr = await pg.evaluate((EXPECT) => {
     const S = window.TZS_SPRITES, bad = [];
