@@ -484,10 +484,7 @@ function buildSummary() {
 function hudPlate(x, y, w, h) { ctx.fillStyle = 'rgba(8,12,30,0.62)'; ctx.fillRect(x, y, w, h); ctx.strokeStyle = 'rgba(251,191,36,0.35)'; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); }
 function text(s, x, y, size, color = '#fff', align = 'center') { ctx.fillStyle = color; ctx.font = `bold ${size}px monospace`; ctx.textAlign = align; ctx.fillText(s, x, y); }
 // Procedural "sprites": body shape + per-type features, eyes face the player.
-function drawHeart(x, y) {
-  ctx.fillStyle = '#f43f5e'; ctx.beginPath();
-  ctx.arc(x - 3, y - 2, 4, 0, 7); ctx.arc(x + 3, y - 2, 4, 0, 7); ctx.moveTo(x - 7, y - 1); ctx.lineTo(x, y + 8); ctx.lineTo(x + 7, y - 1); ctx.fill();
-}
+function drawHeart(x, y) { SPR.drawSprite(ctx, pickupSpr('heart', '#f43f5e'), 'idle', 0, x, y, 2); }
 const SPR = window.TZS_SPRITES;
 let walking = false; // set in update() from movement input; render only reads it
 // Player: baked pixel sprite (src/sprites.js), body tinted per character, drawn at 2x.
@@ -510,20 +507,15 @@ function drawEnemy(e) {
 }
 function circle(x, y, r, color) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); }
 
+const PICK_SPR = {};
+function pickupSpr(kind, color) { return PICK_SPR[kind + color] || (PICK_SPR[kind + color] = SPR.variant(kind, color)); }
 function drawGem(g) {
-  const r = g.big ? 8 : g.v >= 5 ? 6 : 4.5;
-  ctx.fillStyle = g.v >= 5 ? '#f0abfc' : '#38bdf8';
-  ctx.beginPath(); ctx.moveTo(g.x, g.y - r); ctx.lineTo(g.x + r * 0.75, g.y); ctx.lineTo(g.x, g.y + r); ctx.lineTo(g.x - r * 0.75, g.y); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,.55)';
-  ctx.beginPath(); ctx.moveTo(g.x, g.y - r); ctx.lineTo(g.x + r * 0.75, g.y); ctx.lineTo(g.x, g.y); ctx.closePath(); ctx.fill();
+  SPR.drawSprite(ctx, pickupSpr('gem', g.v >= 5 ? '#f0abfc' : '#38bdf8'), 'idle', 0, g.x, g.y, g.big ? 3 : 2);
 }
 function drawChest(c) {
-  const x = c.x, y = c.y + Math.sin(G.t * 3) * 1.5;
-  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(c.x, c.y + 11, 14, 4, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = '#92400e'; ctx.fillRect(x - 13, y - 4, 26, 14);
-  ctx.fillStyle = '#b45309'; ctx.beginPath(); ctx.moveTo(x - 13, y - 4); ctx.quadraticCurveTo(x, y - 18, x + 13, y - 4); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#fde047'; ctx.fillRect(x - 13, y - 5, 26, 3); ctx.fillRect(x - 2, y - 3, 4, 7);
-  ctx.strokeStyle = '#78350f'; ctx.lineWidth = 1.5; ctx.strokeRect(x - 13, y - 4, 26, 14);
+  const y = c.y + Math.sin(G.t * 3) * 1.5;
+  ctx.fillStyle = 'rgba(11,16,32,.4)'; ctx.beginPath(); ctx.ellipse(c.x, c.y + 11, 14, 4, 0, 0, 7); ctx.fill();
+  SPR.drawSprite(ctx, pickupSpr('chest', '#b45309'), 'idle', 0, c.x, y, 3);
 }
 
 function drawBolt(s) {
