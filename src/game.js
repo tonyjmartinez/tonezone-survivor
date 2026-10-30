@@ -522,8 +522,7 @@ function drawBolt(s) {
   const a = Math.atan2(s.vy, s.vx);
   ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(a);
   ctx.fillStyle = 'rgba(254,240,138,.25)'; ctx.beginPath(); ctx.moveTo(-16, 0); ctx.lineTo(-2, -4); ctx.lineTo(-2, 4); ctx.fill();
-  ctx.fillStyle = '#fef08a'; ctx.beginPath(); ctx.ellipse(0, 0, 7, 4, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(2, 0, 2, 0, 7); ctx.fill();
+  SPR.drawSprite(ctx, pickupSpr('bolt', '#fde047'), 'idle', 0, 0, 0, 2);
   ctx.restore();
 }
 function drawBoom(b) {
@@ -610,7 +609,7 @@ function render() {
   }
   for (const q of G.parts) circle(q.x, q.y, 2, q.c);
   for (const b of G.booms) drawBoom(b);
-  for (const m of G.mines) { ctx.fillStyle = m.age < 0.5 ? '#78350f' : '#f59e0b'; ctx.beginPath(); ctx.arc(m.x, m.y, 6, 0, 7); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.stroke(); }
+  for (const m of G.mines) { SPR.drawSprite(ctx, pickupSpr('mine', m.age < 0.5 ? '#78350f' : '#f59e0b'), 'idle', 0, m.x, m.y, 2); }
   for (const b of G.bolts) {
     ctx.strokeStyle = `rgba(253,224,71,${b.t / 0.2})`; ctx.lineWidth = 3; ctx.beginPath();
     let x = b.x + rnd(-10, 10), y = b.y - 260; ctx.moveTo(x, y);
@@ -618,7 +617,7 @@ function render() {
     ctx.stroke();
   }
   for (const s of G.shots) drawBolt(s);
-  if (G.w.orbit) { const n = 1 + G.w.orbit, rad = 60 + G.w.orbit * 4; for (let i = 0; i < n; i++) { const a = G.orbAng + (i / n) * Math.PI * 2; circle(p.x + Math.cos(a) * rad, p.y + Math.sin(a) * rad, 7, '#c4b5fd'); } }
+  if (G.w.orbit) { const n = 1 + G.w.orbit, rad = 60 + G.w.orbit * 4; for (let i = 0; i < n; i++) { const a = G.orbAng + (i / n) * Math.PI * 2; SPR.drawSprite(ctx, pickupSpr('orb', '#a78bfa'), 'idle', 0, p.x + Math.cos(a) * rad, p.y + Math.sin(a) * rad, 2); } }
   if (G.w.garlic) { ctx.fillStyle = 'rgba(167,243,208,.12)'; ctx.beginPath(); ctx.arc(p.x, p.y, 50 + G.w.garlic * 12, 0, 7); ctx.fill(); }
   if (G.slash) { const k = G.slash; ctx.fillStyle = 'rgba(253,230,138,' + (k.t / 0.15 * 0.6) + ')'; ctx.beginPath(); ctx.moveTo(k.x, k.y); ctx.arc(k.x, k.y, k.reach, k.a - k.half, k.a + k.half); ctx.closePath(); ctx.fill(); }
   for (const f of G.mineFx) { ctx.fillStyle = 'rgba(245,158,11,' + (f.t / f.max * 0.6) + ')'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 - f.t / f.max * 0.4), 0, 7); ctx.fill(); }

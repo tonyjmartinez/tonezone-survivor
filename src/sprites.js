@@ -133,6 +133,9 @@ const PICKUP = {
   gem: ['........', '...hb...', '..hbbB..', '.hwbbbB.', '.hbbbbB.', '..BbbB..', '...BB...', '........'],
   heart: ['........', '.bb..bb.', '.hbbbbB.', '.bbbbbB.', '.BbbbbB.', '..BbbB..', '...BB...', '........'],
   chest: ['........', '.hbbbbB.', '.hbbbbB.', '.yyyyyy.', '.bbyyBB.', '.bbbbbB.', '.BBBBBB.', '........'],
+  bolt: ['........', '........', '..hbbb..', '.hwwwbB.', '.hwwwbB.', '..BbbB..', '........', '........'],
+  orb: ['........', '..hbb...', '.hwbbB..', '.hbbbB..', '.bbbBB..', '..BBB...', '........', '........'],
+  mine: ['........', '...yy...', '..bbbB..', '.bhbbbB.', '.bbbbBB.', '..BBBB..', '........', '........'],
 };
 for (const k in PICKUP) DEFS[k] = { size: 8, anims: { idle: [PICKUP[k]] } };
 DEFS.minibloat = DEFS.bloat;
