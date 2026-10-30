@@ -99,8 +99,8 @@ try {
     return { placed, hp: e.hp, left: G.mines.length };
   });
   if (mn.placed !== 1 || mn.hp >= 500) { console.log('mine failed', JSON.stringify(mn)); errs.push('mine'); }
-  // enemy ground shadows: the game's only drawImage call is groundShadow, so drawImage count == shadows drawn.
-  // Expect 40 on-screen enemies + a boss (r 34) whose centre is inside the 160px cull margin; a boss outside the margin and 40 far enemies are culled.
+  // enemy ground shadows: drawImage calls are groundShadow per enemy plus 1 for the player sprite.
+  // Expect 1 player + 40 on-screen enemies + a boss (r 34) whose centre is inside the 160px cull margin; a boss outside the margin and 40 far enemies are culled.
   const sh = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.w.mine = 0;
     const cx = G.cam.x + 450, cy = G.cam.y + 300;
@@ -112,9 +112,34 @@ try {
     const C = CanvasRenderingContext2D.prototype, orig = C.drawImage; let n = 0;
     C.drawImage = function (...a) { n++; return orig.apply(this, a); };
     try { t.render(); } finally { C.drawImage = orig; }
-    return { expected: 41, drawn: n };
+    return { expected: 42, drawn: n };
   });
   if (sh.drawn !== sh.expected) { console.log('shadow cull failed', JSON.stringify(sh)); errs.push('shadow-cull'); }
+  // sprite pipeline: every sprite bakes with the expected size and frame count (plus flip + hit-flash copies)
+  const EXPECT = { player: { size: 16, idle: 2, walk: 4 } };
+  const spr = await pg.evaluate((EXPECT) => {
+    const S = window.TZS_SPRITES, bad = [];
+    for (const n in EXPECT) if (!S.baked[n]) bad.push('missing ' + n);
+    for (const n in S.baked) {
+      const s = S.baked[n], e = EXPECT[n];
+      if (!e) { bad.push('unexpected sprite ' + n); continue; }
+      if (s.size !== e.size) bad.push(n + ' size ' + s.size);
+      for (const a in s.anims) {
+        const an = s.anims[a];
+        if (an.frames.length !== e[a]) bad.push(n + '.' + a + ' frames ' + an.frames.length);
+        for (const list of [an.frames, an.flip, an.flash]) for (const c of list) if (c.width !== e.size || c.height !== e.size) bad.push(n + '.' + a + ' canvas ' + c.width + 'x' + c.height);
+      }
+    }
+    return bad;
+  }, EXPECT);
+  if (spr.length) { console.log('sprites failed', JSON.stringify(spr)); errs.push('sprites'); }
+  // sprite-sheet review page renders without errors
+  const sheetErrs = [];
+  const sp = await b.newPage({ viewport: { width: 390, height: 844 } });
+  sp.on('pageerror', e => sheetErrs.push(e.message));
+  await sp.goto('file://' + path.resolve(__dirname, '../index.html') + '?sprites=1');
+  await sp.waitForTimeout(200);
+  if (sheetErrs.length) { console.log('sprite sheet failed', JSON.stringify(sheetErrs)); errs.push('sheet'); }
   console.log(JSON.stringify(r), errs);
   await b.close();
   if (errs.length || r.kills < 1) process.exit(1);

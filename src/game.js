@@ -487,16 +487,17 @@ function drawHeart(x, y) {
   ctx.fillStyle = '#f43f5e'; ctx.beginPath();
   ctx.arc(x - 3, y - 2, 4, 0, 7); ctx.arc(x + 3, y - 2, 4, 0, 7); ctx.moveTo(x - 7, y - 1); ctx.lineTo(x, y + 8); ctx.lineTo(x + 7, y - 1); ctx.fill();
 }
+const SPR = window.TZS_SPRITES;
+// Player: baked pixel sprite (src/sprites.js), body tinted per character, drawn at 2x.
 function drawPlayer(p) {
-  const body = p.hurt > 0 && ((p.hurt * 20) | 0) % 2 ? '#fca5a5' : CHARS[charIdx].color;
-  const mx = (keys['d'] || keys['arrowright'] ? 1 : 0) - (keys['a'] || keys['arrowleft'] ? 1 : 0);
-  if (mx) p.face = mx;
-  const f = p.face || 1;
-  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(p.x, p.y + p.r, p.r, 4, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = '#7c3aed'; ctx.beginPath(); ctx.moveTo(p.x - f * 4, p.y - 4); ctx.lineTo(p.x - f * 16, p.y + 10 + Math.sin(G.t * 12) * 2); ctx.lineTo(p.x - f * 2, p.y + 8); ctx.fill();
-  circle(p.x, p.y, p.r, body);
-  circle(p.x + f * 4, p.y - 2, 3, '#fff'); circle(p.x + f * 5, p.y - 2, 1.5, '#1e293b');
-  ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.moveTo(p.x - 7, p.y - 7); ctx.lineTo(p.x - 4, p.y - 15); ctx.lineTo(p.x, p.y - 9); ctx.lineTo(p.x + 4, p.y - 15); ctx.lineTo(p.x + 7, p.y - 7); ctx.fill();
+  const moved = p.lx !== undefined && Math.hypot(p.x - p.lx, p.y - p.ly) > 0.01;
+  p.lx = p.x; p.ly = p.y;
+  const spr = SPR.variant('player', CHARS[charIdx].color);
+  const flash = p.hurt > 0 && ((p.hurt * 20) | 0) % 2;
+  const flip = p.face && p.face.x < 0;
+  ctx.fillStyle = 'rgba(11,16,32,.4)'; ctx.beginPath(); ctx.ellipse(p.x, p.y + p.r + 2, p.r, 4, 0, 0, 7); ctx.fill();
+  if (moved) SPR.drawSprite(ctx, spr, 'walk', (G.t * 10) | 0, p.x, p.y - 4, 2, { flash, flip });
+  else SPR.drawSprite(ctx, spr, 'idle', (G.t * 2) | 0, p.x, p.y - 4, 2, { flash, flip });
 }
 function drawEnemy(e) {
   const { x, y, r } = e, c = e.flash > 0 ? '#fff' : e.color;
@@ -591,6 +592,7 @@ function groundShadow(x, y, r) {
   ctx.drawImage(SHADOW_IMG, x - r * 1.1, y - r * 0.55, r * 2.2, r * 1.1);
 }
 function render() {
+  ctx.imageSmoothingEnabled = false; // resets on canvas resize
   ctx.fillStyle = '#1b1b26'; ctx.fillRect(0, 0, W, H);
   if (state === 'title') {
     text('TONE ZONE SURVIVORS', W / 2, H / 2 - 40, 36, '#fde047');
@@ -705,7 +707,9 @@ function render() {
 
 // ---------- loop ----------
 let last = performance.now();
+const SHEET = /[?&]sprites=1/.test(location.search); // sprite-sheet review page
 function frame(now) {
+  if (SHEET) { SPR.drawSheet(ctx, W, H, now / 1000); requestAnimationFrame(frame); return; }
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   if (state === 'play') update(dt);
   render();
