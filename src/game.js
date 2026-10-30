@@ -209,6 +209,7 @@ function update(dt) {
   const m = Math.hypot(dx, dy);
   if (m > 1) { dx /= m; dy /= m; }
   const fm = Math.hypot(dx, dy); if (fm > 0.05) p.face = { x: dx / fm, y: dy / fm };
+  walking = fm > 0.05; // read by drawPlayer to pick the walk animation
   p.dashCd = Math.max(0, p.dashCd - dt);
   if (p.dashT > 0) { p.dashT -= dt; p.x += p.face.x * p.speed * 4 * dt; p.y += p.face.y * p.speed * 4 * dt; }
   else { p.x += dx * p.speed * dt; p.y += dy * p.speed * dt; }
@@ -488,10 +489,10 @@ function drawHeart(x, y) {
   ctx.arc(x - 3, y - 2, 4, 0, 7); ctx.arc(x + 3, y - 2, 4, 0, 7); ctx.moveTo(x - 7, y - 1); ctx.lineTo(x, y + 8); ctx.lineTo(x + 7, y - 1); ctx.fill();
 }
 const SPR = window.TZS_SPRITES;
+let walking = false; // set in update() from movement input; render only reads it
 // Player: baked pixel sprite (src/sprites.js), body tinted per character, drawn at 2x.
 function drawPlayer(p) {
-  const moved = p.lx !== undefined && Math.hypot(p.x - p.lx, p.y - p.ly) > 0.01;
-  p.lx = p.x; p.ly = p.y;
+  const moved = walking;
   const spr = SPR.variant('player', CHARS[charIdx].color);
   const flash = p.hurt > 0 && ((p.hurt * 20) | 0) % 2;
   const flip = p.face && p.face.x < 0;
