@@ -44,3 +44,4 @@
 - [x] Dasher enemy that lunges periodically (pd loop)
 - [x] Mines weapon (pd loop)
 - [x] Troll enemy that regenerates unless hit (pd loop)
+- [x] Frost Shards weapon: ring of slowing shards; evolves with Armor (pd loop)

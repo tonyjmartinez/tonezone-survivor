@@ -26,6 +26,7 @@ const WEAPONS = {
   garlic: { name: 'Garlic Aura', desc: 'Damages & slows nearby foes', max: 6 },
   zap:   { name: 'Lightning', desc: 'Strikes random foes on screen', max: 6 },
   mine:  { name: 'Mines', desc: 'Drops mines that blast foes', max: 6 },
+  frost: { name: 'Frost Shards', desc: 'Ring of shards that slow foes', max: 6 },
 };
 const PASSIVES = {
   might:  { name: 'Might', desc: '+20% damage', max: 5 },
@@ -39,7 +40,7 @@ const PASSIVES = {
   growth: { name: 'Growth', desc: '+15% XP from gems', max: 5 },
 };
 // Evolution: a maxed weapon + its paired passive, opened via boss chest, jumps to level 8 (EVO).
-const EVOLVE = { bolt: 'haste', orbit: 'might', nova: 'magnet', boomer: 'speed', whip: 'health', garlic: 'haste', zap: 'regen', mine: 'luck' };
+const EVOLVE = { bolt: 'haste', orbit: 'might', nova: 'magnet', boomer: 'speed', whip: 'health', garlic: 'haste', zap: 'regen', mine: 'luck', frost: 'armor' };
 const EVO_LVL = 8;
 const ENEMY_TYPES = [
   { name: 'bat',   hp: 8,   speed: 70,  r: 9,  dmg: 6,  xp: 1, color: '#a78bfa', from: 0 },
@@ -302,6 +303,18 @@ function update(dt) {
       }
     }
   }
+  const wf = G.w.frost;
+  if (wf) {
+    G.timers.frost = (G.timers.frost || 0) - dt;
+    if (G.timers.frost <= 0) {
+      G.timers.frost = (2.2 - wf * 0.1) * p.cdMul;
+      const n = 3 + wf, off = Math.random() * Math.PI * 2;
+      for (let i = 0; i < n; i++) {
+        const a = off + i * Math.PI * 2 / n;
+        G.shots.push({ x: p.x, y: p.y, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, dmg: 5 + wf * 2, life: 0.9, pierce: 1, frost: true });
+      }
+    }
+  }
   const wm = G.w.mine;
   if (wm) {
     G.timers.mine = (G.timers.mine || 0) - dt;
@@ -346,7 +359,7 @@ function update(dt) {
     s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt;
     for (const e of G.enemies) {
       if (s.life > 0 && dist2(s, e) < (e.r + 5) ** 2) {
-        damage(e, s.dmg); s.pierce--; if (s.pierce <= 0) s.life = 0;
+        damage(e, s.dmg); if (s.frost) e.slow = Math.max(e.slow || 0, 1.5); s.pierce--; if (s.pierce <= 0) s.life = 0;
         if (s.life <= 0) break;
       }
     }
