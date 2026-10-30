@@ -1,0 +1,151 @@
+// Tone Zone Survivors - pixel sprite pipeline (see docs/ART.md).
+// Sprites are palette-indexed pixel grids (one char per pixel, '.' = transparent).
+// At load each frame is baked once into an offscreen canvas: an Ink 1px outline is
+// added around every filled pixel (4-neighbour), plus a Bone hit-flash copy and a
+// mirrored copy. Draw with drawSprite() at an integer scale with smoothing off.
+(() => {
+'use strict';
+// 12-colour palette from docs/ART.md, plus shade/light steps mixed from those hues.
+const BASE = {
+  ink: '#0b1020', night: '#1e2a4a', dusk: '#2a3a63', mossD: '#23402f', moss: '#3f7a4a', stone: '#64708a',
+  bone: '#e2e8f0', gold: '#fbbf24', cyan: '#38bdf8', ember: '#f97316', blood: '#ef4444', violet: '#a78bfa',
+};
+function mix(a, b, t) {
+  const p = (h, i) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16);
+  let s = '#';
+  for (let i = 0; i < 3; i++) s += Math.round(p(a, i) + (p(b, i) - p(a, i)) * t).toString(16).padStart(2, '0');
+  return s;
+}
+const shade = c => mix(c, BASE.ink, 0.45), light = c => mix(c, BASE.bone, 0.45);
+// Pixel keys. Lower-case = palette colour; 'b' 'B' 'h' are the body base/shade/light slot
+// that per-character variants override.
+const PAL = {
+  k: BASE.ink, n: BASE.night, d: BASE.dusk, g: BASE.mossD, m: BASE.moss, s: BASE.stone, w: BASE.bone,
+  y: BASE.gold, o: shade(BASE.gold), c: BASE.cyan, e: BASE.ember, r: BASE.blood,
+  v: BASE.violet, u: shade(BASE.violet), l: light(BASE.violet),
+  b: BASE.violet, B: shade(BASE.violet), h: light(BASE.violet),
+};
+function bodySlots(c) { return { b: c, B: shade(c), h: light(c) }; }
+
+// ---- sprite definitions ----
+// Player (16x16): hooded caster with a gold crown and violet cloak, facing right,
+// light from the top-left. Body rows are shared; legs/bob vary per frame.
+const P_BODY = [
+  '......y.y.y.....',
+  '......yyyyy.....',
+  '.....hhhbbbb....',
+  '....hhbbbbbbB...',
+  '....hbwwwwkwB...',
+  '....hbwwwwkwB...',
+  '....lbbwwwwbB...',
+  '...lvvbbbbbBuu..',
+  '..lvvvbbybbBuuu.',
+  '..lvvvvbbbBuuuu.',
+  '..vvvvvvvuuuuu..',
+  '...vvvvvvuuuu...',
+];
+const E = '................';
+// legs: [rowBelowBody, extraRowWhenBobbed]
+function pf(legs, bob) {
+  // bob=1 lifts the body one pixel; legs then show two rows tall.
+  return (bob ? [E, ...P_BODY, legs, legs, E, E] : [E, E, ...P_BODY, legs, E, E]).slice(0, 16);
+}
+const DEFS = {
+  player: {
+    size: 16,
+    anims: {
+      idle: [pf('.....uu..uu.....', 0), pf('.....uu..uu.....', 1)],
+      walk: [pf('....uu....uu....', 0), pf('.....uu.uu......', 1), pf('...uu....uu.....', 0), pf('......uu.uu.....', 1)],
+    },
+  },
+};
+
+// ---- baking ----
+function bakeGrid(rows, size, pal, mode) {
+  if (rows.length !== size) throw new Error('sprite rows ' + rows.length + ' != ' + size);
+  const px = [];
+  for (let y = 0; y < size; y++) {
+    const r = rows[y];
+    if (r.length !== size) throw new Error('sprite row ' + y + ' width ' + r.length + ' != ' + size);
+    for (let x = 0; x < size; x++) {
+      const ch = r[mode === 'flip' ? size - 1 - x : x];
+      if (ch !== '.' && !pal[ch]) throw new Error('unknown pixel key ' + ch);
+      px.push(ch === '.' ? null : ch);
+    }
+  }
+  const at = (x, y) => (x < 0 || y < 0 || x >= size || y >= size) ? null : px[y * size + x];
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const g = c.getContext('2d');
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const ch = at(x, y);
+    let col = null;
+    if (ch) col = mode === 'flash' && ch !== 'k' ? BASE.bone : pal[ch];
+    else if (at(x - 1, y) || at(x + 1, y) || at(x, y - 1) || at(x, y + 1)) col = BASE.ink; // baked outline
+    if (col) { g.fillStyle = col; g.fillRect(x, y, 1, 1); }
+  }
+  return c;
+}
+function bake(name, over) {
+  const d = DEFS[name], pal = over ? Object.assign({}, PAL, over) : PAL, out = { size: d.size, anims: {} };
+  for (const a in d.anims) {
+    const fr = d.anims[a];
+    out.anims[a] = {
+      frames: fr.map(f => bakeGrid(f, d.size, pal)),
+      flip: fr.map(f => bakeGrid(f, d.size, pal, 'flip')),
+      flash: fr.map(f => bakeGrid(f, d.size, pal, 'flash')),
+    };
+  }
+  return out;
+}
+const baked = {};
+for (const n in DEFS) baked[n] = bake(n);
+const variants = {};
+// Cached per-colour variant (e.g. each playable character tints the body slot).
+function variant(name, color) {
+  const key = name + color;
+  return variants[key] || (variants[key] = bake(name, bodySlots(color)));
+}
+function drawSprite(ctx, spr, anim, i, x, y, scale, opt) {
+  const a = spr.anims[anim], n = a.frames.length, k = ((i % n) + n) % n;
+  const img = opt && opt.flash ? a.flash[k] : opt && opt.flip ? a.flip[k] : a.frames[k];
+  const s = spr.size * scale;
+  ctx.drawImage(img, Math.round(x - s / 2), Math.round(y - s / 2), s, s);
+}
+// Sprite sheet for screenshot review (?sprites=1): every sprite, anim and frame on a grid,
+// plus flipped and hit-flash rows.
+function drawSheet(ctx, W, H, t) {
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = BASE.night; ctx.fillRect(0, 0, W, H);
+  const scale = W < 500 ? 3 : 4;
+  ctx.fillStyle = BASE.bone; ctx.font = 'bold 16px monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText('SPRITE SHEET  scale x' + scale, 12, 10);
+  let y = 40;
+  for (const name in baked) {
+    const spr = baked[name], cell = spr.size * scale + 8;
+    for (const a in spr.anims) {
+      const an = spr.anims[a];
+      ctx.fillStyle = BASE.gold; ctx.font = '12px monospace';
+      ctx.fillText(name + '.' + a + ' (' + an.frames.length + 'f, ' + spr.size + 'px)', 12, y);
+      y += 16;
+      const rows = [['', an.frames], ['flip', an.flip], ['hit', an.flash]];
+      for (const [lab, list] of rows) {
+        let x = 12;
+        list.forEach(img => {
+          ctx.fillStyle = BASE.dusk; ctx.fillRect(x, y, cell - 4, cell - 4);
+          ctx.drawImage(img, x + 2, y + 2, spr.size * scale, spr.size * scale);
+          x += cell;
+        });
+        // live loop of the anim at the end of the first row
+        if (!lab) {
+          const k = ((t * 8) | 0) % list.length;
+          ctx.fillStyle = BASE.mossD; ctx.fillRect(x + 8, y, cell - 4, cell - 4);
+          ctx.drawImage(list[k], x + 10, y + 2, spr.size * scale, spr.size * scale);
+        } else { ctx.fillStyle = BASE.stone; ctx.fillText(lab, x + 4, y + 4); }
+        y += cell;
+      }
+      y += 6;
+    }
+  }
+}
+window.TZS_SPRITES = { PAL, BASE, DEFS, baked, variant, drawSprite, drawSheet, mix };
+})();

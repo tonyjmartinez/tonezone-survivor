@@ -1,6 +1,18 @@
 # Tone Zone Survivors: art direction
 
-Goal: read as one game, not a pile of random shapes. Dark-fantasy woodland arena at night, navy and moss ground, warm gold and cyan magic. All art is drawn procedurally in code (canvas paths, cached offscreen canvases). No third-party or copyrighted art. No new dependencies.
+Goal: read as one game, not a pile of random shapes. Dark-fantasy woodland arena at night, navy and moss ground, warm gold and cyan magic. No third-party or copyrighted art: every sprite is hand-authored in this repo. No new dependencies.
+
+## Approach: pixel sprites (replaces ad-hoc canvas paths)
+
+- All units, pickups, projectiles, tiles and UI glyphs are **palette-indexed pixel grids** in `src/sprites.js`: one string per row, one character per pixel, `.` = transparent. Keys map to the palette below (`k` Ink, `n` Night, `d` Dusk, `g` Moss dark, `m` Moss, `s` Stone, `w` Bone, `y`/`o` Gold/shade, `c` Cyan, `e` Ember, `r` Blood, `v`/`u`/`l` Violet/shade/light, `b`/`B`/`h` a body slot that variants tint).
+- Sizes: 16x16 player and enemies; 24-32 bosses; 8x8 pickups and projectiles. 2-4 frames per animation.
+- Baked **once at load** into offscreen canvases: per frame a normal, a mirrored and a hit-flash (Bone) copy. Never re-rasterise per frame.
+- The 1px Ink outline is **baked automatically** around every filled pixel (4-neighbour), so grids leave a transparent border pixel and never draw their own outline.
+- Light from the top-left: authors place the light step (`h`/`l`) on the upper-left edge and the shade step (`B`/`u`/`o`) on the lower-right. Two shade steps, no more.
+- Drawn with `drawSprite()` at an **integer scale** (2x in play) with `imageSmoothingEnabled = false` and rounded positions. Collision radii never change with art.
+- Review page: `index.html?sprites=1` renders every sprite, animation and frame (plus flip and hit rows, and a live loop) on a grid for screenshots.
+- The smoke test asserts every sprite bakes with the expected size and frame count; add new sprites to its `EXPECT` table.
+
 
 ## Palette (12 colours, hard cap)
 
@@ -75,17 +87,17 @@ At a glance, at 390 px wide and at desktop size, the player, enemies, pickups an
 - Screen shake and flashes stay short (under 0.3 s) and respect reduced motion where the code already does.
 - Cache static art (terrain, shadows, sprite frames) on offscreen canvases at load time.
 
-## Slices (ordered backlog)
+## Slices (ordered backlog, pixel pipeline)
 
-1. Done: woodland floor and enemy ground shadows (#55). HUD plates and 390 px fix (#58). End-screen panel (#59).
-2. Title screen and character cards on navy plates (game.js title block, ~line 590-610).
-3. Upgrade / level-up cards (levelup block, ~line 660-675).
-4. Player: idle, walk and hit animation, class silhouette (keep collision).
-5. Enemy families: silhouettes from this doc, 2-4 frame loops, shadows on all ground units (keep collision and radii).
-6. Pickups by shape: XP gem, coin, heart, chest, bomb, ice (pooled).
-7. Weapon projectile shapes and hit particles (pooled, capped).
-8. Terrain depth: tile variety, props, subtle parallax layer.
-9. Damage numbers and shake tuned to this doc.
-10. Crowded-scene perf check and final before/after screenshots at 390x844 and desktop.
+Earlier canvas-path slices (#55 floor, #58 HUD plates, #59 end panel) stay until their pixel replacements land.
 
-Each slice: one PR, before and after screenshots at 390 px and desktop, smoke test passing, no mechanics or balance changes.
+1. Pipeline: `src/sprites.js`, bake + outline + flip/flash, `?sprites=1` sheet, smoke assertion, player idle/walk/hit.
+2. Enemies: each type a distinct 16x16 silhouette with a walk cycle and a baked shadow (one family per PR if large).
+3. Bosses: 24-32 px sprites.
+4. Projectiles and weapon effects with impact sparks (8x8, pooled).
+5. Pickups: gems, coins, hearts, chests (8x8).
+6. Ground: tile-based floor with 4-6 tile variants, plus props (trees, rocks, mushrooms) for depth.
+7. HUD, level-up cards and menus with a pixel font from our own glyph grid.
+8. Crowded-scene perf check (300+ enemies on a phone) and final screenshots.
+
+Each slice: one PR, before and after screenshots at 390 px and desktop (sprite sheet and gameplay), smoke test passing, no mechanics, balance or control changes.
