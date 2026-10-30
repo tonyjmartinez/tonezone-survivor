@@ -60,13 +60,65 @@ const DEFS = {
   },
 };
 
+// Enemies (16x16): symmetric front-facing silhouettes, 2 frames each. Body slot b/B/h is tinted by
+// the enemy colour through variant(). fit() pads a short row list to 16 rows (top empty rows).
+function fit(rows, top) { const o = []; for (let i = 0; i < top; i++) o.push(E); o.push(...rows); while (o.length < 16) o.push(E); return o; }
+const ENEMY = {
+  bat: [fit([
+    '.bb..........bb.', '.bbb...bb...bbb.', '.bbbb.bbbb.bbbb.', '.bBbbbbbbbbbbBb.',
+    '..Bbbwkbbkwbbb..', '..B.bbbbbbbb.B..', '......bwwb......', '.......bb.......'], 3),
+  fit([
+    '......b..b......', '.....bbbbbb.....', '..b.bbwkkwbb.b..', '.bbbbbbbbbbbbbb.',
+    '.bB.bbbwwbbb.Bb.', '..B..bbbbbb..B..', '.....B.bb.B.....'], 4)],
+  ghoul: [[
+    '....hbbbbbbB....', '...hbwkbbkwbB...', '...hbbbbbbbbB...', '....bbwrrwbB....', '..bb.hbbbbB.bb..',
+    '..bb.hbbbbB.bb..', '..Bb.hbbbbB.bB..', '..B..BbbbbB..B..', '......bbbb......', '.....bb..bb.....'],
+  [
+    '....hbbbbbbB....', '...hbwkbbkwbB...', '...hbbbbbbbbB...', '....bbwrrwbB....', '..bb.hbbbbB.bb..',
+    '..bb.hbbbbB.bb..', '..Bb.hbbbbB.bB..', '..B..BbbbbB..B..', '......bbbb......', '....bb....bb....']].map(r => fit(r, 3)),
+  imp: [['...w........w...', '...ww......ww...', '....whbbbbBw....', '....hbbbbbbB....', '....bwkbbkwB....', '....bbbbbbbB....',
+    '.....bbwwbB.....', '..hh.hbbbbB.hh..', '..bB.BbbbbB.bB..', '.....bbbbbB.....', '....bbB..bbB....'],
+  ['...w........w...', '...ww......ww...', '....whbbbbBw....', '....hbbbbbbB....', '....bwkbbkwB....', '....bbbbbbbB....',
+    '.....bbwwbB.....', '..hh.hbbbbB.hh..', '..bB.BbbbbB.bB..', '.....bbbbbB.....', '...bbB....bbB...']].map(r => fit(r, 3)),
+  brute: [['..w..........w..', '..ww........ww..', '...whbbbbbbBw...', '...hbbbbbbbbB...', '...bwkbbbbkwB...', '...bbbbbbbbbB...',
+    '...bbwwwwwwbB...', '.hhhhbbbbbbBBB..', 'hhbbbhbbbbBbBBB.', 'hbbbbbbbbbbbbBB.', 'hbbb.hbbbbB.bBB.', '.bb..BbbbbbB..bB',
+    '....bbbbbbbB....', '....bbb..bbB....', '...bbbb..bbbB...'],
+  ['..w..........w..', '..ww........ww..', '...whbbbbbbBw...', '...hbbbbbbbbB...', '...bwkbbbbkwB...', '...bbbbbbbbbB...',
+    '...bbwwwwwwbB...', '.hhhhbbbbbbBBB..', 'hhbbbhbbbbBbBBB.', 'hbbbbbbbbbbbbBB.', 'hbbb.hbbbbB.bBB.', '.bb..BbbbbbB..bB',
+    '....bbbbbbbB....', '...bbb....bbB...', '..bbbb....bbbB..']].map(r => fit(r, 1)),
+  golem: [['....bbbbbbbb....', '...hbbbbbbbbB...', '...hbeebbeebB...', '...hbbbbbbbbB...', '..hhhbbbbbbBBB..', '.hhbbhbbbbBbBBB.',
+    '.hbbbhbbbbBbbBB.', '.hbbbbbbbbbbbBB.', '.BbbBbbbbbbBBbB.', '.BBB.hbbbbbB.BB.', '....hbbbbbbB....', '....hbbbbbbB....',
+    '...hbbbB.bbbB...', '...BBBB..BBBB...'],
+  ['....bbbbbbbb....', '...hbbbbbbbbB...', '...hbeebbeebB...', '...hbbbbbbbbB...', '..hhhbbbbbbBBB..', '.hhbbhbbbbBbBBB.',
+    '.hbbbhbbbbBbbBB.', '.hbbbbbbbbbbbBB.', '.BbbBbbbbbbBBbB.', '.BBB.hbbbbbB.BB.', '....hbbbbbbB....', '....hbbbbbbB....',
+    '...hbbB..hbbB...', '...BBB....BBB...']].map(r => fit(r, 1)),
+  wisp: [['.......h........', '......hbb.......', '.....hbbbB......', '....hbbbbbB.....', '....hbwwbbbB....', '...hbbwwwbbbB...',
+    '...bbbwwwbbbB...', '...bbbbwbbbbB...', '...BbbbbbbbbB...', '....BbbbbbbB....', '.....BBbbBB.....', '......BBBB......'],
+  ['......h.........', '.....hbb........', '.....hbbbB......', '....hbbbbbB.....', '....hbwwbbbB....', '...hbbwwwbbbB...',
+    '...bbbwwwbbbB...', '...bbbbwbbbbB...', '...BbbbbbbbbB...', '....BbbbbbbB....', '.....BbbBB......', '.......BB.......']].map(r => fit(r, 2)),
+  bloat: [['....hhbbbbbB....', '...hhbbbbbbbB...', '..hbbbbbbbbbbB..', '..hbbwkbbkwbbB..', '.hbbbbbbbbbbbbB.',
+    '.hbbbbbwwbbbbbB.', '.hbbbbwrrwbbbbB.', '.bbbbbbbwwbbbbB.', '.BbbbbbbbbbbbBB.', '..BbbbbbbbbbBB..', '...BBbbbbbBBB...', '....BBBBBBBB....'],
+  ['....hhbbbbbB....', '...hhbbbbbbbB...', '..hbbbbbbbbbbB..', '..hbbwkbbkwbbB..', '.hbbbbbbbbbbbbB.',
+    '.hbbbbbwwbbbbbB.', '.hbbbbwrrwbbbbB.', '.bbbbbbbwwbbbbB.', '.BbbbbbbbbbbbBB.', '.BBbbbbbbbbbBBB.', '..BBBbbbbbBBBB..', '..BBBBBBBBBBBB..']].map((r, i) => fit(r, 2 + i)),
+  dasher: [['.....hhbbbbB....', '....hbbbbbbbB...', '....bwkbbbkwbB..', '....bbbbbbbbbB..', 'ww..hbbbbbbB....', 'w..hbbbbbbbbB...',
+    'ww.hbbbbbbbbbB..', '...BbbbbbbbBB...', '.....bb...bb....'],
+  ['.....hhbbbbB....', '....hbbbbbbbB...', '....bwkbbbkwbB..', '....bbbbbbbbbB..', '.w..hbbbbbbB....', 'ww.hbbbbbbbbB...',
+    '.w.hbbbbbbbbbB..', '...BbbbbbbbBB...', '....bb.....bb...']].map(r => fit(r, 4)),
+  troll: [['....g.g..g......', '...ggbbbbbgg....', '...hbbbbbbbB....', '...bwkbbbkwB....', '...bbbbhbbbB....', '....bbwwwbB.....',
+    '..hhhbbbbbbBB...', '.hbbhbbbbbbBBo..', '.hbbbbbbbbbBBo..', '.BbbBbbbbbbBooo.', '..BB.bbbbbbB.oo.', '....bbbbbbbB....', '....bbb..bbB....', '...bbbb..bbbB...'],
+  ['....g.g..g......', '...ggbbbbbgg....', '...hbbbbbbbB....', '...bwkbbbkwB....', '...bbbbhbbbB....', '....bbwwwbB.....',
+    '..hhhbbbbbbBB...', '.hbbhbbbbbbBBo..', '.hbbbbbbbbbBBo..', '.BbbBbbbbbbBooo.', '..BB.bbbbbbB.oo.', '....bbbbbbbB....', '...bbb....bbB...', '..bbbb....bbbB..']].map(r => fit(r, 1)),
+};
+for (const k in ENEMY) DEFS[k] = { size: 16, anims: { walk: ENEMY[k] } };
+DEFS.minibloat = DEFS.bloat;
+
 // ---- baking ----
 function bakeGrid(rows, size, pal, mode) {
   if (rows.length !== size) throw new Error('sprite rows ' + rows.length + ' != ' + size);
   const px = [];
   for (let y = 0; y < size; y++) {
     const r = rows[y];
-    if (r.length !== size) throw new Error('sprite row ' + y + ' width ' + r.length + ' != ' + size);
+    if (r.length !== size) throw new Error('sprite row ' + y + ' width ' + r.length + ' != ' + size + ' "' + r + '"');
     for (let x = 0; x < size; x++) {
       const ch = r[mode === 'flip' ? size - 1 - x : x];
       if (ch !== '.' && !pal[ch]) throw new Error('unknown pixel key ' + ch);

@@ -99,8 +99,8 @@ try {
     return { placed, hp: e.hp, left: G.mines.length };
   });
   if (mn.placed !== 1 || mn.hp >= 500) { console.log('mine failed', JSON.stringify(mn)); errs.push('mine'); }
-  // enemy ground shadows: drawImage calls are groundShadow per enemy plus 1 for the player sprite.
-  // Expect 1 player + 40 on-screen enemies + a boss (r 34) whose centre is inside the 160px cull margin; a boss outside the margin and 40 far enemies are culled.
+  // enemy ground shadows: drawImage calls are groundShadow + sprite per enemy plus 1 for the player sprite.
+  // Expect 1 player + 40 on-screen enemies (2 each) + a boss (2; outside-margin one culled) (r 34) whose centre is inside the 160px cull margin; a boss outside the margin and 40 far enemies are culled.
   const sh = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.w.mine = 0;
     const cx = G.cam.x + 450, cy = G.cam.y + 300;
@@ -112,11 +112,12 @@ try {
     const C = CanvasRenderingContext2D.prototype, orig = C.drawImage; let n = 0;
     C.drawImage = function (...a) { n++; return orig.apply(this, a); };
     try { t.render(); } finally { C.drawImage = orig; }
-    return { expected: 42, drawn: n };
+    return { expected: 83, drawn: n };
   });
   if (sh.drawn !== sh.expected) { console.log('shadow cull failed', JSON.stringify(sh)); errs.push('shadow-cull'); }
   // sprite pipeline: every sprite bakes with the expected size and frame count (plus flip + hit-flash copies)
   const EXPECT = { player: { size: 16, idle: 2, walk: 4 } };
+  for (const n of ['bat', 'ghoul', 'imp', 'brute', 'golem', 'wisp', 'bloat', 'minibloat', 'dasher', 'troll']) EXPECT[n] = { size: 16, walk: 2 };
   const spr = await pg.evaluate((EXPECT) => {
     const S = window.TZS_SPRITES, bad = [];
     for (const n in EXPECT) if (!S.baked[n]) bad.push('missing ' + n);
