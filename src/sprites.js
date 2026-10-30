@@ -110,6 +110,22 @@ const ENEMY = {
     '..hhhbbbbbbBB...', '.hbbhbbbbbbBBo..', '.hbbbbbbbbbBBo..', '.BbbBbbbbbbBooo.', '..BB.bbbbbbB.oo.', '....bbbbbbbB....', '...bbb....bbB...', '..bbbb....bbbB..']].map(r => fit(r, 1)),
 };
 for (const k in ENEMY) DEFS[k] = { size: 16, anims: { walk: ENEMY[k] } };
+
+// Boss (32x32): horned, crowned brute. Authored as the left half (16 cols) of each row and mirrored
+// at load with the h/B light/shade slots swapped so light stays top-left-ish. 2-frame stomp.
+const mirror = h => h + h.split('').reverse().map(c => c === 'h' ? 'B' : c === 'B' ? 'h' : c).join('');
+const BOSS_TOP = [
+  '.............w..', '............ww..', '...........wwy..', '..w....y..yyyy..', '..ww...yyyyyyyo.',
+  '...wwhhbbbbbbbbb', '....hhbbbbbbbbbb', '...hhbbwwwwbbbbb', '...hbbwkkwwbbbbb', '...hbbwkeewbbbbb',
+  '...hbbbwwwwbbbbb', '....bbbbbbbbbbbw', '....bBbbbwwwwwkw', '.....BbbbbwwwwwB',
+  '..hhhhhbbbbbbbbb', '.hhhbbhbbbbbbbbb', 'hhbbbbbhbbbbbbbb', 'hbbbbbbbhbbbyyyy', 'hbbbbbbbbbbbyoyy',
+  'hbbbBbbbbbbbyyoo', 'hbbbBbbbbbbbbbbb', '.BBbBbbbbbbbbbbb', '..BBBBbbbbbbbbbB', '....BBBbbbbbbbbB',
+];
+const BOSS_LEGS = [
+  ['....hbbbbbbbbbbb', '....hbbbbbbbbbbb', '...hbbbbbbBBBBBB', '...hbbbB........', '..hbbbbB........', '..BBBBBB........'],
+  ['....hbbbbbbbbbbb', '....hbbbbbbbbbbb', '....hbbbbbBBBBBB', '....hbbbB.......', '....hbbbB.......', '...BBBBBB.......'],
+];
+DEFS.boss = { size: 32, anims: { walk: BOSS_LEGS.map(l => { const r = BOSS_TOP.concat(l).map(mirror); r.unshift(mirror('................')); while (r.length < 32) r.push(mirror('................')); return r; }) } };
 DEFS.minibloat = DEFS.bloat;
 
 // ---- baking ----

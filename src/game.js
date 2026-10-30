@@ -503,32 +503,10 @@ function drawPlayer(p) {
 const ENEMY_SPR = {};
 function drawEnemy(e) {
   const S = window.TZS_SPRITES, base = S && S.baked[e.kind];
-  if (!base || e.boss) return drawEnemyLegacy(e); // bosses keep the old shapes until slice 3
+  if (!base) return;
   const spr = ENEMY_SPR[e.kind + e.color] || (ENEMY_SPR[e.kind + e.color] = S.variant(e.kind, e.color));
   const f = Math.floor(G.t * (e.kind === 'bat' || e.kind === 'wisp' ? 12 : 7) + e.x * 0.07);
-  S.drawSprite(ctx, spr, 'walk', f, e.x, e.y, e.r <= 15 ? 2 : 3, { flash: e.flash > 0 });
-}
-function drawEnemyLegacy(e) {
-  const { x, y, r } = e, c = e.flash > 0 ? '#fff' : e.color;
-  const a = Math.atan2(G.p.y - y, G.p.x - x), ex = Math.cos(a) * r * 0.25, ey = Math.sin(a) * r * 0.25;
-  ctx.fillStyle = c;
-  if (e.kind === 'bat') { // flapping wings
-    const f = Math.sin(G.t * 18 + x * 0.1) * r * 0.5;
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - r * 1.7, y - r * 0.6 + f); ctx.lineTo(x - r * 0.4, y + r * 0.6); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + r * 1.7, y - r * 0.6 + f); ctx.lineTo(x + r * 0.4, y + r * 0.6); ctx.closePath(); ctx.fill();
-    circle(x, y, r * 0.7, c);
-  } else if (e.kind === 'imp' || e.kind === 'brute' || e.kind === 'troll') { // horns
-    circle(x, y, r, c);
-    ctx.beginPath(); ctx.moveTo(x - r * 0.8, y - r * 0.3); ctx.lineTo(x - r * 0.5, y - r * 1.3); ctx.lineTo(x - r * 0.1, y - r * 0.8); ctx.moveTo(x + r * 0.8, y - r * 0.3); ctx.lineTo(x + r * 0.5, y - r * 1.3); ctx.lineTo(x + r * 0.1, y - r * 0.8); ctx.fill();
-  } else if (e.kind === 'golem') { // blocky
-    ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.strokeStyle = '#475569'; ctx.lineWidth = 2; ctx.strokeRect(x - r, y - r, r * 2, r * 2);
-  } else if (e.kind === 'wisp') { // teardrop with a tail
-    circle(x, y, r, c); ctx.beginPath(); ctx.moveTo(x - Math.cos(a) * r * 2.2, y - Math.sin(a) * r * 2.2); ctx.lineTo(x - Math.sin(a) * r, y + Math.cos(a) * r); ctx.lineTo(x + Math.sin(a) * r, y - Math.cos(a) * r); ctx.fill();
-  } else circle(x, y, r, c);
-  if (e.kind === 'wisp') return;
-  const eo = r * 0.35, er = Math.max(1.5, r * 0.2);
-  circle(x - eo + ex, y - r * 0.1 + ey, er, '#fff'); circle(x + eo + ex, y - r * 0.1 + ey, er, '#fff');
-  circle(x - eo + ex * 1.6, y - r * 0.1 + ey * 1.6, er * 0.5, '#111'); circle(x + eo + ex * 1.6, y - r * 0.1 + ey * 1.6, er * 0.5, '#111');
+  S.drawSprite(ctx, spr, 'walk', f, e.x, e.y, e.boss ? 2 : e.r <= 15 ? 2 : 3, { flash: e.flash > 0 });
 }
 function circle(x, y, r, color) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); }
 
