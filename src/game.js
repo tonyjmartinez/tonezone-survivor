@@ -527,8 +527,7 @@ function drawBolt(s) {
 }
 function drawBoom(b) {
   ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.age * 18);
-  ctx.fillStyle = '#fdba74'; ctx.strokeStyle = '#9a3412'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(-9, -9); ctx.lineTo(9, -3); ctx.lineTo(0, 0); ctx.lineTo(3, 9); ctx.lineTo(-9, -9); ctx.fill(); ctx.stroke();
+  SPR.drawSprite(ctx, pickupSpr('boom', '#fdba74'), 'idle', 0, 0, 0, 2);
   ctx.restore();
 }
 // --- woodland floor art: cached once, reused every frame ---
@@ -597,9 +596,9 @@ function render() {
   for (const e of G.enemies) if (e.x > vx0 && e.x < vx1 && e.y > vy0 && e.y < vy1) groundShadow(e.x, e.y + e.r * 0.6, e.r);
   for (const g of G.gems) drawGem(g);
   for (const h of G.hearts) drawHeart(h.x, h.y + Math.sin(G.t * 5 + h.x) * 1.5);
-  for (const b of G.bombs) { const y = b.y + Math.sin(G.t * 5 + b.x) * 1.5; circle(b.x, y, 8, '#1f2937'); ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(b.x + 4, y - 6); ctx.lineTo(b.x + 8, y - 11); ctx.stroke(); circle(b.x + 8, y - 11, 2, '#f97316'); }
-  for (const f of G.ices) { const y = f.y + Math.sin(G.t * 5 + f.x) * 1.5; circle(f.x, y, 8, '#bae6fd'); circle(f.x, y, 4, '#0ea5e9'); }
-  for (const v of G.vacs) { const y = v.y + Math.sin(G.t * 5 + v.x) * 1.5; ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(v.x, y, 8, 0, 7); ctx.stroke(); circle(v.x, y, 3, '#f0abfc'); }
+  for (const b of G.bombs) SPR.drawSprite(ctx, pickupSpr('bomb', '#374151'), 'idle', 0, b.x, b.y + Math.sin(G.t * 5 + b.x) * 1.5, 2);
+  for (const f of G.ices) SPR.drawSprite(ctx, pickupSpr('ice', '#7dd3fc'), 'idle', 0, f.x, f.y + Math.sin(G.t * 5 + f.x) * 1.5, 2);
+  for (const v of G.vacs) SPR.drawSprite(ctx, pickupSpr('vac', '#38bdf8'), 'idle', 0, v.x, v.y + Math.sin(G.t * 5 + v.x) * 1.5, 2);
   for (const c of G.chests) drawChest(c);
   for (const e of G.enemies) {
     if (!e.boss && !(e.x > vx0 && e.x < vx1 && e.y > vy0 && e.y < vy1)) continue; // view cull (bosses keep drawing for the HP bar)
