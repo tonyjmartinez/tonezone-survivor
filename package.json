@@ -1,0 +1,7 @@
+{
+  "name": "tonezone-survivor",
+  "private": true,
+  "scripts": {
+    "build": "rm -rf dist && mkdir -p dist && cp -r index.html src dist/"
+  }
+}
