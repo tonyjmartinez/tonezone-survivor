@@ -647,7 +647,7 @@ function render() {
   // HUD
   pixBar(0, 0, W, 14, Math.min(1, p.xp / p.need), '#38bdf8');
   text('LV ' + p.lvl, W / 2, 11, 12);
-  pixBar(16, 24, 160, 12, Math.max(0, p.hp / p.maxHp), '#ef4444');
+  pixBar(16, 24, W < 480 ? 108 : 160, 12, Math.max(0, p.hp / p.maxHp), '#ef4444');
   // Readout plates keep text legible over busy floor art; narrow screens drop the key hint so the
   // timer block (center) and dash/kills block (right) never overlap at 390px.
   const narrow = W < 480;
