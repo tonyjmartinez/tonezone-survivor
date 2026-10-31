@@ -606,14 +606,18 @@ function render() {
     if (e.boss) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 3, 0, 7); ctx.stroke();
       const bw = e.r * 2.4, f = Math.max(0, e.hp / e.maxHp); ctx.fillStyle = '#000a'; ctx.fillRect(e.x - bw / 2, e.y - e.r - 14, bw, 6); ctx.fillStyle = '#ef4444'; ctx.fillRect(e.x - bw / 2, e.y - e.r - 14, bw * f, 6); }
   }
-  for (const q of G.parts) circle(q.x, q.y, 2, q.c);
+  for (const q of G.parts) { const z = q.t > 0.15 ? 4 : 2, px = Math.round(q.x / 2) * 2, py = Math.round(q.y / 2) * 2; ctx.fillStyle = '#0b1020'; ctx.fillRect(px - z / 2 - 1, py - z / 2 - 1, z + 2, z + 2); ctx.fillStyle = q.c; ctx.fillRect(px - z / 2, py - z / 2, z, z); }
   for (const b of G.booms) drawBoom(b);
   for (const m of G.mines) { SPR.drawSprite(ctx, pickupSpr('mine', m.age < 0.5 ? '#78350f' : '#f59e0b'), 'idle', 0, m.x, m.y, 2); }
   for (const b of G.bolts) {
-    ctx.strokeStyle = `rgba(253,224,71,${b.t / 0.2})`; ctx.lineWidth = 3; ctx.beginPath();
-    let x = b.x + rnd(-10, 10), y = b.y - 260; ctx.moveTo(x, y);
-    for (let i = 1; i <= 6; i++) { x = i === 6 ? b.x : b.x + rnd(-14, 14); y = b.y - 260 + i * 260 / 6; ctx.lineTo(x, y); }
-    ctx.stroke();
+    ctx.globalAlpha = Math.min(1, b.t / 0.2 + 0.3);
+    let x = b.x + rnd(-10, 10), y = b.y - 260;
+    for (let i = 1; i <= 6; i++) {
+      const nx = i === 6 ? b.x : b.x + rnd(-14, 14), ny = b.y - 260 + i * 260 / 6, n = 6;
+      for (let k = 0; k < n; k++) { const px = Math.round((x + (nx - x) * k / n) / 3) * 3, py = Math.round((y + (ny - y) * k / n) / 3) * 3; ctx.fillStyle = '#0b1020'; ctx.fillRect(px - 5, py - 1, 10, 6); ctx.fillStyle = '#fde047'; ctx.fillRect(px - 3, py, 6, 4); }
+      x = nx; y = ny;
+    }
+    ctx.globalAlpha = 1;
   }
   for (const s of G.shots) drawBolt(s);
   if (G.w.orbit) { const n = 1 + G.w.orbit, rad = 60 + G.w.orbit * 4; for (let i = 0; i < n; i++) { const a = G.orbAng + (i / n) * Math.PI * 2; SPR.drawSprite(ctx, pickupSpr('orb', '#a78bfa'), 'idle', 0, p.x + Math.cos(a) * rad, p.y + Math.sin(a) * rad, 2); } }
