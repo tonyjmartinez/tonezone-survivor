@@ -499,7 +499,7 @@ function text(s, x, y, size, color = '#fff', align = 'center', maxW = W - 12) {
   SPR.drawText(ctx, s, x, y - 7 * k, k, color, align);
 }
 // Procedural "sprites": body shape + per-type features, eyes face the player.
-function drawHeart(x, y) { SPR.drawSprite(ctx, pickupSpr('heart', '#f43f5e'), 'idle', 0, x, y, 2); }
+function drawHeart(x, y) { drawPickup('heart', '#f43f5e', x, y, 2); }
 const SPR = window.TZS_SPRITES;
 let walking = false; // set in update() from movement input; render only reads it
 // Player: baked pixel sprite (src/sprites.js), body tinted per character, drawn at 2x.
@@ -524,25 +524,26 @@ function circle(x, y, r, color) { ctx.fillStyle = color; ctx.beginPath(); ctx.ar
 
 const PICK_SPR = {};
 function pickupSpr(kind, color) { return PICK_SPR[kind + color] || (PICK_SPR[kind + color] = SPR.variant(kind, color)); }
+function drawPickup(kind, color, x, y, scale) { SPR.drawSprite(ctx, pickupSpr(kind, color), 'idle', 0, x, y, scale); }
 function drawGem(g) {
-  SPR.drawSprite(ctx, pickupSpr('gem', g.v >= 5 ? '#f0abfc' : '#38bdf8'), 'idle', 0, g.x, g.y, g.big ? 3 : 2);
+  drawPickup('gem', g.v >= 5 ? '#f0abfc' : '#38bdf8', g.x, g.y, g.big ? 3 : 2);
 }
 function drawChest(c) {
   const y = c.y + Math.sin(G.t * 3) * 1.5;
   ctx.fillStyle = 'rgba(11,16,32,.4)'; ctx.beginPath(); ctx.ellipse(c.x, c.y + 11, 14, 4, 0, 0, 7); ctx.fill();
-  SPR.drawSprite(ctx, pickupSpr('chest', '#b45309'), 'idle', 0, c.x, y, 3);
+  drawPickup('chest', '#b45309', c.x, y, 3);
 }
 
 function drawBolt(s) {
   const a = Math.atan2(s.vy, s.vx);
   ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(a);
   ctx.fillStyle = 'rgba(254,240,138,.25)'; ctx.beginPath(); ctx.moveTo(-16, 0); ctx.lineTo(-2, -4); ctx.lineTo(-2, 4); ctx.fill();
-  SPR.drawSprite(ctx, pickupSpr('bolt', '#fde047'), 'idle', 0, 0, 0, 2);
+  drawPickup('bolt', '#fde047', 0, 0, 2);
   ctx.restore();
 }
 function drawBoom(b) {
   ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.age * 18);
-  SPR.drawSprite(ctx, pickupSpr('boom', '#fdba74'), 'idle', 0, 0, 0, 2);
+  drawPickup('boom', '#fdba74', 0, 0, 2);
   ctx.restore();
 }
 // --- woodland floor art: cached once, reused every frame ---
@@ -609,9 +610,9 @@ function render() {
   for (const e of G.enemies) if (e.x > vx0 && e.x < vx1 && e.y > vy0 && e.y < vy1) groundShadow(e.x, e.y + e.r * 0.6, e.r);
   for (const g of G.gems) drawGem(g);
   for (const h of G.hearts) drawHeart(h.x, h.y + Math.sin(G.t * 5 + h.x) * 1.5);
-  for (const b of G.bombs) SPR.drawSprite(ctx, pickupSpr('bomb', '#374151'), 'idle', 0, b.x, b.y + Math.sin(G.t * 5 + b.x) * 1.5, 2);
-  for (const f of G.ices) SPR.drawSprite(ctx, pickupSpr('ice', '#7dd3fc'), 'idle', 0, f.x, f.y + Math.sin(G.t * 5 + f.x) * 1.5, 2);
-  for (const v of G.vacs) SPR.drawSprite(ctx, pickupSpr('vac', '#38bdf8'), 'idle', 0, v.x, v.y + Math.sin(G.t * 5 + v.x) * 1.5, 2);
+  for (const b of G.bombs) drawPickup('bomb', '#374151', b.x, b.y + Math.sin(G.t * 5 + b.x) * 1.5, 2);
+  for (const f of G.ices) drawPickup('ice', '#7dd3fc', f.x, f.y + Math.sin(G.t * 5 + f.x) * 1.5, 2);
+  for (const v of G.vacs) drawPickup('vac', '#38bdf8', v.x, v.y + Math.sin(G.t * 5 + v.x) * 1.5, 2);
   for (const c of G.chests) drawChest(c);
   for (const e of G.enemies) {
     if (!e.boss && !(e.x > vx0 && e.x < vx1 && e.y > vy0 && e.y < vy1)) continue; // view cull (bosses keep drawing for the HP bar)
@@ -621,7 +622,7 @@ function render() {
   }
   for (const q of G.parts) { const z = q.t > 0.15 ? 4 : 2, px = Math.round(q.x / 2) * 2, py = Math.round(q.y / 2) * 2; ctx.fillStyle = '#0b1020'; ctx.fillRect(px - z / 2 - 1, py - z / 2 - 1, z + 2, z + 2); ctx.fillStyle = q.c; ctx.fillRect(px - z / 2, py - z / 2, z, z); }
   for (const b of G.booms) drawBoom(b);
-  for (const m of G.mines) { SPR.drawSprite(ctx, pickupSpr('mine', m.age < 0.5 ? '#78350f' : '#f59e0b'), 'idle', 0, m.x, m.y, 2); }
+  for (const m of G.mines) { drawPickup('mine', m.age < 0.5 ? '#78350f' : '#f59e0b', m.x, m.y, 2); }
   for (const b of G.bolts) {
     ctx.globalAlpha = Math.min(1, b.t / 0.2 + 0.3);
     let x = b.x + rnd(-10, 10), y = b.y - 260;
@@ -633,7 +634,7 @@ function render() {
     ctx.globalAlpha = 1;
   }
   for (const s of G.shots) drawBolt(s);
-  if (G.w.orbit) { const n = 1 + G.w.orbit, rad = 60 + G.w.orbit * 4; for (let i = 0; i < n; i++) { const a = G.orbAng + (i / n) * Math.PI * 2; SPR.drawSprite(ctx, pickupSpr('orb', '#a78bfa'), 'idle', 0, p.x + Math.cos(a) * rad, p.y + Math.sin(a) * rad, 2); } }
+  if (G.w.orbit) { const n = 1 + G.w.orbit, rad = 60 + G.w.orbit * 4; for (let i = 0; i < n; i++) { const a = G.orbAng + (i / n) * Math.PI * 2; drawPickup('orb', '#a78bfa', p.x + Math.cos(a) * rad, p.y + Math.sin(a) * rad, 2); } }
   if (G.w.garlic) { ctx.fillStyle = 'rgba(167,243,208,.12)'; ctx.beginPath(); ctx.arc(p.x, p.y, 50 + G.w.garlic * 12, 0, 7); ctx.fill(); }
   if (G.slash) { const k = G.slash; ctx.fillStyle = 'rgba(253,230,138,' + (k.t / 0.15 * 0.6) + ')'; ctx.beginPath(); ctx.moveTo(k.x, k.y); ctx.arc(k.x, k.y, k.reach, k.a - k.half, k.a + k.half); ctx.closePath(); ctx.fill(); }
   for (const f of G.mineFx) { ctx.fillStyle = 'rgba(245,158,11,' + (f.t / f.max * 0.6) + ')'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 - f.t / f.max * 0.4), 0, 7); ctx.fill(); }
