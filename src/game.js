@@ -688,18 +688,18 @@ function render() {
     ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, W, H);
     // Navy panel behind the summary block gives contrast over the arena; every line is fitted to the panel width.
     const pw = Math.min(W - 16, 520), px = (W - pw) / 2;
-    hudPlate(px, H / 2 - 84, pw, 246);
+    hudPlate(px, H / 2 - 84, pw, 254);
     const fit = (str, max) => Math.max(9, Math.min(max, Math.floor((pw - 24) / (str.length * 0.62))));
     if (G.won) text('YOU SURVIVED!', W / 2, H / 2 - 30, 40, '#fde047'); else text('YOU DIED', W / 2, H / 2 - 30, 40, '#ef4444');
-    const survived = `Survived ${fmt(G.t)}  |  Kills ${G.kills}  |  Level ${p.lvl}`;
-    text(survived, W / 2, H / 2 + 10, fit(survived, 18));
-    const best = 'Best: ' + fmt(+(localStorage.getItem('tzs_best') || 0)) + '   Gold earned: +' + G.gold;
+    const survived = `Survived ${fmt(G.t)} - Kills ${G.kills} - Level ${p.lvl}`;
+    text(survived, W / 2, H / 2 + 10, Math.max(12, fit(survived, 18)));
+    const best = 'Best ' + fmt(+(localStorage.getItem('tzs_best') || 0)) + ' - Gold +' + G.gold;
     text(best, W / 2, H / 2 + 40, fit(best, 16), '#cbd5e1');
-    if (G.newBest) text('NEW BEST!', W / 2, H / 2 + 62, 16, '#fde047');
+    if (G.newBest) text('NEW BEST!', W / 2, H / 2 + 66, 16, '#fde047');
     const { wl, pl } = buildSummary();
-    if (wl) { const t = 'Weapons: ' + wl; text(t, W / 2, H / 2 + 118, fit(t, 13), '#93c5fd'); }
-    if (pl) { const t = 'Passives: ' + pl; text(t, W / 2, H / 2 + 136, fit(t, 13), '#a7f3d0'); }
-    text('SPACE or tap to continue', W / 2, H / 2 + 90, 18, '#6ee7b7');
+    if (wl) { const t = 'Weapons: ' + wl; text(t, W / 2, H / 2 + 126, fit(t, 13), '#93c5fd'); }
+    if (pl) { const t = 'Passives: ' + pl; text(t, W / 2, H / 2 + 144, fit(t, 13), '#a7f3d0'); }
+    text('SPACE or tap to continue', W / 2, H / 2 + 98, Math.min(18, fit('SPACE or tap to continue', 18)), '#6ee7b7');
   }
 }
 
