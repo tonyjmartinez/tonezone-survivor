@@ -678,7 +678,11 @@ function render() {
   }
   if (state === 'pause') {
     ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, H);
-    text('PAUSED (P / Esc to resume)', W / 2, H / 2, 24, '#fde047');
+    // Same navy plate as the end screen: title plus a separate hint line, readable over any terrain.
+    const pw = Math.min(W - 16, 320), px = (W - pw) / 2;
+    hudPlate(px, H / 2 - 52, pw, 104);
+    text('PAUSED', W / 2, H / 2 - 6, 36, '#fde047');
+    text('P / Esc to resume', W / 2, H / 2 + 28, 16, '#6ee7b7', 'center', pw - 24);
   }
   if (state === 'dead') {
     ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, W, H);
