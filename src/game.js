@@ -498,6 +498,18 @@ function text(s, x, y, size, color = '#fff', align = 'center', maxW = W - 12) {
   while (k > 1 && SPR.fontWidth(s, k) > maxW) k--;
   SPR.drawText(ctx, s, x, y - 7 * k, k, color, align);
 }
+// Greedy word wrap for the pixel font: lines of at most maxW px at scale k (6px advance per glyph).
+function wrapLines(s, maxW, k) {
+  const per = Math.max(1, Math.floor(maxW / (6 * k))), lines = [];
+  let line = '';
+  for (const word of String(s).split(/\s+/)) {
+    if (!line) line = word;
+    else if ((line + ' ' + word).length <= per) line += ' ' + word;
+    else { lines.push(line); line = word; }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
 // Procedural "sprites": body shape + per-type features, eyes face the player.
 function drawHeart(x, y) { drawPickup('heart', '#f43f5e', x, y, 2); }
 const SPR = window.TZS_SPRITES;
@@ -673,7 +685,11 @@ function render() {
       ctx.fillStyle = '#2d2d44'; ctx.fillRect(r.x, r.y, r.w, r.h);
       ctx.strokeStyle = c.kind === 'w' ? '#fde047' : '#6ee7b7'; ctx.lineWidth = 2; ctx.strokeRect(r.x, r.y, r.w, r.h);
       text(`${i + 1}. ${d.name} (Lv ${c.lvl})`, r.x + 12, r.y + 30, 18, '#fff', 'left', r.w - 20);
-      text(d.desc, r.x + 12, r.y + 56, 14, '#bbb', 'left', r.w - 20);
+      // Long descriptions wrap to two lines at the card's 2x scale rather than shrinking to the tiny 1x font.
+      const lines = wrapLines(d.desc, r.w - 20, 2);
+      if (lines.length === 1) text(lines[0], r.x + 12, r.y + 56, 14, '#bbb', 'left', r.w - 20);
+      else if (lines.length === 2) lines.forEach((l, j) => text(l, r.x + 12, r.y + 50 + j * 17, 14, '#bbb', 'left', r.w - 20));
+      else text(d.desc, r.x + 12, r.y + 56, 14, '#bbb', 'left', r.w - 20);
     });
   }
   if (state === 'pause') {
@@ -712,5 +728,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, buildSummary };
+window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, buildSummary, wrapLines, WEAPONS, PASSIVES };
 })();

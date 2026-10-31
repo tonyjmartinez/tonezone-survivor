@@ -50,6 +50,7 @@
 - 2026-10-25 pd loop: Added Mines weapon (`G.mines`; drops mines that blast foes, evolves with Luck). Smoke covers it.
 - 2026-10-26 pd loop: Added Troll enemy (from 4:30; regenerates 8% max HP/s unless hit in last 1.5s). Smoke covers it.
 - 2026-10-30 pd L18: Pixel sprite pipeline: `src/sprites.js` (palette grids, baked outline/flip/flash, `drawSprite`, `?sprites=1` sheet). Player ported to a 16x16 sprite. Smoke asserts sprite sizes/frames. See docs/ART.md.
+- 2026-10-31 Claude Code: level-up card descriptions wrap to two lines at 2x (`wrapLines`) instead of dropping to the tiny 1x font; smoke asserts every description fits. Local smoke recipe without system Chromium libs: `apt-get download libnspr4 libnss3 libasound2t64`, `dpkg-deb -x` them into a dir and set LD_LIBRARY_PATH to its usr/lib/x86_64-linux-gnu.
 ## Next steps
 - Pixel overhaul next: enemy sprites (docs/ART.md slice 2).
 - Check `origin/main` before starting (parallel session branches exist). use hash for weapon queries (low value), more weapons/enemy variety, sprite polish for projectiles, real playtest balance (5+ min). See ROADMAP "Next".

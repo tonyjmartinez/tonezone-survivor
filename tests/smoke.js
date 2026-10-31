@@ -138,6 +138,14 @@ try {
     return bad;
   }, EXPECT);
   if (spr.length) { console.log('sprites failed', JSON.stringify(spr)); errs.push('sprites'); }
+  // level-up cards: every weapon and passive description fits the 300px card in at most two lines at 2x
+  // (a longer one would drop to the tiny 1x font)
+  const cardBad = await pg.evaluate(() => {
+    const t = window.__tzs, bad = [];
+    for (const d of [...Object.values(t.WEAPONS), ...Object.values(t.PASSIVES)]) if (t.wrapLines(d.desc, 280, 2).length > 2) bad.push(d.name);
+    return bad;
+  });
+  if (cardBad.length) { console.log('card text failed', cardBad); errs.push('cards'); }
   // sprite-sheet review page renders without errors
   const sheetErrs = [];
   const sp = await b.newPage({ viewport: { width: 390, height: 844 } });
