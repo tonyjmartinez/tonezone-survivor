@@ -50,6 +50,7 @@
 - 2026-10-25 pd loop: Added Mines weapon (`G.mines`; drops mines that blast foes, evolves with Luck). Smoke covers it.
 - 2026-10-26 pd loop: Added Troll enemy (from 4:30; regenerates 8% max HP/s unless hit in last 1.5s). Smoke covers it.
 - 2026-10-30 pd L18: Pixel sprite pipeline: `src/sprites.js` (palette grids, baked outline/flip/flash, `drawSprite`, `?sprites=1` sheet). Player ported to a 16x16 sprite. Smoke asserts sprite sizes/frames. See docs/ART.md.
+- 2026-10-31 Claude Code: slice 8 perf check. `tests/perf.js` probes frame time at 100/300/600 enemies (x1 and x4 CPU); results in docs/ART.md. 300 enemies ~7 ms/frame at x4; 600 ~15 ms with ~35 ms GC-like spikes.
 ## Next steps
 - Pixel overhaul next: enemy sprites (docs/ART.md slice 2).
 - Check `origin/main` before starting (parallel session branches exist). use hash for weapon queries (low value), more weapons/enemy variety, sprite polish for projectiles, real playtest balance (5+ min). See ROADMAP "Next".
