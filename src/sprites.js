@@ -132,6 +132,10 @@ DEFS.boss = { size: 32, anims: { walk: BOSS_LEGS.map(l => { const r = BOSS_TOP.c
 const PICKUP = {
   gem: ['........', '...hb...', '..hbbB..', '.hwbbbB.', '.hbbbbB.', '..BbbB..', '...BB...', '........'],
   heart: ['........', '.bb..bb.', '.hbbbbB.', '.bbbbbB.', '.BbbbbB.', '..BbbB..', '...BB...', '........'],
+  boom: ['........', '.bb.....', '.hbb....', '..hbbbB.', '...hbbbb', '....bB..', '.....B..', '........'],
+  bomb: ['.....yo.', '....y...', '..hbbbb.', '.hbbbbbB', '.bbbbbbB', '.bbbbbbB', '..BbbbB.', '........'],
+  ice: ['...hb...', '..hwbB..', '.hwbbbB.', 'hwbbbbbB', '.hbbbbB.', '..hbbB..', '...BB...', '........'],
+  vac: ['..bbbb..', '.bB..bB.', 'bB.ww.bB', 'b..ww..B', 'b..ww..B', 'bB....BB', '.bB..bB.', '..BBBB..'],
   chest: ['........', '.hbbbbB.', '.hbbbbB.', '.yyyyyy.', '.bbyyBB.', '.bbbbbB.', '.BBBBBB.', '........'],
   bolt: ['........', '........', '..hbbb..', '.hwwwbB.', '.hwwwbB.', '..BbbB..', '........', '........'],
   orb: ['........', '..hbb...', '.hwbbB..', '.hbbbB..', '.bbbBB..', '..BBB...', '........', '........'],
