@@ -537,23 +537,13 @@ function drawBoom(b) {
 let FLOOR_PAT = null, SHADOW_IMG = null;
 function woodlandFloor() {
   if (FLOOR_PAT) return FLOOR_PAT;
-  const N = 4, cs = 64, c = document.createElement('canvas');
-  c.width = c.height = N * cs;
-  const g = c.getContext('2d');
+  // 8x8 baked 16x16 pixel tiles drawn at 2x = 256px pattern (see sprites.js tiles)
+  const N = 8, c = document.createElement('canvas'), T = SPR.tiles;
+  c.width = c.height = N * 32;
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-    const h = (Math.imul(i, 73856093) ^ Math.imul(j, 19349663)) >>> 0, px = i * cs, py = j * cs;
-    g.fillStyle = (i + j) & 1 ? '#18213a' : '#1d2740'; g.fillRect(px, py, cs, cs);
-    if (h % 3 === 0) { // moss patch, drawn at the 9 wrap offsets so it stays seamless
-      const mx = px + 16 + (h >> 4) % 32, my = py + 16 + (h >> 9) % 32;
-      for (let dy = -N * cs; dy <= N * cs; dy += N * cs) for (let dx = -N * cs; dx <= N * cs; dx += N * cs) {
-        g.fillStyle = 'rgba(62,102,58,0.38)'; g.beginPath(); g.ellipse(mx + dx, my + dy, 16, 10, (h & 3) * 0.4, 0, 7); g.fill();
-      }
-    }
-    const d = h % 11;
-    if (d === 0) { g.fillStyle = '#2f3a52'; g.beginPath(); g.ellipse(px + (h >> 4) % 48 + 8, py + (h >> 9) % 48 + 8, 7, 4, 0, 0, 7); g.fill(); }
-    else if (d === 1) { g.strokeStyle = '#2f5a46'; g.lineWidth = 2; const gx = px + (h >> 4) % 48 + 8, gy = py + (h >> 9) % 48 + 12; g.beginPath(); g.moveTo(gx - 4, gy); g.lineTo(gx - 6, gy - 7); g.moveTo(gx, gy); g.lineTo(gx, gy - 9); g.moveTo(gx + 4, gy); g.lineTo(gx + 6, gy - 7); g.stroke(); }
-    if (h % 4 === 1) { g.fillStyle = 'rgba(253,230,138,0.55)'; g.fillRect(px + (h >> 6) % 56 + 4, py + (h >> 12) % 56 + 4, 2, 2); } // gold mote
-    if (h % 5 === 2) { g.fillStyle = 'rgba(103,232,249,0.45)'; g.fillRect(px + (h >> 8) % 56 + 4, py + (h >> 14) % 56 + 4, 2, 2); } // cyan mote
+    const h = (Math.imul(i, 73856093) ^ Math.imul(j, 19349663)) >>> 0, v = h % 9;
+    g.drawImage(T[v < 3 ? 0 : v - 2 > 5 ? 5 : v - 2 < 1 ? 1 : v - 2], i * 32, j * 32, 32, 32);
   }
   FLOOR_PAT = ctx.createPattern(c, 'repeat');
   return FLOOR_PAT;
@@ -590,6 +580,14 @@ function render() {
   ctx.save(); ctx.translate(-cam.x + rnd(-sh, sh), -cam.y + rnd(-sh, sh));
   // themed floor: one cached 4x4-tile pattern (see woodlandFloor), filled over the visible area
   ctx.fillStyle = woodlandFloor(); ctx.fillRect(cam.x - 64, cam.y - 64, W + 128, H + 128);
+  // props: sparse trees/rocks/mushrooms on a hashed 112px grid, view-culled, drawn under all units
+  if (!window.__tzsNoProps) for (let gy = Math.floor((cam.y - 40) / 112), ey = Math.floor((cam.y + H + 40) / 112); gy <= ey; gy++) for (let gx = Math.floor((cam.x - 40) / 112), ex = Math.floor((cam.x + W + 40) / 112); gx <= ex; gx++) {
+    const h = (Math.imul(gx, 374761393) ^ Math.imul(gy, 668265263)) >>> 0;
+    if (h % 5 > 1 || (gx === 0 && gy === 0)) continue;
+    const k = (h >> 3) % 6, kind = k < 3 ? 'tree' : k < 5 ? 'rock' : 'mush', px = gx * 112 + 16 + (h >> 8) % 80, py = gy * 112 + 16 + (h >> 16) % 80;
+    groundShadow(px, py + 12, kind === 'tree' ? 14 : 10);
+    SPR.drawSprite(ctx, SPR.baked[kind], 'idle', 0, px, py, 2);
+  }
   // soft ground shadows for enemies go under every sprite (player shadow is drawn in drawPlayer)
   // (shadows outside the visible area are culled; crowded scenes can hold hundreds of enemies)
   const vx0 = cam.x - 160, vy0 = cam.y - 160, vx1 = cam.x + W + 160, vy1 = cam.y + H + 160; // margin > largest shadow (boss r*1.1)
