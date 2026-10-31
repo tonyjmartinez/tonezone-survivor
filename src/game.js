@@ -481,6 +481,15 @@ function buildSummary() {
   return { wl, pl };
 }
 // Dark navy plate with a thin gold rim behind HUD readouts (cheap: one fill + one stroke, no allocation).
+// Pixel bar: Ink border, dark trough, fill with a light top row and shaded bottom row (2 shade steps).
+function pixBar(x, y, w, h, f, col) {
+  ctx.fillStyle = '#0b1020'; ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = '#1e2a4a'; ctx.fillRect(x + 2, y + 2, w - 4, h - 4);
+  const fw = Math.round((w - 4) * f); if (fw <= 0) return;
+  ctx.fillStyle = col; ctx.fillRect(x + 2, y + 2, fw, h - 4);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(x + 2, y + 2, fw, 2);
+  ctx.fillStyle = 'rgba(11,16,32,0.35)'; ctx.fillRect(x + 2, y + h - 4, fw, 2);
+}
 function hudPlate(x, y, w, h) { ctx.fillStyle = 'rgba(8,12,30,0.62)'; ctx.fillRect(x, y, w, h); ctx.strokeStyle = 'rgba(251,191,36,0.35)'; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); }
 // Pixel font (src/sprites.js): size maps to an integer glyph scale; shrinks to fit the canvas width.
 function text(s, x, y, size, color = '#fff', align = 'center', maxW = W - 12) {
@@ -635,11 +644,9 @@ function render() {
 
   if (G.freeze > 0) { ctx.fillStyle = 'rgba(125,211,252,' + Math.min(0.18, G.freeze * 0.1) + ')'; ctx.fillRect(0, 0, W, H); }
   // HUD
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, 14);
-  ctx.fillStyle = '#38bdf8'; ctx.fillRect(0, 0, W * Math.min(1, p.xp / p.need), 14);
+  pixBar(0, 0, W, 14, Math.min(1, p.xp / p.need), '#38bdf8');
   text('LV ' + p.lvl, W / 2, 11, 12);
-  ctx.fillStyle = '#333'; ctx.fillRect(16, 24, 160, 12);
-  ctx.fillStyle = '#ef4444'; ctx.fillRect(16, 24, 160 * Math.max(0, p.hp / p.maxHp), 12);
+  pixBar(16, 24, 160, 12, Math.max(0, p.hp / p.maxHp), '#ef4444');
   // Readout plates keep text legible over busy floor art; narrow screens drop the key hint so the
   // timer block (center) and dash/kills block (right) never overlap at 390px.
   const narrow = W < 480;
