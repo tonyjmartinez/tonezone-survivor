@@ -100,6 +100,7 @@ function newGame() {
     enemies: [], shots: [], gems: [], booms: [], mines: [], bolts: [], hearts: [], vacs: [], bombs: [], ices: [], freeze: 0, chests: [], parts: [], shake: 0, fx: [], mineFx: [], texts: [],
     timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
     choices: [], gold: 0,
+    rerolls: 1, // level-up rerolls left: one free per run, +1 per Luck level
   };
 }
 
@@ -131,6 +132,7 @@ function onKey(k, e) {
     let i = -1;
     if (k >= '1' && k <= '3') i = +k - 1;
     if (k === 'tap' && e) i = pickAt(e.clientX, e.clientY);
+    if (k === 'r' || (k === 'tap' && e && i < 0 && inRect(rerollRect(), e.clientX, e.clientY))) { reroll(); return; }
     if (i >= 0 && G.choices[i]) { applyChoice(G.choices[i]); state = 'play'; }
   }
 }
@@ -169,12 +171,19 @@ function applyChoice(c) {
     if (c.k === 'magnet') p.magnet *= 1.4;
     if (c.k === 'haste') p.cdMul *= 0.9;
     if (c.k === 'regen') p.regen = (p.regen || 0) + 0.5;
-    if (c.k === 'luck') p.luck = (p.luck || 1) * 1.3;
+    if (c.k === 'luck') { p.luck = (p.luck || 1) * 1.3; G.rerolls++; }
     if (c.k === 'armor') p.armor = (p.armor || 0) + 1;
     if (c.k === 'growth') p.xpMul = (p.xpMul || 1) + 0.15;
   }
 }
 const choiceRects = () => [0, 1, 2].map(i => ({ x: W / 2 - 150, y: H / 2 - 120 + i * 90, w: 300, h: 76 }));
+const rerollRect = () => ({ x: W / 2 - 150, y: H / 2 - 120 + 3 * 90, w: 300, h: 40 });
+const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+// Swap the three level-up cards for a fresh draw, spending one reroll.
+function reroll() {
+  if (G.rerolls <= 0) { sfx(140, 0.08, 'square', 0.03); return; }
+  G.rerolls--; G.choices = rollChoices(); sfx(520, 0.12, 'triangle', 0.06);
+}
 function pickAt(x, y) { return choiceRects().findIndex(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h); }
 
 // ---------- spawning / difficulty ----------
@@ -675,6 +684,10 @@ function render() {
       text(`${i + 1}. ${d.name} (Lv ${c.lvl})`, r.x + 12, r.y + 30, 18, '#fff', 'left', r.w - 20);
       text(d.desc, r.x + 12, r.y + 56, 14, '#bbb', 'left', r.w - 20);
     });
+    const rr = rerollRect(), has = G.rerolls > 0;
+    ctx.fillStyle = has ? '#2d2d44' : '#1e1e2e'; ctx.fillRect(rr.x, rr.y, rr.w, rr.h);
+    ctx.strokeStyle = has ? '#93c5fd' : '#475569'; ctx.lineWidth = 2; ctx.strokeRect(rr.x, rr.y, rr.w, rr.h);
+    text(has ? `R. Reroll (${G.rerolls} left)` : 'No rerolls left', W / 2, rr.y + 27, 16, has ? '#93c5fd' : '#64748b');
   }
   if (state === 'pause') {
     ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, H);
