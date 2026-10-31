@@ -24,6 +24,7 @@ const PAL = {
   y: BASE.gold, o: shade(BASE.gold), c: BASE.cyan, e: BASE.ember, r: BASE.blood,
   v: BASE.violet, u: shade(BASE.violet), l: light(BASE.violet),
   b: BASE.violet, B: shade(BASE.violet), h: light(BASE.violet),
+  j: mix(BASE.moss, BASE.bone, 0.3), t: '#7c4a2a', T: '#5a3320', W: '#a9b4c6',
 };
 function bodySlots(c) { return { b: c, B: shade(c), h: light(c) }; }
 
@@ -51,6 +52,61 @@ function pf(legs, bob) {
   return (bob ? [E, ...P_BODY, legs, legs, E, E] : [E, E, ...P_BODY, legs, E, E]).slice(0, 16);
 }
 const DEFS = {
+  // Props (16x16, outlined, drawn under units): tree, rock, mushroom.
+  tree: { size: 16, anims: { idle: [[
+    '................',
+    '.....mmmmmm.....',
+    '...mmjjmmmmmm...',
+    '..mmjjmmmmmmmg..',
+    '..mjjmmmmmmmgg..',
+    '..mmmmmmmmmggg..',
+    '..mmmmmmmmgggg..',
+    '...mmmmmmgggg...',
+    '....ggmmgggg....',
+    '......ggg.......',
+    '.......tt.......',
+    '.......tT.......',
+    '.......tT.......',
+    '......tttT......',
+    '................',
+    '................',
+  ]] } },
+  rock: { size: 16, anims: { idle: [[
+    '................',
+    '................',
+    '................',
+    '................',
+    '......wwss......',
+    '....wwsssssd....',
+    '...wssssssssd...',
+    '..wsssssssssdd..',
+    '..sssssmssssdd..',
+    '..sssssssssddd..',
+    '..ssssssdddddd..',
+    '...dddddddddd...',
+    '................',
+    '................',
+    '................',
+    '................',
+  ]] } },
+  mush: { size: 16, anims: { idle: [[
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '......rrrr......',
+    '....rrwrrrrr....',
+    '...rrrrrwrrrr...',
+    '...rwrrrrrrrr...',
+    '...rrrrrrrwrr...',
+    '....dddddddd....',
+    '......wwww......',
+    '......wwWw......',
+    '......wwWw......',
+    '.....wwwwWw.....',
+    '................',
+  ]] } },
   player: {
     size: 16,
     anims: {
@@ -181,6 +237,24 @@ function bake(name, over) {
   }
   return out;
 }
+
+// Ground tiles (16x16, no outline, drawn at 2x): plain Night base with sparse dusk/moss/stone
+// pixels. Variant 0-1 are mostly plain so the floor stays calm under the action.
+const TILE_BASE = '#1b2540';
+const TILE_DEFS = [
+  [],
+  [[3, 4, 'd'], [11, 9, 'd'], [7, 13, 'd']],
+  [[2, 3, 'd'], [3, 3, 'd'], [12, 11, 'd'], [13, 11, 'd'], [8, 7, 'd']],
+  [[4, 10, 'm'], [5, 10, 'm'], [5, 9, 'g'], [10, 4, 'm'], [10, 3, 'g'], [11, 4, 'g']],
+  [[6, 6, 's'], [7, 6, 's'], [6, 7, 'd'], [7, 7, 'd'], [12, 12, 's']],
+  [[3, 12, 'g'], [4, 12, 'g'], [4, 11, 'm'], [9, 5, 'y'], [13, 3, 'd']],
+];
+const tiles = TILE_DEFS.map(list => {
+  const c = document.createElement('canvas'); c.width = c.height = 16;
+  const g = c.getContext('2d'); g.fillStyle = TILE_BASE; g.fillRect(0, 0, 16, 16);
+  for (const [x, y, k] of list) { g.fillStyle = k === 'y' ? '#a07c1c' : PAL[k]; g.fillRect(x, y, 1, 1); }
+  return c;
+});
 const baked = {};
 for (const n in DEFS) baked[n] = bake(n);
 const variants = {};
@@ -204,6 +278,8 @@ function drawSheet(ctx, W, H, t) {
   ctx.fillStyle = BASE.bone; ctx.font = 'bold 16px monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.fillText('SPRITE SHEET  scale x' + scale, 12, 10);
   let y = 40;
+  tiles.forEach((t, i) => ctx.drawImage(t, 12 + i * (16 * scale + 4), y - 4, 16 * scale, 16 * scale));
+  y += 16 * scale + 8;
   for (const name in baked) {
     const spr = baked[name], cell = spr.size * scale + 8;
     for (const a in spr.anims) {
@@ -231,5 +307,5 @@ function drawSheet(ctx, W, H, t) {
     }
   }
 }
-window.TZS_SPRITES = { PAL, BASE, DEFS, baked, variant, drawSprite, drawSheet, mix };
+window.TZS_SPRITES = { tiles, PAL, BASE, DEFS, baked, variant, drawSprite, drawSheet, mix };
 })();

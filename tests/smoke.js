@@ -111,12 +111,13 @@ try {
     G.enemies.push(mk(G.cam.x - 200, cy, 34)); // boss-size, outside margin -> culled
     const C = CanvasRenderingContext2D.prototype, orig = C.drawImage; let n = 0;
     C.drawImage = function (...a) { n++; return orig.apply(this, a); };
-    try { t.render(); } finally { C.drawImage = orig; }
+    window.__tzsNoProps = true; // props (trees/rocks) are also drawImage calls; exclude them here
+    try { t.render(); } finally { C.drawImage = orig; window.__tzsNoProps = false; }
     return { expected: 83, drawn: n };
   });
   if (sh.drawn !== sh.expected) { console.log('shadow cull failed', JSON.stringify(sh)); errs.push('shadow-cull'); }
   // sprite pipeline: every sprite bakes with the expected size and frame count (plus flip + hit-flash copies)
-  const EXPECT = { player: { size: 16, idle: 2, walk: 4 }, boss: { size: 32, walk: 2 }, gem: { size: 8, idle: 1 }, heart: { size: 8, idle: 1 }, chest: { size: 8, idle: 1 }, bolt: { size: 8, idle: 1 }, orb: { size: 8, idle: 1 }, mine: { size: 8, idle: 1 }, boom: { size: 8, idle: 1 }, bomb: { size: 8, idle: 1 }, ice: { size: 8, idle: 1 }, vac: { size: 8, idle: 1 } };
+  const EXPECT = { player: { size: 16, idle: 2, walk: 4 }, boss: { size: 32, walk: 2 }, gem: { size: 8, idle: 1 }, heart: { size: 8, idle: 1 }, chest: { size: 8, idle: 1 }, bolt: { size: 8, idle: 1 }, orb: { size: 8, idle: 1 }, mine: { size: 8, idle: 1 }, boom: { size: 8, idle: 1 }, bomb: { size: 8, idle: 1 }, ice: { size: 8, idle: 1 }, vac: { size: 8, idle: 1 }, tree: { size: 16, idle: 1 }, rock: { size: 16, idle: 1 }, mush: { size: 16, idle: 1 } };
   for (const n of ['bat', 'ghoul', 'imp', 'brute', 'golem', 'wisp', 'bloat', 'minibloat', 'dasher', 'troll']) EXPECT[n] = { size: 16, walk: 2 };
   const spr = await pg.evaluate((EXPECT) => {
     const S = window.TZS_SPRITES, bad = [];
