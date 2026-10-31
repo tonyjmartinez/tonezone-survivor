@@ -110,7 +110,8 @@ try {
     G.enemies.push(mk(G.cam.x - 150, cy, 34)); // boss-size, inside margin -> drawn
     G.enemies.push(mk(G.cam.x - 200, cy, 34)); // boss-size, outside margin -> culled
     const C = CanvasRenderingContext2D.prototype, orig = C.drawImage; let n = 0;
-    C.drawImage = function (...a) { n++; return orig.apply(this, a); };
+    C.drawImage = function (...a) { if (!(a[0].width === 6 && a[0].height === 8)) n++; // glyphs (pixel font) are not counted
+      return orig.apply(this, a); };
     window.__tzsNoProps = true; // props (trees/rocks) are also drawImage calls; exclude them here
     try { t.render(); } finally { C.drawImage = orig; window.__tzsNoProps = false; }
     return { expected: 83, drawn: n };
@@ -119,6 +120,8 @@ try {
   // sprite pipeline: every sprite bakes with the expected size and frame count (plus flip + hit-flash copies)
   const EXPECT = { player: { size: 16, idle: 2, walk: 4 }, boss: { size: 32, walk: 2 }, gem: { size: 8, idle: 1 }, heart: { size: 8, idle: 1 }, chest: { size: 8, idle: 1 }, bolt: { size: 8, idle: 1 }, orb: { size: 8, idle: 1 }, mine: { size: 8, idle: 1 }, boom: { size: 8, idle: 1 }, bomb: { size: 8, idle: 1 }, ice: { size: 8, idle: 1 }, vac: { size: 8, idle: 1 }, tree: { size: 16, idle: 1 }, rock: { size: 16, idle: 1 }, mush: { size: 16, idle: 1 } };
   for (const n of ['bat', 'ghoul', 'imp', 'brute', 'golem', 'wisp', 'bloat', 'minibloat', 'dasher', 'troll']) EXPECT[n] = { size: 16, walk: 2 };
+  const fontBad = await pg.evaluate(() => { const S = window.TZS_SPRITES, bad = []; for (const k in S.FONT) { const r = S.FONT[k].split('/'); if (r.length !== 7 || r.some(x => x.length !== 5)) bad.push(k); if (S.glyphImg(k, '#fff').width !== 6) bad.push(k + ':bake'); } for (const ch of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,:!?-+%/()<>=') if (!S.FONT[ch]) bad.push('missing ' + ch); return bad; });
+  if (fontBad.length) { console.log('font failed', fontBad); errs.push('font'); }
   const spr = await pg.evaluate((EXPECT) => {
     const S = window.TZS_SPRITES, bad = [];
     for (const n in EXPECT) if (!S.baked[n]) bad.push('missing ' + n);
