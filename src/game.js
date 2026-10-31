@@ -482,7 +482,13 @@ function buildSummary() {
 }
 // Dark navy plate with a thin gold rim behind HUD readouts (cheap: one fill + one stroke, no allocation).
 function hudPlate(x, y, w, h) { ctx.fillStyle = 'rgba(8,12,30,0.62)'; ctx.fillRect(x, y, w, h); ctx.strokeStyle = 'rgba(251,191,36,0.35)'; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); }
-function text(s, x, y, size, color = '#fff', align = 'center') { ctx.fillStyle = color; ctx.font = `bold ${size}px monospace`; ctx.textAlign = align; ctx.fillText(s, x, y); }
+// Pixel font (src/sprites.js): size maps to an integer glyph scale; shrinks to fit the canvas width.
+function text(s, x, y, size, color = '#fff', align = 'center', maxW = W - 12) {
+  s = String(s).toUpperCase();
+  let k = size < 13 ? 1 : size < 27 ? 2 : size < 40 ? 3 : 4;
+  while (k > 1 && SPR.fontWidth(s, k) > maxW) k--;
+  SPR.drawText(ctx, s, x, y - 7 * k, k, color, align);
+}
 // Procedural "sprites": body shape + per-type features, eyes face the player.
 function drawHeart(x, y) { SPR.drawSprite(ctx, pickupSpr('heart', '#f43f5e'), 'idle', 0, x, y, 2); }
 const SPR = window.TZS_SPRITES;
@@ -570,7 +576,7 @@ function render() {
     const b = +(localStorage.getItem('tzs_best') || 0);
     if (b) text('Best survival: ' + fmt(b), W / 2, H / 2 + 70, 16, '#aaa');
     const mu = loadMeta();
-    text('Mode: ' + (hard ? 'HARD (+40% enemies, +50% gold)' : 'Normal') + '  -  H to toggle', W / 2, H / 2 + 135, 14, hard ? '#f87171' : '#aaa');
+    text('Mode: ' + (hard ? 'HARD (+40% enemies, +50% gold)' : 'Normal') + '  -  H to toggle', W / 2, H / 2 + 92, 14, hard ? '#f87171' : '#aaa');
     text('Gold: ' + getGold() + '  -  press 1-3 to buy upgrades', W / 2, H / 2 + 110, 16, '#fde047');
     META_KEYS.forEach((k, i) => { const d = META[k], l = mu[k] || 0; text(`${i + 1}. ${d.name} ${l}/${d.max}  ${d.desc}  ` + (l >= d.max ? 'MAX' : d.cost(l) + 'g'), W / 2, H / 2 + 136 + i * 22, 14, l < d.max && getGold() >= d.cost(l) ? '#6ee7b7' : '#888'); });
     return;
@@ -658,8 +664,8 @@ function render() {
       const d = c.kind === 'w' ? WEAPONS[c.k] : PASSIVES[c.k];
       ctx.fillStyle = '#2d2d44'; ctx.fillRect(r.x, r.y, r.w, r.h);
       ctx.strokeStyle = c.kind === 'w' ? '#fde047' : '#6ee7b7'; ctx.lineWidth = 2; ctx.strokeRect(r.x, r.y, r.w, r.h);
-      text(`${i + 1}. ${d.name} (Lv ${c.lvl})`, r.x + 12, r.y + 30, 18, '#fff', 'left');
-      text(d.desc, r.x + 12, r.y + 56, 14, '#bbb', 'left');
+      text(`${i + 1}. ${d.name} (Lv ${c.lvl})`, r.x + 12, r.y + 30, 18, '#fff', 'left', r.w - 20);
+      text(d.desc, r.x + 12, r.y + 56, 14, '#bbb', 'left', r.w - 20);
     });
   }
   if (state === 'pause') {
