@@ -8,10 +8,40 @@
 - [x] HUD, death screen, best-time via localStorage
 - [x] Headless smoke test
 ## Next
-- [ ] Balance pass (playtest 5+ minute survival; currently idle player dies ~30s)
-- [ ] Health pickups, treasure chests, screen shake / hit particles
-- [ ] More weapons (whip/arc, boomerang, garlic aura) and weapon evolutions
-- [ ] Sound (WebAudio bleeps), pause key (P/Esc)
-- [ ] Sprites instead of circles, themed floor tiles
-- [ ] Spatial hash for collision to support 1000+ enemies
-- [ ] Character select, meta upgrades with gold
+- [x] Balance pass v1 (idle ~50s, kiting bot ~2min; needs real playtest for 5+ min)
+- [x] Health pickups, screen shake / hit particles
+- [x] Treasure chests (boss drop)
+- [x] Garlic aura
+- [x] Boomerang
+- [x] Whip (arc)
+- [x] Weapon evolutions (maxed weapon + paired passive via chest)
+- [x] Sound (WebAudio bleeps, M = mute)
+- [x] Pause key (P/Esc)
+- [x] Themed floor tiles (checker + stones/grass, run 9)
+- [x] More enemy variety (wisp swarm, golem; run 11)
+- [x] Procedural enemy sprites (wings/horns/eyes tracking player; run 14). Player + heart sprites done run 15; gems/chests still simple
+- [x] Spatial hash for enemy separation (run 13; enemy cap 400->800)
+- [x] Meta upgrades with gold (run 10)
+- [x] Character select (run 12)
+- [x] Gem + chest sprites, gem merging (run 17)
+- [x] Projectile sprites: bolt + boomerang (run 18)
+- [x] Recovery (regen) passive (run 19)
+- [x] Horde ring events every 75s (run 20)
+- [x] Lightning weapon (run 21)
+- [x] Vacuum pickup (run 22)
+- [x] Armor passive (run 23)
+- [x] Bomb pickup (run 25)
+- [x] Luck passive (run 26)
+- [x] Growth (XP) passive (run 27)
+- [x] Freeze pickup (run 28)
+- [x] Boss HP bar (run 31)
+- [x] Win condition: survive 10:00 for 'YOU SURVIVED' + 200 bonus gold (run 32)
+- [x] Hard mode toggle on title (H): +40% spawns, +50% gold (run 35)
+- [x] 'NEW BEST!' marker on end screen (run 37)
+- [x] Dash ability with cooldown + i-frames (run 40)
+- [x] Bloat enemy that splits on death (run 41)
+- [x] End-screen build summary: weapons + passives (pd loop)
+- [x] Dasher enemy that lunges periodically (pd loop)
+- [x] Mines weapon (pd loop)
+- [x] Troll enemy that regenerates unless hit (pd loop)
+- [x] Frost Shards weapon: ring of slowing shards; evolves with Armor (pd loop)

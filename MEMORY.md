@@ -5,5 +5,51 @@
 - Difficulty: `spawnRate()` = 1.2 + t/25 + (t/120)^2 per sec; enemy hp x(1+t/90); speed up to +60%.
 ## Log
 - 2026-10-22 run 1: repo was empty. Built full MVP (see ROADMAP). Smoke test passes. Repo had no `main` branch yet; work lives on `ccr-079477ac-9ewkoc`.
+- 2026-10-22 run 2: gentler spawn ramp (0.8+t/30+(t/130)^2), 120 starting HP; heart pickups (2.5% drop, bosses always); hit particles + screen shake; pause (P/Esc). Idle player now dies ~50s; dumb kiting bot ~2min. Smoke passes. `main` still absent -> PR/merge attempted.
+- 2026-10-23 run 3: found main already had run 2's work (parallel branch had duplicated it; reset to main). Added Garlic Aura weapon (aura dmg tick + 40% slow), `tests/bot.js` kiting-bot balance probe (~135-165s), `keys` exposed on test hook.
+- 2026-10-23 run 4: added Boomerang weapon (outbound 0.7s then homes back, pierces, per-enemy 0.35s hit cooldown). Smoke passes.
+- 2026-10-23 run 5: WebAudio bleeps (hit/kill/heart/levelup/death), M toggles mute; silently disabled if AudioContext fails (headless safe).
+- 2026-10-23 run 6: Whip weapon (arc slash at nearest foe within 220px, dmg 14+5*lvl, wider/longer per level). Branch was re-synced to main (PR #4, a duplicate of run 2, closed).
+- 2026-10-23 run 7: treasure chests (bosses drop one; pickup = +1 level to a random owned non-maxed weapon, else full heal). Direct-pickup only (no magnet).
+- 2026-10-23 run 8: weapon evolutions. Maxed (Lv6) weapon + paired passive (see `EVOLVE` map in game.js) -> boss chest evolves it to Lv8 ("EVO" in HUD, shake + text). Verified via test-hook script; smoke passes.
+- 2026-10-23 run 9: themed floor (checker tiles + hashed stone/grass decorations, no assets). Duplicate PR #8 (re-did run 2 work) closed; branch reset to main again.
+- 2026-10-23 run 10: gold + meta upgrades. Death awards gold (kills + t/10) into localStorage `tzs_gold`; title screen keys 1-3 buy Toughness/Power/Fleetfoot (`tzs_meta`, `META` in game.js), applied in `newGame()`. Smoke test covers a purchase; `__tzs.state` now settable.
+- 2026-10-23 run 11 (second branch session): reset to main; added Wisp (swarm of 5, from 2:00) and Golem (tanky, from 4:00) enemy types. Smoke + bot pass.
+- 2026-10-23 run 12: character select (title: left/right or A/D; saved in `tzs_char`): Mage/Knight/Druid/Rogue with different start weapon + stat tweaks (`CHARS` in game.js). Smoke covers it. Run-12 first attempt duplicated main again (PR #12 closed) - ALWAYS fetch origin/main first.
+- 2026-10-23 run 13: fetched origin/main first. Replaced O(n) neighbor-window separation with a per-frame spatial hash (CELL=48) in the enemy loop; enemy cap raised to 800. Smoke + bot (130-169s) unchanged. Hash is not yet used by weapon hit tests (still linear).
+- 2026-10-23 run 14: fetched origin/main first (my local branch was stale again; discarded duplicate run-2 work). Added `drawEnemy()` procedural sprites per enemy `kind` (bat wings, horned imp/brute, blocky golem, wisp tail, eyes track player). Smoke + bot (120-184s) pass.
+- 2026-10-23 run 15: fetched origin/main first (my fresh run-2 duplicate discarded again; branch reset to main). Added `drawPlayer()` (shadow, cape, crown, facing eye) and bobbing `drawHeart()`. Smoke + bot (138-151s) pass.
+- 2026-10-23 run 16: fetched origin/main first (my stale branch again held duplicate work; reset to main). Faster early leveling (need 3, then x1.22+2). Bot 131-189s (was 120-184s), smoke passes.
+- 2026-10-23 run 17: fetched origin/main first. Gem diamond sprites (`drawGem`), bobbing chest sprite (`drawChest`), and far small-gem merging when >300 gems. Smoke + bot (140-168s) pass.
+- 2026-10-23 run 18: fetched origin/main first (stale branch again, reset). Added `drawBolt` (rotated glowing bolt w/ trail) and spinning `drawBoom` sprites.
+- 2026-10-23 run 19: fetched origin/main first (branch was stale again; my duplicate run-2 work discarded). Added Recovery passive (+0.5 HP/s per level, `p.regen`).
+- 2026-10-23 run 20: fetched origin/main first (discarded my duplicate run-2 work again). Added horde events: every 75s a ring of 20-40 enemies spawns around the player with a banner (`spawnHorde`, `HORDE_EVERY`). Bot 135-149s (was ~160), smoke passes.
+- 2026-10-23 run 21: fetched origin/main first (my stale branch again held duplicate run-2 work; reset). Added Lightning weapon (`zap`: strikes N random on-screen enemies, evolves with Recovery).
+- 2026-10-23 run 22: fetched origin/main first (my checkout was stale; duplicate run-2 work discarded again). Added Vacuum pickup (0.6% drop, pulls all gems; `G.vacs`).
+- 2026-10-23 run 23: fetched origin/main first (branch was stale again; duplicate run-2 work discarded). Added Armor passive (-1 dmg per hit, min 1; `p.armor`).
+- 2026-10-24 run 24: fetched origin/main first; my session branch was stale again and my pause/aura/hearts/particles work was a full duplicate of main, so discarded it. No gameplay change; smoke passes on main. Tip: scheduled sessions start from an old branch - ALWAYS `git fetch origin main && git reset --hard origin/main` before coding.
+- 2026-10-24 run 25: fetched origin/main first (stale branch, reset). Added Bomb pickup (0.4% drop, `G.bombs`; kills on-screen foes, 120 dmg to bosses). Smoke + bot (117-309s) pass.
+- 2026-10-24 run 26: fetched origin/main first (my branch was stale again; discarded a duplicate of runs 2-25). Added Luck passive (`p.luck` multiplies heart/vacuum/bomb drop chance). Smoke passes.
+- 2026-10-24 run 27: fetched origin/main first (reset). Added Growth passive (+15% XP per level, `p.xpMul`). Smoke passes.
+- 2026-10-24 run 28: fetched origin/main first; my branch held a duplicate of runs 2-27 again (PR #30 conflicted; closed). Reset to main, added Freeze pickup (0.4% drop, `G.ices`, `G.freeze` stops enemy movement 4s). Smoke + bot (126-156s) pass.
+- 2026-10-24 run 29: fetched origin/main first (branch stale again; discarded a duplicate of runs 2-28 incl. a re-done pause/hearts/particles). Added frozen-screen blue tint while Freeze is active. Smoke passes.
+- 2026-10-24 run 30: fetched origin/main first (branch stale AGAIN; re-did duplicate run-2 work, discarded). Bot now prefers weapon choices at level-up (survival 152-209s vs ~130s) - more representative of a real player. No gameplay change.
+- 2026-10-24 run 31: fetched origin/main first (reset). Added boss HP bar above bosses (`maxHp` on enemies). Smoke passes.
+- 2026-10-24 run 32: fetched origin/main first (stale branch, reset). Added win condition: surviving `WIN_TIME` (600s) ends the run as a win (`G.won`, +200 gold). Smoke covers it.
+- 2026-10-24 run 33: fetched origin/main first (stale branch AGAIN; duplicate run-2 work discarded). No gameplay change; smoke passes on main.
+- 2026-10-24 run 34: stale branch AGAIN (re-did run-2 pause/hearts/particles work before fetching origin/main; discarded). Reset to main. No gameplay change; smoke passes. ROADMAP MVP+Next list is fully ticked - future runs should add new roadmap items (e.g. real 5+ min playtest balance, new weapon, difficulty modes) rather than redo old ones.
+- 2026-10-24 run 35: fetched origin/main first (my branch was stale and again held a duplicate run-2 build; discarded). Added Hard mode toggle (title key H, `tzs_hard`, `hard` in game.js). Smoke passes.
+- 2026-10-24 run 36: stale branch AGAIN; re-did run-2 pause/hearts/particles work before fetching origin/main, discarded (and force-pushed branch back to main). No gameplay change. RULE: the very first command of a run must be `git fetch origin main && git reset --hard origin/main`.
+- 2026-10-24 run 37: fetched origin/main first this time (branch was stale again, reset before real work; re-did run-2 build first, discarded). Added 'NEW BEST!' marker on the death screen (`G.newBest`). Smoke passes.
+- 2026-10-24 run 38: AGAIN built the run-2 duplicate (pause/hearts/particles + balance bot) on a stale branch before fetching main; PR #41 conflicted, closed. Reset to main. Added 'goal 10:00' under the HUD timer.
+- 2026-10-24 run 39: stale branch once more (rebuilt run-2 features before checking main; discarded). Added step 0 (sync to origin/main) to CLAUDE.md. ROADMAP has no unchecked items; no gameplay change.
+- 2026-10-24 run 40: fetched origin/main first. Added Dash (Shift/Space, 0.16s at 4x speed + brief i-frames, 2.5s cooldown, HUD readout; `p.dashT/dashCd/face`). Smoke covers it.
+- 2026-10-24 run 41: stale branch AGAIN (rebuilt run-2 pause/hearts/particles, discarded after seeing main had 40 runs; PR not opened for it). Reset to main. Added Bloat enemy (from 3:00; splits into 3 fast mini bloats on death).
+- 2026-10-25 pd loop: End screen now lists final weapons/passives (EVO marker). CI (GitHub Actions, PR #47) is now on main.
+- 2026-10-25 pd loop: Added Dasher enemy (from 3:20; lunges at 3.5x speed for 0.5s every 3s). Smoke covers it.
+- 2026-10-25 pd loop: Added Mines weapon (`G.mines`; drops mines that blast foes, evolves with Luck). Smoke covers it.
+- 2026-10-26 pd loop: Added Troll enemy (from 4:30; regenerates 8% max HP/s unless hit in last 1.5s). Smoke covers it.
+- 2026-10-30 pd L18: Pixel sprite pipeline: `src/sprites.js` (palette grids, baked outline/flip/flash, `drawSprite`, `?sprites=1` sheet). Player ported to a 16x16 sprite. Smoke asserts sprite sizes/frames. See docs/ART.md.
 ## Next steps
-- Balance pass, then juice (particles, shake), more weapons. See ROADMAP "Next".
+- Pixel overhaul next: enemy sprites (docs/ART.md slice 2).
+- Check `origin/main` before starting (parallel session branches exist). use hash for weapon queries (low value), more weapons/enemy variety, sprite polish for projectiles, real playtest balance (5+ min). See ROADMAP "Next".
