@@ -138,6 +138,19 @@ try {
     return bad;
   }, EXPECT);
   if (spr.length) { console.log('sprites failed', JSON.stringify(spr)); errs.push('sprites'); }
+  // level-up reroll: one free per run, R swaps the cards, none left means no change; each Luck level adds one
+  const rr = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G;
+    const start = G.rerolls;
+    t.state = 'levelup'; G.choices = [{ kind: 'p', k: 'might', lvl: 1 }];
+    const before = G.choices; t.press('r');
+    const swapped = G.choices !== before && G.choices.length === 3, after = G.rerolls;
+    const held = G.choices; t.press('r');
+    const unchanged = G.choices === held && G.rerolls === 0 && t.state === 'levelup';
+    G.choices = [{ kind: 'p', k: 'luck', lvl: 1 }]; t.press('1');
+    return { start, swapped, after, unchanged, luck: G.rerolls };
+  });
+  if (rr.start !== 1 || !rr.swapped || rr.after !== 0 || !rr.unchanged || rr.luck !== 1) { console.log('reroll failed', JSON.stringify(rr)); errs.push('reroll'); }
   // sprite-sheet review page renders without errors
   const sheetErrs = [];
   const sp = await b.newPage({ viewport: { width: 390, height: 844 } });
