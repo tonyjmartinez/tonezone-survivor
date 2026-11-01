@@ -4,8 +4,12 @@
 const cv = document.getElementById('c');
 const ctx = cv.getContext('2d');
 let W, H;
-function resize() { W = cv.width = innerWidth; H = cv.height = innerHeight; }
-addEventListener('resize', resize); resize();
+// Size to the visible viewport (visualViewport excludes the mobile URL bar; innerHeight can lag behind it).
+function viewSize() { const v = window.visualViewport; return v ? { w: Math.round(v.width), h: Math.round(v.height) } : { w: innerWidth, h: innerHeight }; }
+function resize() { const s = viewSize(); if (s.w === W && s.h === H) return; W = cv.width = s.w; H = cv.height = s.h; }
+addEventListener('resize', resize); addEventListener('orientationchange', resize);
+if (window.visualViewport) visualViewport.addEventListener('resize', resize);
+resize();
 
 // ---------- input ----------
 const keys = {};
@@ -137,7 +141,7 @@ function onKey(k, e) {
   if (state === 'title' && k === 'h') { toggleHard(); return; }
   if (state === 'title' && k >= '1' && k <= '3') { buyMeta(META_KEYS[+k - 1]); return; }
   if (state === 'title' && (k === ' ' || k === 'enter' || k === 'tap')) { newGame(); state = 'play'; }
-  else if (state === 'dead' && (k === 'escape' || k === 'm' || (k === 'tap' && e && e.clientY > innerHeight * 0.88))) { state = 'title'; }
+  else if (state === 'dead' && (k === 'escape' || k === 'm' || (k === 'tap' && e && e.clientY > H * 0.88))) { state = 'title'; }
   else if (state === 'dead' && (k === ' ' || k === 'enter' || k === 'tap')) { newGame(); state = 'play'; }
   else if (state === 'levelup') {
     let i = -1;
