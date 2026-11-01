@@ -196,6 +196,12 @@ const PICKUP = {
   bolt: ['........', '........', '..hbbb..', '.hwwwbB.', '.hwwwbB.', '..BbbB..', '........', '........'],
   orb: ['........', '..hbb...', '.hwbbB..', '.hbbbB..', '.bbbBB..', '..BBB...', '........', '........'],
   mine: ['........', '...yy...', '..bbbB..', '.bhbbbB.', '.bbbbBB.', '..BBBB..', '........', '........'],
+  // Farming: grass tuft (choppable prop), seed + wood loot, sprout and ripe crop (body slot = crop colour).
+  grass: ['........', '..j..j..', '.jm.jm..', '.mmjmm..', '.gmmmgj.', '.ggmgg..', '..gggg..', '........'],
+  seed: ['........', '........', '...hb...', '..hbbB..', '..bbbB..', '...BB...', '........', '........'],
+  wood: ['........', '........', '..tttty.', '.tTtTtyo', '.TTTTToy', '..TTTTo.', '........', '........'],
+  sprout: ['........', '...m.j..', '..jm.m..', '...mm...', '...m....', '..tTTt..', '.tTTTTt.', '........'],
+  crop: ['........', '...mg...', '..hbbB..', '.hbhbbB.', '.bbbbbB.', '.bbbbBB.', '..BBBB..', '........'],
 };
 for (const k in PICKUP) DEFS[k] = { size: 8, anims: { idle: [PICKUP[k]] } };
 DEFS.minibloat = DEFS.bloat;
