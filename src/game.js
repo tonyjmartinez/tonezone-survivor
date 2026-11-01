@@ -23,9 +23,19 @@ function hitDash(px, py) { const b = dashBtn(); return Math.hypot(px - b.x, py -
 // PLANT button sits above DASH (touch has no F key).
 function plantBtn() { return { x: W - 52, y: H - 140, r: 28 }; }
 function hitPlant(px, py) { const b = plantBtn(); return Math.hypot(px - b.x, py - b.y) <= b.r + 8; }
-cv.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') touchUi = true; if (state === 'play' && touchUi && hitDash(e.clientX, e.clientY)) { onKey('shift'); return; } if (state === 'play' && touchUi && hitPlant(e.clientX, e.clientY)) { onKey('f'); return; } touch = { sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY }; if (state !== 'play') onKey('tap', e); });
-cv.addEventListener('pointermove', e => { if (touch) { touch.x = e.clientX; touch.y = e.clientY; } });
-addEventListener('pointerup', () => { touch = null; });
+// The joystick follows ONE finger (by pointerId). A second finger on DASH or PLANT must not move or end it:
+// before this, the dash finger dragged the stick toward the bottom-right button, so every dash went right.
+cv.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'touch') touchUi = true;
+  if (state === 'play' && touchUi && hitDash(e.clientX, e.clientY)) { onKey('shift'); return; }
+  if (state === 'play' && touchUi && hitPlant(e.clientX, e.clientY)) { onKey('f'); return; }
+  if (state === 'play' && touch) return; // stick already held by another finger
+  touch = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY };
+  if (state !== 'play') onKey('tap', e);
+});
+cv.addEventListener('pointermove', e => { if (touch && e.pointerId === touch.id) { touch.x = e.clientX; touch.y = e.clientY; } });
+const endTouch = e => { if (touch && e.pointerId === touch.id) touch = null; };
+addEventListener('pointerup', endTouch); addEventListener('pointercancel', endTouch);
 
 // ---------- data ----------
 const WEAPONS = {
@@ -138,7 +148,7 @@ function sfx(freq, dur = 0.08, type = 'square', vol = 0.04) {
 
 function onKey(k, e) {
   if (k === 'm') { muted = !muted; return; }
-  if (state === 'play' && (k === 'shift' || k === ' ') && G.p.dashCd <= 0 && G.p.face) { G.p.dashT = 0.16; G.p.dashCd = 2.5; G.p.hurt = Math.max(G.p.hurt, 0.2); sfx(300, 0.08, 'triangle', 0.05); return; }
+  if (state === 'play' && (k === 'shift' || k === ' ') && G.p.dashCd <= 0 && G.p.face) { const mv = moveInput(), mm = Math.hypot(mv.x, mv.y); G.p.dashDir = mm > 0.05 ? { x: mv.x / mm, y: mv.y / mm } : { x: G.p.face.x, y: G.p.face.y }; G.p.dashT = 0.16; G.p.dashCd = 2.5; G.p.hurt = Math.max(G.p.hurt, 0.2); sfx(300, 0.08, 'triangle', 0.05); return; }
   if (state === 'play' && (k === 'f' || k === 'e')) { plant(); return; }
   if ((k === 'p' || k === 'escape') && (state === 'play' || state === 'pause')) { state = state === 'play' ? 'pause' : 'play'; return; }
   if (state === 'title' && (k === 'arrowleft' || k === 'a')) { pickChar(-1); return; }
@@ -365,19 +375,24 @@ function updateFarm(dt) {
 }
 
 // ---------- update ----------
-function update(dt) {
-  const p = G.p;
-  G.t += dt;
-  // movement
+// Current move input (keys or the touch stick), length <= 1. Dash reads it too so it fires where you're steering.
+function moveInput() {
   let dx = (keys['d'] || keys['arrowright'] ? 1 : 0) - (keys['a'] || keys['arrowleft'] ? 1 : 0);
   let dy = (keys['s'] || keys['arrowdown'] ? 1 : 0) - (keys['w'] || keys['arrowup'] ? 1 : 0);
   if (touch) { dx = touch.x - touch.sx; dy = touch.y - touch.sy; const tm = Math.hypot(dx, dy); if (tm > 8) { const k = Math.min(tm, 60) / 60; dx = dx / tm * k; dy = dy / tm * k; } else { dx = dy = 0; } }
   const m = Math.hypot(dx, dy);
   if (m > 1) { dx /= m; dy /= m; }
+  return { x: dx, y: dy };
+}
+function update(dt) {
+  const p = G.p;
+  G.t += dt;
+  // movement
+  let { x: dx, y: dy } = moveInput();
   const fm = Math.hypot(dx, dy); if (fm > 0.05) p.face = { x: dx / fm, y: dy / fm };
   walking = fm > 0.05; // read by drawPlayer to pick the walk animation
   p.dashCd = Math.max(0, p.dashCd - dt);
-  if (p.dashT > 0) { p.dashT -= dt; p.x += p.face.x * p.speed * 4 * dt; p.y += p.face.y * p.speed * 4 * dt; }
+  if (p.dashT > 0) { const d = p.dashDir || p.face; p.dashT -= dt; p.x += d.x * p.speed * 4 * dt; p.y += d.y * p.speed * 4 * dt; }
   else { p.x += dx * p.speed * dt; p.y += dy * p.speed * dt; }
   p.hurt = Math.max(0, p.hurt - dt);
   if (p.regen) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
