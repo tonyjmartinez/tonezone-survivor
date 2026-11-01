@@ -70,6 +70,15 @@ try {
     return { early, late: e.hp };
   });
   if (tr.early !== 35 || !(tr.late > 40)) { console.log('troll failed', JSON.stringify(tr)); errs.push('troll'); }
+  const el = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.hearts.length = 0; G.t = 200;
+    const e = t.makeElite({ x: G.p.x + 600, y: G.p.y, r: 12, hp: 22, maxHp: 22, speed: 0, dmg: 9, xp: 2, color: '#6ee7b7', flash: 0, kind: 'ghoul' });
+    G.enemies.push(e); t.render(); const big = { hp: e.hp, r: e.r }; e.hp = 0; t.update(0.016); const hearts = G.hearts.length;
+    const orig = Math.random; Math.random = () => 0.01; G.enemies.length = 0; t.spawnEnemy(false); const spawned = !!(G.enemies[0] && G.enemies[0].elite);
+    G.t = 100; G.enemies.length = 0; t.spawnEnemy(false); const early = !!(G.enemies[0] && G.enemies[0].elite); Math.random = orig;
+    return { big, hearts, spawned, early };
+  });
+  if (el.big.hp !== 55 || el.big.r !== 16 || el.hearts < 1 || !el.spawned || el.early) { console.log('elite failed', JSON.stringify(el)); errs.push('elite'); }
   const fr = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.shots.length = 0; G.w.frost = 1; G.timers.frost = 0;
     t.update(0.02); const shards = G.shots.filter(s => s.frost);
