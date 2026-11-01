@@ -59,7 +59,8 @@ Goal: two runs should not feel the same. Each item is one loop iteration, ordere
 
 ## Milestone: Feels great to play
 Vision: a stranger plays on a phone for ten minutes and wants to replay. Game feel over features. Each item is one small PR with a smoke assertion and a 390px screenshot in the PR body. Already present: enemy hit flash, floating damage numbers, small shake on horde/bomb (check before adding).
-- [ ] (feel) Hit feedback pass: knockback on hit (not bosses), kill pop (particles + tiny hit-stop), shake scaled to damage taken; damage numbers coloured/larger for crits and elites.
+- [x] (feel) Hit feedback pass 1: default knockback away from the player (non-bosses), kill-pop particles, shake scaled to damage taken.
+- [ ] (feel) Hit feedback pass 2: tiny hit-stop on kills, and damage numbers coloured/larger for crits and elites.
 - [ ] (feel) Level-up moment: short freeze + screen flash + chime, cards slide in, XP bar pulse before the screen opens.
 - [ ] (feel) Difficulty curve: a clear spike near 5:00 (denser spawns plus a new enemy type), a relief window after, and a boss climax near 10:00 (bigger final boss with telegraphed attacks) before the win.
 - [ ] (feel) Meaningful build choice: every run offers a decision (weapon evolutions or branching passives; first level-up offers 3 distinct weapons), shown on the end screen as the build summary.
