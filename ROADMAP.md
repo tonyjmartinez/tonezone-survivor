@@ -55,7 +55,16 @@ Goal: two runs should not feel the same. Each item is one loop iteration, ordere
 - [ ] (design) Pixel portraits for the character-select screen (16x16 player variants per class, drawn at 3x with the class colour). Why: select screen is text with a tint; ART.md slice 7 left menus without sprites.
 - [ ] (design) Elite and swarm-lane readability: distinct elite silhouette marker (crown pixel/ember outline) and banner art that obeys the readability rule at 390px. Why: new threats must be distinguishable by silhouette per ART.md.
 - [ ] (product) End-screen run stats: kills, level, gold earned, and a one-line "best build" memory in localStorage. Why: the end screen shows a build summary but nothing to beat besides time (`tzs_best`).
-- [ ] (design) ART.md slice 8: crowded-scene perf check (300+ enemies, 390px) with screenshots, plus visual check of pause/end screens (known leftover in MEMORY.md).
+- [x] (design) ART.md slice 8: crowded-scene perf check (300+ enemies, 390px) with screenshots, plus visual check of pause/end screens (known leftover in MEMORY.md).
+
+## Milestone: Feels great to play
+Vision: a stranger plays on a phone for ten minutes and wants to replay. Game feel over features. Each item is one small PR with a smoke assertion and a 390px screenshot in the PR body. Already present: enemy hit flash, floating damage numbers, small shake on horde/bomb (check before adding).
+- [ ] (feel) Hit feedback pass: knockback on hit (not bosses), kill pop (particles + tiny hit-stop), shake scaled to damage taken; damage numbers coloured/larger for crits and elites.
+- [ ] (feel) Level-up moment: short freeze + screen flash + chime, cards slide in, XP bar pulse before the screen opens.
+- [ ] (feel) Difficulty curve: a clear spike near 5:00 (denser spawns plus a new enemy type), a relief window after, and a boss climax near 10:00 (bigger final boss with telegraphed attacks) before the win.
+- [ ] (feel) Meaningful build choice: every run offers a decision (weapon evolutions or branching passives; first level-up offers 3 distinct weapons), shown on the end screen as the build summary.
+- [ ] (feel) Phone ergonomics: touch joystick dead-zone and size, dash button target >= 48px, nothing important under thumbs.
+- [ ] (feel) Death and restart: quick restart (one tap), run stats, "best build" memory so a replay feels motivated.
 
 ### Blocked on Tony
 - Real 5+ minute human playtest for balance numbers (needs a person playing on a phone/desktop; bot results only approximate).
