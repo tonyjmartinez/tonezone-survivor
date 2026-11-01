@@ -197,6 +197,14 @@ try {
     return { da: a.x - (G.p.x + 100), db: b.x - (G.p.x + 100), pop };
   });
   if (!(hf.da > 3) || hf.db !== 0 || hf.pop < 8) { console.log('hit feedback failed', JSON.stringify(hf)); errs.push('hitfx'); }
+  // best build memory: a new best run stores its weapon list for the end screen
+  const bbm = await pg.evaluate(() => {
+    const t = window.__tzs; localStorage.setItem('tzs_best', '5'); localStorage.removeItem('tzs_bestbuild'); t.start(); const G = t.G;
+    G.t = 30; G.p.hp = 0; t.update(0.016); t.render(); const stored = localStorage.getItem('tzs_bestbuild');
+    t.start(); t.G.t = 10; t.G.p.hp = 0; t.update(0.016); t.render();
+    return { stored, newBest: t.G.newBest };
+  });
+  if (!bbm.stored || bbm.newBest) { console.log('best build failed', JSON.stringify(bbm)); errs.push('bestbuild'); }
   // sprite-sheet review page renders without errors
   const sheetErrs = [];
   const sp = await b.newPage({ viewport: { width: 390, height: 844 } });

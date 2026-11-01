@@ -54,7 +54,7 @@ Goal: two runs should not feel the same. Each item is one loop iteration, ordere
 - [x] (product) Two more characters: Pyro (Mines start, -10% speed) and Stormcaller (Lightning start, +1 area). Why: `CHARS` has 4 entries and only they define starting weapon variety; cheap to add and gives replay choice.
 - [ ] (design) Pixel portraits for the character-select screen (16x16 player variants per class, drawn at 3x with the class colour). Why: select screen is text with a tint; ART.md slice 7 left menus without sprites.
 - [ ] (design) Elite and swarm-lane readability: distinct elite silhouette marker (crown pixel/ember outline) and banner art that obeys the readability rule at 390px. Why: new threats must be distinguishable by silhouette per ART.md.
-- [ ] (product) End-screen run stats: kills, level, gold earned, and a one-line "best build" memory in localStorage. Why: the end screen shows a build summary but nothing to beat besides time (`tzs_best`).
+- [x] (product) End-screen run stats: kills, level, gold earned, and a one-line "best build" memory in localStorage. Why: the end screen shows a build summary but nothing to beat besides time (`tzs_best`).
 - [x] (design) ART.md slice 8: crowded-scene perf check (300+ enemies, 390px) with screenshots, plus visual check of pause/end screens (known leftover in MEMORY.md).
 
 ## Milestone: Feels great to play
