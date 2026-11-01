@@ -86,6 +86,8 @@ const CHARS = [
   { name: 'Knight', w: 'whip',  desc: 'Whip. +30 HP, slower.',          hp: 30, spd: 0.92, dmg: 1,    color: '#93c5fd' },
   { name: 'Druid',  w: 'garlic',  desc: 'Garlic Aura. +10% speed.',       hp: 0,  spd: 1.1,  dmg: 1,    color: '#86efac' },
   { name: 'Rogue',  w: 'boomer', desc: 'Boomerang. +15% dmg, -20 HP.',   hp: -20, spd: 1.05, dmg: 1.15, color: '#fda4af' },
+  { name: 'Pyro',   w: 'mine',  desc: 'Mines. -10% speed.',              hp: 0,  spd: 0.9,  dmg: 1,    color: '#fdba74' },
+  { name: 'Storm',  w: 'zap',   desc: 'Lightning splash.',              hp: 0,  spd: 1,    dmg: 1,    color: '#7dd3fc', zapSplash: 40 },
 ];
 let charIdx = Math.min(CHARS.length - 1, +(localStorage.getItem('tzs_char') || 0));
 let hard = localStorage.getItem('tzs_hard') === '1'; // Hard: +40% spawns, +50% gold
@@ -97,7 +99,7 @@ function newGame() {
   G = {
     t: 0, kills: 0, spawnAcc: 0, nextBoss: BOSS_EVERY, nextHorde: HORDE_EVERY, hordeBanner: 0, bannerText: '', events: 0, lane: null,
     cam: { x: 0, y: 0 },
-    p: { x: 0, y: 0, r: 10, hp: 120 + ch.hp + 10 * (mu.hp || 0), maxHp: 120 + ch.hp + 10 * (mu.hp || 0), speed: 140 * ch.spd * (1 + 0.03 * (mu.spd || 0)), dmgMul: ch.dmg * (1 + 0.05 * (mu.dmg || 0)), magnet: 60, cdMul: 1, hurt: 0, dashT: 0, dashCd: 0, face: { x: 1, y: 0 }, xp: 0, lvl: 1, need: 3 },
+    p: { x: 0, y: 0, r: 10, hp: 120 + ch.hp + 10 * (mu.hp || 0), maxHp: 120 + ch.hp + 10 * (mu.hp || 0), speed: 140 * ch.spd * (1 + 0.03 * (mu.spd || 0)), dmgMul: ch.dmg * (1 + 0.05 * (mu.dmg || 0)), magnet: 60, cdMul: 1, hurt: 0, dashT: 0, dashCd: 0, face: { x: 1, y: 0 }, xp: 0, lvl: 1, need: 3, zapSplash: ch.zapSplash || 0 },
     w: { [ch.w]: 1 }, pa: {},
     enemies: [], shots: [], gems: [], booms: [], mines: [], bolts: [], hearts: [], vacs: [], bombs: [], ices: [], freeze: 0, chests: [], parts: [], shake: 0, fx: [], mineFx: [], texts: [],
     timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
@@ -336,6 +338,7 @@ function update(dt) {
         const e = vis.splice((Math.random() * vis.length) | 0, 1)[0];
         damage(e, 18 + wz * 6);
         G.bolts.push({ x: e.x, y: e.y, t: 0.2 });
+        if (p.zapSplash) for (const o of G.enemies) if (o !== e && dist2(o, e) < (p.zapSplash + o.r) ** 2) { damage(o, (18 + wz * 6) / 2); G.bolts.push({ x: o.x, y: o.y, t: 0.12 }); }
       }
     }
   }
