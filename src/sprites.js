@@ -107,6 +107,79 @@ const DEFS = {
     '.....wwwwWw.....',
     '................',
   ]] } },
+  // Graveyard props (spooky theme): bare dead tree, headstone, grave cross, jack-o'-lantern.
+  deadtree: { size: 16, anims: { idle: [[
+    '................',
+    '..T.......T.....',
+    '..tT...T..tT....',
+    '...tT..tT.t..T..',
+    '.T..tT.t.tT.tT..',
+    '.tT..ttt.t.tT...',
+    '..ttT.tttttT....',
+    '....ttttttT.....',
+    '......ttT.......',
+    '......ttT.......',
+    '......ttT.......',
+    '......ttT.......',
+    '.....tttTT......',
+    '....tT.tT.TT....',
+    '................',
+    '................',
+  ]] } },
+  grave: { size: 16, anims: { idle: [[
+    '................',
+    '................',
+    '................',
+    '......wwss......',
+    '.....wsssss.....',
+    '....wsssssss....',
+    '....ssdsddsd....',
+    '....sssssssd....',
+    '....ssddddsd....',
+    '....sssssssd....',
+    '....ssssssdd....',
+    '....sssssddd....',
+    '..gmmsssdddmg...',
+    '..gggmmggmggg...',
+    '................',
+    '................',
+  ]] } },
+  cross: { size: 16, anims: { idle: [[
+    '................',
+    '................',
+    '.......ws.......',
+    '.......sd.......',
+    '.....wwssss.....',
+    '.....sssddd.....',
+    '.......sd.......',
+    '.......sd.......',
+    '.......sd.......',
+    '.......sd.......',
+    '.......sd.......',
+    '......gsdg......',
+    '....gTTTTTTg....',
+    '...gTTTTTTTTg...',
+    '................',
+    '................',
+  ]] } },
+  pumpkin: { size: 16, anims: { idle: [[
+    '................',
+    '................',
+    '................',
+    '................',
+    '.......gm.......',
+    '........g.......',
+    '....eeeeeeee....',
+    '...eeyeeeeyee...',
+    '..eeyyyeeyyyeo..',
+    '..eeeeeyeeeeeo..',
+    '..eeyeyyyyeyeo..',
+    '..eeeyyeyyeeoo..',
+    '...eeeeeeeeoo...',
+    '....oooooooo....',
+    '................',
+    '................',
+  ]] } },
   player: {
     size: 16,
     anims: {
@@ -196,6 +269,12 @@ const PICKUP = {
   bolt: ['........', '........', '..hbbb..', '.hwwwbB.', '.hwwwbB.', '..BbbB..', '........', '........'],
   orb: ['........', '..hbb...', '.hwbbB..', '.hbbbB..', '.bbbBB..', '..BBB...', '........', '........'],
   mine: ['........', '...yy...', '..bbbB..', '.bhbbbB.', '.bbbbBB.', '..BBBB..', '........', '........'],
+  // Farming: grass tuft (choppable prop), seed + wood loot, sprout and ripe crop (body slot = crop colour).
+  grass: ['........', '..j..j..', '.jm.jm..', '.mmjmm..', '.gmmmgj.', '.ggmgg..', '..gggg..', '........'],
+  seed: ['........', '........', '...hb...', '..hbbB..', '..bbbB..', '...BB...', '........', '........'],
+  wood: ['........', '........', '..tttty.', '.tTtTtyo', '.TTTTToy', '..TTTTo.', '........', '........'],
+  sprout: ['........', '...m.j..', '..jm.m..', '...mm...', '...m....', '..tTTt..', '.tTTTTt.', '........'],
+  crop: ['........', '...mg...', '..hbbB..', '.hbhbbB.', '.bbbbbB.', '.bbbbBB.', '..BBBB..', '........'],
 };
 for (const k in PICKUP) DEFS[k] = { size: 8, anims: { idle: [PICKUP[k]] } };
 DEFS.minibloat = DEFS.bloat;
@@ -240,14 +319,14 @@ function bake(name, over) {
 
 // Ground tiles (16x16, no outline, drawn at 2x): plain Night base with sparse dusk/moss/stone
 // pixels. Variant 0-1 are mostly plain so the floor stays calm under the action.
-const TILE_BASE = '#1b2540';
+const TILE_BASE = '#191c33'; // graveyard: colder, slightly violet night
 const TILE_DEFS = [
   [],
   [[3, 4, 'd'], [11, 9, 'd'], [7, 13, 'd']],
-  [[2, 3, 'd'], [3, 3, 'd'], [12, 11, 'd'], [13, 11, 'd'], [8, 7, 'd']],
-  [[4, 10, 'm'], [5, 10, 'm'], [5, 9, 'g'], [10, 4, 'm'], [10, 3, 'g'], [11, 4, 'g']],
-  [[6, 6, 's'], [7, 6, 's'], [6, 7, 'd'], [7, 7, 'd'], [12, 12, 's']],
-  [[3, 12, 'g'], [4, 12, 'g'], [4, 11, 'm'], [9, 5, 'y'], [13, 3, 'd']],
+  [[2, 3, 'd'], [3, 3, 'd'], [12, 11, 'd'], [13, 11, 'd'], [8, 7, 'u']],
+  [[4, 10, 'g'], [5, 10, 'g'], [5, 9, 'g'], [10, 4, 'g'], [10, 3, 'd'], [11, 4, 'g']],
+  [[6, 6, 's'], [7, 6, 'W'], [6, 7, 'd'], [7, 7, 'd'], [12, 12, 'u']],
+  [[3, 12, 'T'], [4, 12, 'T'], [5, 12, 'T'], [4, 11, 'g'], [11, 5, 'u'], [13, 3, 'd']],
 ];
 const tiles = TILE_DEFS.map(list => {
   const c = document.createElement('canvas'); c.width = c.height = 16;

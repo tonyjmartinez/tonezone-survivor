@@ -95,7 +95,33 @@ try {
     G.t = 2 * 75 - 0.01; G.nextHorde = 150; G.events = 1; G.lane = null; t.update(0.02); const second = !!G.lane;
     return { banner, warned, n: w.length, moved, done: G.lane === null || second, second };
   });
-  if (ln.banner !== 'SWARM LANE!' || ln.warned !== 0 || ln.n < 3 || !ln.moved || ln.moved.dx < 30 || ln.moved.dy > 10 || !ln.second) { console.log('swarm lane failed', JSON.stringify(ln)); errs.push('lane'); }
+  if (ln.banner !== 'SPIRIT STAMPEDE!' || ln.warned !== 0 || ln.n < 3 || !ln.moved || ln.moved.dx < 30 || ln.moved.dy > 10 || !ln.second) { console.log('swarm lane failed', JSON.stringify(ln)); errs.push('lane'); }
+  // farming: chop a tree (wood + loot pulled in), plant a seed, trample, harvest a ripe crop, wood sells for gold
+  const fm = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.spawnAcc = -1e9; G.nextHorde = G.nextBoss = 1e9;
+    let tree = null; for (let gx = 1; gx < 40 && !tree; gx++) for (let gy = -5; gy < 5 && !tree; gy++) { const pr = t.propAt(gx, gy); if (pr && pr.kind === 'tree') tree = pr; }
+    G.p.x = tree.x; G.p.y = tree.y; t.update(0.5); const chopping = !!G.chop && G.chop.kind === 'tree';
+    for (let i = 0; i < 30; i++) t.update(0.1);
+    t.render(); const cut = G.cut.has(tree.key), wood = G.wood, chopped = G.chopped;
+    G.p.x = tree.x + 3000; G.p.y = tree.y; t.update(0.02);
+    G.seeds = 0; const noSeed = t.plant(); G.seeds = 2; const planted = t.plant(); const tooClose = t.plant();
+    const crop = G.crops[0]; t.update(1); t.render(); const grew = crop.age > 0.9;
+    // trample: an enemy parked on a growing crop destroys it
+    G.p.x += 300; t.update(0.02); G.seeds = 1; t.plant(); const c2 = G.crops[1];
+    G.enemies.push({ x: c2.x, y: c2.y, r: 9, hp: 1e9, maxHp: 1e9, speed: 0, dmg: 0, xp: 1, color: '#a78bfa', flash: 0, kind: 'bat' });
+    for (let i = 0; i < 25; i++) t.update(0.1); const trampled = !G.crops.includes(c2); G.enemies.length = 0;
+    // harvest a ripe golden crop: heal + XP gem + WELL FED
+    crop.age = crop.grow; crop.golden = true; G.p.hp = 50; const xp0 = G.p.xp + G.p.lvl * 1000;
+    G.p.x = crop.x; G.p.y = crop.y; t.update(0.02); t.render();
+    const harvested = { hp: G.p.hp, n: G.harvests, gem: G.p.xp + G.p.lvl * 1000 > xp0, fed: G.p.fed > 0, gone: !G.crops.includes(crop) };
+    G.state = 'play'; G.p.hp = 1e9; G.t = 599.99; t.update(0.05); t.render();
+    return { chopping, cut, wood, chopped, noSeed, planted, tooClose, grew, trampled, harvested, gold: G.gold, kills: G.kills, t: G.t };
+  });
+  const fmGold = Math.round(fm.kills + Math.floor(fm.t / 10) + 200 + fm.wood);
+  if (!fm.chopping || !fm.cut || fm.wood < 2 || fm.chopped !== 1 || fm.noSeed || !fm.planted || fm.tooClose || !fm.grew || !fm.trampled
+    || fm.harvested.hp !== 90 || fm.harvested.n !== 1 || !fm.harvested.gem || !fm.harvested.fed || !fm.harvested.gone || fm.gold !== fmGold) { console.log('farming failed', JSON.stringify(fm)); errs.push('farm'); }
+  const pbtn = await pg.evaluate(() => { const t = window.__tzs; t.touchUi = true; t.start(); t.G.seeds = 1; t.render(); const b = t.plantBtn(), d = t.dashBtn(); const r = { d: b.r * 2, hit: t.hitPlant(b.x, b.y), apart: Math.hypot(b.x - d.x, b.y - d.y) > b.r + d.r }; t.touchUi = false; return r; });
+  if (pbtn.d < 48 || !pbtn.hit || !pbtn.apart) { console.log('plant button failed', JSON.stringify(pbtn)); errs.push('plantbtn'); }
   const chs = await pg.evaluate(() => {
     const t = window.__tzs, out = {}; t.state = 'title';
     for (let i = 0; i < 6; i++) { t.render(); t.start(); const G = t.G; out[Object.keys(G.w)[0]] = Math.round(G.p.speed); t.state = 'title'; t.press('arrowright'); }
@@ -148,13 +174,13 @@ try {
     const C = CanvasRenderingContext2D.prototype, orig = C.drawImage; let n = 0;
     C.drawImage = function (...a) { if (!(a[0].width === 6 && a[0].height === 8)) n++; // glyphs (pixel font) are not counted
       return orig.apply(this, a); };
-    window.__tzsNoProps = true; // props (trees/rocks) are also drawImage calls; exclude them here
-    try { t.render(); } finally { C.drawImage = orig; window.__tzsNoProps = false; }
+    window.__tzsNoProps = window.__tzsNoFog = true; // props, fog banks and the vignette are also drawImage calls; exclude them here
+    try { t.render(); } finally { C.drawImage = orig; window.__tzsNoProps = window.__tzsNoFog = false; }
     return { expected: 83, drawn: n };
   });
   if (sh.drawn !== sh.expected) { console.log('shadow cull failed', JSON.stringify(sh)); errs.push('shadow-cull'); }
   // sprite pipeline: every sprite bakes with the expected size and frame count (plus flip + hit-flash copies)
-  const EXPECT = { player: { size: 16, idle: 2, walk: 4 }, boss: { size: 32, walk: 2 }, gem: { size: 8, idle: 1 }, heart: { size: 8, idle: 1 }, chest: { size: 8, idle: 1 }, bolt: { size: 8, idle: 1 }, orb: { size: 8, idle: 1 }, mine: { size: 8, idle: 1 }, boom: { size: 8, idle: 1 }, bomb: { size: 8, idle: 1 }, ice: { size: 8, idle: 1 }, vac: { size: 8, idle: 1 }, tree: { size: 16, idle: 1 }, rock: { size: 16, idle: 1 }, mush: { size: 16, idle: 1 } };
+  const EXPECT = { player: { size: 16, idle: 2, walk: 4 }, boss: { size: 32, walk: 2 }, gem: { size: 8, idle: 1 }, heart: { size: 8, idle: 1 }, chest: { size: 8, idle: 1 }, bolt: { size: 8, idle: 1 }, orb: { size: 8, idle: 1 }, mine: { size: 8, idle: 1 }, boom: { size: 8, idle: 1 }, bomb: { size: 8, idle: 1 }, ice: { size: 8, idle: 1 }, vac: { size: 8, idle: 1 }, grass: { size: 8, idle: 1 }, seed: { size: 8, idle: 1 }, wood: { size: 8, idle: 1 }, sprout: { size: 8, idle: 1 }, crop: { size: 8, idle: 1 }, tree: { size: 16, idle: 1 }, rock: { size: 16, idle: 1 }, mush: { size: 16, idle: 1 }, deadtree: { size: 16, idle: 1 }, grave: { size: 16, idle: 1 }, cross: { size: 16, idle: 1 }, pumpkin: { size: 16, idle: 1 } };
   for (const n of ['bat', 'ghoul', 'imp', 'brute', 'golem', 'wisp', 'bloat', 'minibloat', 'dasher', 'troll']) EXPECT[n] = { size: 16, walk: 2 };
   const fontBad = await pg.evaluate(() => { const S = window.TZS_SPRITES, bad = []; for (const k in S.FONT) { const r = S.FONT[k].split('/'); if (r.length !== 7 || r.some(x => x.length !== 5)) bad.push(k); if (S.glyphImg(k, '#fff').width !== 6) bad.push(k + ':bake'); } for (const ch of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,:!?-+%/()<>=') if (!S.FONT[ch]) bad.push('missing ' + ch); return bad; });
   if (fontBad.length) { console.log('font failed', fontBad); errs.push('font'); }
@@ -187,6 +213,44 @@ try {
     return { start, swapped, after, unchanged, luck: G.rerolls };
   });
   if (rr.start !== 1 || !rr.swapped || rr.after !== 0 || !rr.unchanged || rr.luck !== 1) { console.log('reroll failed', JSON.stringify(rr)); errs.push('reroll'); }
+  // touch title screen: arrows cycle characters, hard toggles, upgrades buy, start button starts
+  const tt = await pg.evaluate(() => {
+    const t = window.__tzs, out = {}; localStorage.setItem('tzs_gold', 100); localStorage.removeItem('tzs_meta'); localStorage.setItem('tzs_char', 0);
+    t.state = 'title'; const L = t.titleLayout(), c = r => [r.x + r.w / 2, r.y + r.h / 2];
+    const ch0 = t.charIdx; out.right = t.titleTap(...c(L.right)); out.moved = t.charIdx !== ch0; t.titleTap(...c(L.left)); out.back = t.charIdx === ch0;
+    const h0 = t.hard; t.titleTap(...c(L.hard)); out.hard = t.hard !== h0; t.titleTap(...c(L.hard));
+    t.titleTap(...c(L.meta[0])); out.gold = +localStorage.getItem('tzs_gold');
+    t.render(); out.none = t.titleTap(1, 1); out.stillTitle = t.state === 'title';
+    out.start = t.titleTap(...c(L.start)); out.state = t.state;
+    const all = [L.left, L.right, L.start, L.hard, ...L.meta]; out.inView = all.every(r => r.y >= 0 && r.y + r.h <= innerHeight && r.x >= 0 && r.x + r.w <= innerWidth); out.minH = Math.min(...all.map(r => r.h));
+    return out;
+  });
+  if (!tt.moved || !tt.back || !tt.hard || tt.gold !== 80 || tt.none !== null || !tt.stillTitle || tt.start !== 'start' || tt.state !== 'play' || !tt.inView || tt.minH < 44) { console.log('title touch failed', JSON.stringify(tt)); errs.push('titletouch'); }
+  // level-up moment: taps are ignored while the cards slide in, keys still pick; timer advances in frame()
+  const lm = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G; G.choices = [{ kind: 'p', k: 'might', lvl: 1 }, { kind: 'p', k: 'luck', lvl: 1 }, { kind: 'p', k: 'haste', lvl: 1 }]; t.state = 'levelup'; G.lvlT = 0.05;
+    const r = t.choiceRects()[0]; t.press('tap', { clientX: r.x + 10, clientY: r.y + 10 }); const guarded = t.state === 'levelup';
+    t.render(); G.lvlT = 1; t.press('tap', { clientX: r.x + 10, clientY: r.y + 10 }); return { guarded, picked: t.state === 'play' && !!G.pa.might };
+  });
+  if (!lm.guarded || !lm.picked) { console.log('levelup moment failed', JSON.stringify(lm)); errs.push('lvlmoment'); }
+  // touch: dash follows the stick direction; a second finger (dash/pause) never moves or releases the stick
+  const td = await pg.evaluate(() => {
+    const t = window.__tzs; t.touchUi = true; t.start(); const G = t.G; G.enemies.length = 0; G.p.face = { x: 1, y: 0 };
+    const cv = document.getElementById('c'), ev = (type, id, x, y) => cv.dispatchEvent(new PointerEvent(type, { pointerId: id, clientX: x, clientY: y, pointerType: 'touch', bubbles: true }));
+    ev('pointerdown', 1, 100, 300); ev('pointermove', 1, 100, 240); // stick: straight up
+    t.update(0.02);
+    const b = t.dashBtn(), x0 = G.p.x, y0 = G.p.y;
+    ev('pointerdown', 2, b.x, b.y); ev('pointermove', 2, b.x + 5, b.y + 5); ev('pointerup', 2, b.x + 5, b.y + 5);
+    t.update(0.05);
+    const out = { dashDx: G.p.x - x0, dashDy: G.p.y - y0, cd: G.p.dashCd };
+    const y1 = G.p.y; t.update(0.3); out.stillMoving = G.p.y < y1 - 5; // stick survived the dash finger lifting
+    ev('pointerup', 1, 100, 240);
+    const pb = t.pauseBtn(); ev('pointerdown', 3, pb.x + 20, pb.y + 20); out.paused = t.state; ev('pointerup', 3, 0, 0);
+    const pr = t.pauseRects(); t.render(); ev('pointerdown', 4, pr.resume.x + 10, pr.resume.y + 10); out.resumed = t.state; ev('pointerup', 4, 0, 0);
+    t.state = 'pause'; ev('pointerdown', 5, pr.menu.x + 10, pr.menu.y + 10); out.menu = t.state; ev('pointerup', 5, 0, 0);
+    t.touchUi = false; return out;
+  });
+  if (!(td.dashDy < -20) || Math.abs(td.dashDx) > 3 || !(td.cd > 0) || !td.stillMoving || td.paused !== 'pause' || td.resumed !== 'play' || td.menu !== 'title') { console.log('touch dash/pause failed', JSON.stringify(td)); errs.push('touchdash'); }
   // first level-up offers three distinct unowned weapons
   const fp = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.p.lvl = 2;
@@ -235,7 +299,7 @@ try {
     G.t = 299.99; G.enemies.length = 0; G.p.hp = G.p.maxHp = 1e9; t.update(0.02);
     return { before, spike, relief, later, banner: G.bannerText };
   });
-  if (!(pc.spike > pc.before * 1.4) || !(pc.relief < pc.before) || !(pc.later > pc.relief) || pc.banner !== 'THE SURGE!') { console.log('pacing failed', JSON.stringify(pc)); errs.push('pacing'); }
+  if (!(pc.spike > pc.before * 1.4) || !(pc.relief < pc.before) || !(pc.later > pc.relief) || pc.banner !== 'THE WITCHING HOUR!') { console.log('pacing failed', JSON.stringify(pc)); errs.push('pacing'); }
   // difficulty pass 2: wraith unlocks at 5:00; titan climax boss at 9:00 telegraphs a slam, then hits
   const cl = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.p.hp = G.p.maxHp = 1e9;

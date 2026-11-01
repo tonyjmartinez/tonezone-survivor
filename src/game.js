@@ -20,9 +20,27 @@ let touch = null; // {sx,sy,x,y}
 let touchUi = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 function dashBtn() { return { x: W - 52, y: H - 60, r: 32 }; }
 function hitDash(px, py) { const b = dashBtn(); return Math.hypot(px - b.x, py - b.y) <= b.r + 8; }
-cv.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') touchUi = true; if (state === 'play' && touchUi && hitDash(e.clientX, e.clientY)) { onKey('shift'); return; } touch = { sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY }; if (state !== 'play') onKey('tap', e); });
-cv.addEventListener('pointermove', e => { if (touch) { touch.x = e.clientX; touch.y = e.clientY; } });
-addEventListener('pointerup', () => { touch = null; });
+// PLANT button sits above DASH (touch has no F key).
+function plantBtn() { return { x: W - 52, y: H - 140, r: 28 }; }
+function hitPlant(px, py) { const b = plantBtn(); return Math.hypot(px - b.x, py - b.y) <= b.r + 8; }
+// Pause button: 44px square under the kills plate (top-right, away from both thumbs).
+function pauseBtn() { return { x: W - 54, y: 74, w: 44, h: 44 }; }
+// The joystick follows ONE finger (by pointerId). A second finger on DASH or PAUSE must not move it
+// or end it; before this, the dash finger hijacked the stick and the dash aimed at the button.
+cv.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'touch') touchUi = true;
+  if (state === 'play' && inRect(pauseBtn(), e.clientX, e.clientY)) { state = 'pause'; return; }
+  if (state === 'play' && touchUi && hitDash(e.clientX, e.clientY)) { onKey('shift'); return; }
+  if (state === 'play' && touchUi && hitPlant(e.clientX, e.clientY)) { onKey('f'); return; }
+  if (state === 'play' && touch) return; // stick already held by another finger
+  touch = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY };
+  if (state !== 'play') onKey('tap', e);
+});
+cv.addEventListener('pointermove', e => { if (touch && e.pointerId === touch.id) { touch.x = e.clientX; touch.y = e.clientY; } });
+const endTouch = e => { if (touch && e.pointerId === touch.id) touch = null; };
+addEventListener('pointerup', endTouch); addEventListener('pointercancel', endTouch);
+// Auto-pause when the tab/app goes to the background (phone lock, app switch).
+document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play') { state = 'pause'; touch = null; } });
 
 // ---------- data ----------
 const WEAPONS = {
@@ -115,6 +133,8 @@ function newGame() {
     timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
     choices: [], gold: 0,
     rerolls: 1, // level-up rerolls left: one free per run, +1 per Luck level
+    lvlT: 9, xpPulse: 0, // level-up moment: time since the card screen opened; XP bar glow
+    cut: new Map(), chop: null, loot: [], crops: [], seeds: 0, wood: 0, harvests: 0, chopped: 0, // farming (see updateFarm)
   };
 }
 
@@ -131,21 +151,62 @@ function sfx(freq, dur = 0.08, type = 'square', vol = 0.04) {
     o.connect(g); g.connect(ac.destination); o.start(now); o.stop(now + dur);
   } catch (err) { muted = true; }
 }
+// Rising arpeggio (sfx() throttles notes closer than 20ms, so space them out).
+function chime(notes) { notes.forEach((f, i) => setTimeout(() => sfx(f, 0.18, 'triangle', 0.05), i * 70)); }
+const LVL_SLIDE = 0.28, LVL_GUARD = 0.35; // level-up: cards slide in over LVL_SLIDE s; taps ignored for LVL_GUARD s
+
+// ---------- title screen layout (shared by render and tap hit-tests) ----------
+// One centred column that fits 360px phones and desktop; every button is >= 44px tall.
+function titleLayout() {
+  const cw = Math.min(W - 24, 380), x = (W - cw) / 2;
+  const total = 520, top = Math.max(8, Math.round((H - total) / 2)), sq = H < 560 ? 0.85 : 1;
+  const L = { x, cw, top, sq };
+  let y = top;
+  L.titleY = y + 34; y += 96 * sq;
+  L.portrait = { x: W / 2 - 44, y, w: 88, h: 88 };
+  L.left = { x: x, y: y + 20, w: 52, h: 48 }; L.right = { x: x + cw - 52, y: y + 20, w: 52, h: 48 };
+  y += 92;
+  L.nameY = y + 14; L.descY = y + 34; y += 50 * sq;
+  L.start = { x: x + 20, y, w: cw - 40, h: 54 }; y += 66 * sq;
+  L.hard = { x, y, w: cw, h: 44 }; y += 54 * sq;
+  L.goldY = y + 12; y += 26 * sq;
+  L.meta = META_KEYS.map((k, i) => ({ x, y: y + i * 50 * sq, w: cw, h: 44 })); y += 150 * sq;
+  L.bestY = y + 10;
+  return L;
+}
+function pauseRects() {
+  const pw = Math.min(W - 16, 320), px = (W - pw) / 2, py = H / 2 - 100;
+  return { panel: { x: px, y: py, w: pw, h: 200 }, resume: { x: px + 20, y: py + 70, w: pw - 40, h: 52 }, menu: { x: px + 20, y: py + 134, w: pw - 40, h: 44 } };
+}
+function titleTap(px, py) {
+  const L = titleLayout();
+  if (inRect(L.left, px, py)) { pickChar(-1); sfx(440, 0.05, 'triangle', 0.04); return 'left'; }
+  if (inRect(L.right, px, py)) { pickChar(1); sfx(440, 0.05, 'triangle', 0.04); return 'right'; }
+  if (inRect(L.hard, px, py)) { toggleHard(); sfx(hard ? 180 : 360, 0.1, 'sawtooth', 0.04); return 'hard'; }
+  const m = L.meta.findIndex(r => inRect(r, px, py));
+  if (m >= 0) { buyMeta(META_KEYS[m]); return 'meta' + m; }
+  if (inRect(L.start, px, py) || inRect(L.portrait, px, py)) { newGame(); state = 'play'; return 'start'; }
+  return null;
+}
 
 function onKey(k, e) {
   if (k === 'm') { muted = !muted; return; }
-  if (state === 'play' && (k === 'shift' || k === ' ') && G.p.dashCd <= 0 && G.p.face) { G.p.dashT = 0.16; G.p.dashCd = 2.5; G.p.hurt = Math.max(G.p.hurt, 0.2); sfx(300, 0.08, 'triangle', 0.05); return; }
+  if (state === 'play' && (k === 'shift' || k === ' ') && G.p.dashCd <= 0 && G.p.face) { const mv = moveInput(), mm = Math.hypot(mv.x, mv.y); G.p.dashDir = mm > 0.05 ? { x: mv.x / mm, y: mv.y / mm } : { x: G.p.face.x, y: G.p.face.y }; G.p.dashT = 0.16; G.p.dashCd = 2.5; G.p.hurt = Math.max(G.p.hurt, 0.2); sfx(300, 0.08, 'triangle', 0.05); return; }
+  if (state === 'play' && (k === 'f' || k === 'e')) { plant(); return; }
   if ((k === 'p' || k === 'escape') && (state === 'play' || state === 'pause')) { state = state === 'play' ? 'pause' : 'play'; return; }
   if (state === 'title' && (k === 'arrowleft' || k === 'a')) { pickChar(-1); return; }
   if (state === 'title' && (k === 'arrowright' || k === 'd')) { pickChar(1); return; }
   if (state === 'title' && k === 'h') { toggleHard(); return; }
   if (state === 'title' && k >= '1' && k <= '3') { buyMeta(META_KEYS[+k - 1]); return; }
-  if (state === 'title' && (k === ' ' || k === 'enter' || k === 'tap')) { newGame(); state = 'play'; }
+  if (state === 'title' && k === 'tap' && e) { titleTap(e.clientX, e.clientY); return; }
+  if (state === 'title' && (k === ' ' || k === 'enter')) { newGame(); state = 'play'; }
   else if (state === 'dead' && (k === 'escape' || k === 'm' || (k === 'tap' && e && e.clientY > H * 0.88))) { state = 'title'; }
   else if (state === 'dead' && (k === ' ' || k === 'enter' || k === 'tap')) { newGame(); state = 'play'; }
+  else if (state === 'pause' && k === 'tap' && e) { const pr = pauseRects(); if (inRect(pr.menu, e.clientX, e.clientY)) state = 'title'; else state = 'play'; }
   else if (state === 'levelup') {
     let i = -1;
     if (k >= '1' && k <= '3') i = +k - 1;
+    if (k === 'tap' && G.lvlT < LVL_GUARD) return; // a drag/tap already in flight must not pick a card
     if (k === 'tap' && e) i = pickAt(e.clientX, e.clientY);
     if (k === 'r' || (k === 'tap' && e && i < 0 && inRect(rerollRect(), e.clientX, e.clientY))) { reroll(); return; }
     if (i >= 0 && G.choices[i]) { applyChoice(G.choices[i]); state = 'play'; }
@@ -161,7 +222,7 @@ function nearest(from, maxD) {
   return best;
 }
 function damage(e, amt, kx, ky) {
-  amt *= G.p.dmgMul; e.hp -= amt; e.flash = 0.08; e.hitT = 1.5;
+  amt *= G.p.dmgMul * (G.p.fed > 0 ? 1.25 : 1); e.hp -= amt; e.flash = 0.08; e.hitT = 1.5;
   if (kx !== undefined) { e.x += kx; e.y += ky; }
   else if (!e.boss) { const dx = e.x - G.p.x, dy = e.y - G.p.y, d = Math.hypot(dx, dy) || 1; e.x += dx / d * 5; e.y += dy / d * 5; } // default nudge away from the player so hits read
   const big = !!(e.elite || e.boss || amt >= 30); // heavy hits read larger and gold
@@ -204,7 +265,7 @@ const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y +
 // Swap the three level-up cards for a fresh draw, spending one reroll.
 function reroll() {
   if (G.rerolls <= 0) { sfx(140, 0.08, 'square', 0.03); return; }
-  G.rerolls--; G.choices = rollChoices(); sfx(520, 0.12, 'triangle', 0.06);
+  G.rerolls--; G.choices = rollChoices(); G.lvlT = LVL_SLIDE * 0.4; sfx(520, 0.12, 'triangle', 0.06);
 }
 function pickAt(x, y) { return choiceRects().findIndex(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h); }
 
@@ -238,14 +299,14 @@ function spawnHorde() {
     const a = (i / n) * Math.PI * 2;
     G.enemies.push({ x: G.p.x + Math.cos(a) * d, y: G.p.y + Math.sin(a) * d, r: base.r, hp: base.hp * hpScale, speed: base.speed * (1 + Math.min(G.t / 600, 0.6)), dmg: base.dmg, xp: base.xp, color: base.color, flash: 0, kind: base.name });
   }
-  G.hordeBanner = 2.5; G.bannerText = 'A HORDE APPROACHES!'; G.shake = Math.max(G.shake, 0.3);
+  G.hordeBanner = 2.5; G.bannerText = 'THE DEAD RISE!'; G.shake = Math.max(G.shake, 0.3);
 }
 // Swarm lane: banner + edge arrows for LANE_WARN s, then a stream of fast wisps crosses the screen in a straight band.
 const LANE_DIRS = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
 function startLane(dir) {
   const d = dir || LANE_DIRS[(Math.random() * 4) | 0];
   G.lane = { d, cx: G.p.x, cy: G.p.y, warn: LANE_WARN, time: LANE_TIME, acc: 0 };
-  G.hordeBanner = 2.5; G.bannerText = 'SWARM LANE!'; sfx(700, 0.25, 'square', 0.05);
+  G.hordeBanner = 2.5; G.bannerText = 'SPIRIT STAMPEDE!'; sfx(700, 0.25, 'square', 0.05);
 }
 function updateLane(dt) {
   const L = G.lane; if (!L) return;
@@ -261,31 +322,135 @@ function updateLane(dt) {
   if (L.time <= 0) G.lane = null;
 }
 
-// ---------- update ----------
-function update(dt) {
+// ---------- farming ----------
+// The woodland props are workable: walk up to a tree, mushroom or grass tuft and you chop it
+// automatically (trees take a moment, grass is cut just by running through it). Chopping drops
+// wood (sold for gold at the end), seeds and sometimes a heart. F / PLANT sows a seed at your feet;
+// it grows while you fight, enemies standing on it trample it, and walking over a ripe crop heals
+// you and drops XP. Golden crops also give WELL FED (+25% damage for 20s).
+const PROP_CELL = 112;
+const FARM = {
+  tree: { need: 1.6, reach: 26, col: '#7c4a2a' },
+  mush: { need: 0.6, reach: 20, col: '#f97316' }, // drawn as a jack-o'-lantern
+  grass: { need: 0.35, reach: 18, col: '#3f7a4a', regrow: 45 },
+};
+const CROP_GROW = 20, CROP_HP = 2, CROP_MAX = 12, FED_TIME = 20;
+// Same hashed 112px grid the floor props have always used (r 0-1 = tree/rock/mush); r 2 adds grass.
+function propAt(gx, gy) {
+  const h = (Math.imul(gx, 374761393) ^ Math.imul(gy, 668265263)) >>> 0, r = h % 5;
+  if (r > 2 || (gx === 0 && gy === 0)) return null;
+  const k = (h >> 3) % 6, kind = r === 2 ? 'grass' : k < 3 ? 'tree' : k < 5 ? 'rock' : 'mush';
+  return { kind, key: gx * 100003 + gy, x: gx * PROP_CELL + 16 + (h >> 8) % 80, y: gy * PROP_CELL + 16 + (h >> 16) % 80 };
+}
+function isCut(pr) { const c = G.cut.get(pr.key); return c !== undefined && (pr.kind !== 'grass' || G.t - c < FARM.grass.regrow); }
+function burst(x, y, c, n, sp = 90) { if (G.parts.length < 200) for (let i = 0; i < n; i++) G.parts.push({ x, y, vx: rnd(-sp, sp), vy: rnd(-sp, sp), t: 0.35, c }); }
+function dropFarm(pr) {
+  const L = G.p.luck || 1, drop = k => G.loot.push({ kind: k, x: pr.x + rnd(-14, 14), y: pr.y + rnd(-10, 10) });
+  if (pr.kind === 'tree') {
+    for (let i = 0, n = 2 + (Math.random() < 0.5); i < n; i++) drop('wood');
+    if (Math.random() < 0.4 * L) drop('seed');
+    if (Math.random() < 0.1 * L) G.hearts.push({ x: pr.x, y: pr.y, heal: 15 });
+    G.shake = Math.max(G.shake, 0.12); sfx(130, 0.22, 'triangle', 0.06);
+  } else if (pr.kind === 'mush') {
+    if (Math.random() < 0.5 * L) G.hearts.push({ x: pr.x, y: pr.y, heal: 15 });
+    if (Math.random() < 0.3 * L) drop('seed');
+    sfx(380, 0.1, 'sine', 0.05);
+  } else {
+    if (Math.random() < 0.25 * L) drop('seed');
+    if (Math.random() < 0.12 * L) G.hearts.push({ x: pr.x, y: pr.y, heal: 8 });
+    sfx(600, 0.04, 'square', 0.025);
+  }
+  G.chopped++; burst(pr.x, pr.y, FARM[pr.kind].col, pr.kind === 'tree' ? 10 : 5, 120);
+}
+function plant() {
   const p = G.p;
-  G.t += dt;
-  // movement
+  if (G.seeds <= 0 || G.crops.length >= CROP_MAX || G.crops.some(c => dist2(c, p) < 22 * 22)) { sfx(140, 0.08, 'square', 0.03); return false; }
+  G.seeds--; G.crops.push({ x: Math.round(p.x), y: Math.round(p.y + 6), age: 0, grow: CROP_GROW, hp: CROP_HP, golden: Math.random() < 0.15 });
+  sfx(480, 0.12, 'triangle', 0.05); burst(p.x, p.y + 6, '#7c4a2a', 4, 50);
+  return true;
+}
+function harvest(c) {
+  const p = G.p, heal = c.golden ? 40 : 20;
+  p.hp = Math.min(p.maxHp, p.hp + heal); G.harvests++;
+  G.gems.push({ x: c.x, y: c.y - 8, v: c.golden ? 8 : 3, big: c.golden });
+  if (Math.random() < 0.5) G.loot.push({ kind: 'seed', x: c.x + 10, y: c.y });
+  if (c.golden) { p.fed = FED_TIME; G.texts.push({ x: p.x, y: p.y - 30, s: 'WELL FED! +25% DMG', t: 1.6, big: true }); }
+  G.texts.push({ x: p.x, y: p.y - 16, s: 'HARVEST +' + heal, t: 1 });
+  sfx(c.golden ? 880 : 620, 0.2, 'triangle', 0.07); burst(c.x, c.y, c.golden ? '#fbbf24' : '#f97316', 8, 110);
+}
+function updateFarm(dt) {
+  const p = G.p;
+  if (!G.farmHint && G.t >= 2) { G.farmHint = true; G.hordeBanner = 3; G.bannerText = 'CHOP TREES FOR SEEDS + WOOD'; }
+  p.fed = Math.max(0, (p.fed || 0) - dt);
+  // chop the nearest workable prop in reach; progress resets if you leave it
+  let target = null, bd = Infinity;
+  const cx = Math.floor(p.x / PROP_CELL), cy = Math.floor(p.y / PROP_CELL);
+  for (let gx = cx - 1; gx <= cx + 1; gx++) for (let gy = cy - 1; gy <= cy + 1; gy++) {
+    const pr = propAt(gx, gy); if (!pr || !FARM[pr.kind] || isCut(pr)) continue;
+    const d = dist2(p, pr), reach = p.r + FARM[pr.kind].reach;
+    if (d < reach * reach && d < bd) { bd = d; target = pr; }
+  }
+  if (!target) G.chop = null;
+  else {
+    if (!G.chop || G.chop.key !== target.key) G.chop = { key: target.key, x: target.x, y: target.y, kind: target.kind, prog: 0, need: FARM[target.kind].need, tick: 0 };
+    const c = G.chop; c.prog += dt; c.tick -= dt;
+    if (c.tick <= 0) { c.tick = 0.22; sfx(target.kind === 'tree' ? 200 : 450, 0.04, 'square', 0.03); burst(target.x, target.y, FARM[target.kind].col, 2, 60); }
+    if (c.prog >= c.need) { G.cut.set(target.key, G.t); G.chop = null; dropFarm(target); }
+  }
+  // loot (seeds, wood) is pulled in by the magnet like gems
+  const mr2 = p.magnet * p.magnet;
+  for (const l of G.loot) {
+    const d2 = dist2(p, l);
+    if (d2 < mr2 || l.pull) { l.pull = true; const a = Math.atan2(p.y - l.y, p.x - l.x); l.x += Math.cos(a) * 300 * dt; l.y += Math.sin(a) * 300 * dt; }
+    if (d2 < (p.r + 8) ** 2) {
+      l.dead = true; sfx(l.kind === 'seed' ? 760 : 300, 0.06, 'triangle', 0.04);
+      if (l.kind === 'seed') { G.seeds++; if (!G.plantHint) { G.plantHint = true; G.texts.push({ x: p.x, y: p.y - 30, s: touchUi ? 'TAP PLANT TO SOW' : 'PRESS F TO PLANT', t: 2.5, big: true }); } }
+      else G.wood++;
+    }
+  }
+  G.loot = G.loot.filter(l => !l.dead && dist2(p, l) < 1600 * 1600);
+  // crops grow; enemies standing on a growing crop trample it; walk over a ripe one to harvest
+  for (const c of G.crops) {
+    if (c.age < c.grow) {
+      c.age += dt; c.hurt = false;
+      for (const e of G.enemies) if (dist2(c, e) < (e.r + 6) ** 2) { c.hp -= dt; c.hurt = true; break; }
+      if (c.hp <= 0) { c.dead = true; burst(c.x, c.y, '#3f7a4a', 6, 80); G.texts.push({ x: c.x, y: c.y - 12, s: 'TRAMPLED', t: 0.8 }); }
+    } else if (dist2(p, c) < (p.r + 12) ** 2) { c.dead = true; harvest(c); }
+  }
+  G.crops = G.crops.filter(c => !c.dead);
+}
+
+// ---------- update ----------
+// Movement vector from keys or the touch stick (length <= 1; 8px dead zone, full speed at 60px).
+function moveInput() {
   let dx = (keys['d'] || keys['arrowright'] ? 1 : 0) - (keys['a'] || keys['arrowleft'] ? 1 : 0);
   let dy = (keys['s'] || keys['arrowdown'] ? 1 : 0) - (keys['w'] || keys['arrowup'] ? 1 : 0);
   if (touch) { dx = touch.x - touch.sx; dy = touch.y - touch.sy; const tm = Math.hypot(dx, dy); if (tm > 8) { const k = Math.min(tm, 60) / 60; dx = dx / tm * k; dy = dy / tm * k; } else { dx = dy = 0; } }
   const m = Math.hypot(dx, dy);
   if (m > 1) { dx /= m; dy /= m; }
+  return { x: dx, y: dy };
+}
+function update(dt) {
+  const p = G.p;
+  G.t += dt;
+  // movement
+  let { x: dx, y: dy } = moveInput();
   const fm = Math.hypot(dx, dy); if (fm > 0.05) p.face = { x: dx / fm, y: dy / fm };
   walking = fm > 0.05; // read by drawPlayer to pick the walk animation
   p.dashCd = Math.max(0, p.dashCd - dt);
-  if (p.dashT > 0) { p.dashT -= dt; p.x += p.face.x * p.speed * 4 * dt; p.y += p.face.y * p.speed * 4 * dt; }
+  if (p.dashT > 0) { const dd = p.dashDir || p.face; p.dashT -= dt; p.x += dd.x * p.speed * 4 * dt; p.y += dd.y * p.speed * 4 * dt; }
   else { p.x += dx * p.speed * dt; p.y += dy * p.speed * dt; }
   p.hurt = Math.max(0, p.hurt - dt);
   if (p.regen) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
   G.cam.x = p.x - W / 2; G.cam.y = p.y - H / 2;
+  updateFarm(dt);
 
   // spawn
   G.spawnAcc += spawnRate() * (hard ? 1.4 : 1) * dt;
   while (G.spawnAcc >= 1 && G.enemies.length < 800) { G.spawnAcc--; spawnEnemy(false); }
   if (G.t >= G.nextHorde) { G.nextHorde += HORDE_EVERY; G.events++; G.events % 2 ? spawnHorde() : startLane(); }
   updateLane(dt);
-  if (!G.surged && G.t >= SURGE_AT) { G.surged = true; G.hordeBanner = 2.5; G.bannerText = 'THE SURGE!'; G.shake = Math.max(G.shake, 0.4); }
+  if (!G.surged && G.t >= SURGE_AT) { G.surged = true; G.hordeBanner = 2.5; G.bannerText = 'THE WITCHING HOUR!'; G.shake = Math.max(G.shake, 0.4); }
   G.hordeBanner = Math.max(0, G.hordeBanner - dt);
   if (!G.titan && G.t >= CLIMAX_AT) { G.titan = true; spawnTitan(); }
   if (G.t >= G.nextBoss) { G.nextBoss += BOSS_EVERY; spawnEnemy(true); }
@@ -502,7 +667,7 @@ function update(dt) {
   if (p.xp >= p.need && state === 'play') {
     p.xp -= p.need; p.lvl++; p.need = Math.round(p.need * 1.22 + 2);
     G.choices = rollChoices();
-    if (G.choices.length) { state = 'levelup'; sfx(660, 0.25, 'triangle', 0.07); }
+    if (G.choices.length) { state = 'levelup'; G.lvlT = 0; G.xpPulse = 0.6; chime([523, 659, 784, 1047]); }
   }
   for (const h of G.hearts) if (dist2(p, h) < (p.r + 10) ** 2 || (dist2(p, h) < mr2 && p.hp < p.maxHp)) {
     if (dist2(p, h) < (p.r + 10) ** 2) { h.dead = true; sfx(520, 0.15, 'sine', 0.06); p.hp = Math.min(p.maxHp, p.hp + h.heal); G.texts.push({ x: p.x, y: p.y - 16, s: '+' + h.heal, t: 0.8 }); }
@@ -540,7 +705,7 @@ function update(dt) {
     G.won = p.hp > 0;
     state = 'dead'; sfx(G.won ? 660 : 90, 0.6, G.won ? 'triangle' : 'sawtooth', 0.08);
     const score = Math.floor(G.t);
-    G.gold = Math.round((G.kills + Math.floor(G.t / 10) + (G.won ? 200 : 0)) * (hard ? 1.5 : 1));
+    G.gold = Math.round((G.kills + Math.floor(G.t / 10) + (G.won ? 200 : 0) + G.wood) * (hard ? 1.5 : 1)); // wood sells for 1 gold
     localStorage.setItem('tzs_gold', getGold() + G.gold);
     G.newBest = score > +(localStorage.getItem('tzs_best') || 0);
     if (G.newBest) { localStorage.setItem('tzs_best', score); localStorage.setItem('tzs_bestbuild', buildSummary().wl); }
@@ -651,6 +816,90 @@ function drawBoom(b) {
 // The pattern is 4x4 cells of 64px (256px total) and every decoration stays inside its cell,
 // so the tile repeats seamlessly. Decorations use cell indices (i, j) modulo 4.
 let FLOOR_PAT = null, SHADOW_IMG = null;
+// ---------- spooky atmosphere ----------
+const PROPS = ['deadtree', 'grave', 'grave', 'cross', 'deadtree', 'pumpkin', 'grave', 'rock'];
+let GLOW_IMG = null, FOG_IMG = null, VIG = null;
+function softBlob(size, stops) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  stops.forEach(([o, col]) => gr.addColorStop(o, col)); g.fillStyle = gr; g.fillRect(0, 0, size, size);
+  return c;
+}
+// Flickering warm pool of light under jack-o'-lanterns (cached gradient, one drawImage).
+function pumpkinGlow(x, y, ph) {
+  GLOW_IMG = GLOW_IMG || softBlob(64, [[0, 'rgba(249,115,22,0.55)'], [0.5, 'rgba(249,115,22,0.15)'], [1, 'rgba(249,115,22,0)']]);
+  const r = 34 + Math.sin(ph) * 3 + Math.sin(ph * 2.7) * 2;
+  ctx.drawImage(GLOW_IMG, x - r, y - r * 0.7, r * 2, r * 1.4);
+}
+// Ground fog: a few big translucent banks on a world grid, drifting slowly with a parallax lag.
+// Kept faint (<= ~12% alpha) so enemies stay readable through it (ART.md readability rule).
+function drawFog(cx, cy, t) {
+  if (window.__tzsNoFog) return;
+  FOG_IMG = FOG_IMG || softBlob(128, [[0, 'rgba(196,181,253,0.16)'], [0.6, 'rgba(148,163,184,0.07)'], [1, 'rgba(148,163,184,0)'] ]);
+  const S = 260, ox = cx * 0.8 - t * 14, oy = cy * 0.8;
+  for (let gy = Math.floor(oy / S) - 1; gy <= Math.floor((oy + H) / S) + 1; gy++) for (let gx = Math.floor(ox / S) - 1; gx <= Math.floor((ox + W) / S) + 1; gx++) {
+    const h = (Math.imul(gx, 2654435761) ^ Math.imul(gy, 40503)) >>> 0;
+    if (h % 3 === 0) continue;
+    const sz = 300 + (h >> 4) % 220, x = gx * S + (h >> 8) % S - ox, y = gy * S + (h >> 16) % S - oy + Math.sin(t * 0.4 + gx) * 12;
+    ctx.drawImage(FOG_IMG, x - sz / 2, y - sz * 0.3, sz, sz * 0.6);
+  }
+}
+// Moonlit vignette: darkens the corners so the centre (the player) reads as lit. Cached per size.
+function drawVignette() {
+  if (window.__tzsNoFog) return;
+  if (!VIG || VIG.width !== W || VIG.height !== H) {
+    VIG = document.createElement('canvas'); VIG.width = W; VIG.height = H;
+    const g = VIG.getContext('2d'), R = Math.hypot(W, H) / 2, gr = g.createRadialGradient(W / 2, H / 2, R * 0.35, W / 2, H / 2, R);
+    gr.addColorStop(0, 'rgba(8,6,20,0)'); gr.addColorStop(1, 'rgba(8,6,20,0.62)');
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  }
+  ctx.drawImage(VIG, 0, 0);
+}
+function drawMoon(x, y, r) {
+  GLOW_MOON = GLOW_MOON || softBlob(128, [[0, 'rgba(226,232,240,0.35)'], [0.4, 'rgba(196,181,253,0.12)'], [1, 'rgba(196,181,253,0)']]);
+  ctx.drawImage(GLOW_MOON, x - r * 3, y - r * 3, r * 6, r * 6);
+  circle(x, y, r, '#e2e8f0'); circle(x - r * 0.3, y - r * 0.2, r * 0.22, '#cbd5e1'); circle(x + r * 0.35, y + r * 0.3, r * 0.15, '#cbd5e1');
+}
+let GLOW_MOON = null;
+function button(r, label, size, fg, bg, edge) {
+  ctx.fillStyle = bg; ctx.fillRect(r.x, r.y, r.w, r.h);
+  ctx.strokeStyle = edge; ctx.lineWidth = 2; ctx.strokeRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2);
+  text(label, r.x + r.w / 2, r.y + r.h / 2 + 7, size, fg, 'center', r.w - 12);
+}
+function renderTitle(now) {
+  const L = titleLayout(), ch = CHARS[charIdx], tsec = now / 1000;
+  ctx.fillStyle = woodlandFloor(); ctx.save(); ctx.translate(-((tsec * 6) % 256), 0); ctx.fillRect(0, 0, W + 256, H); ctx.restore();
+  drawMoon(W - Math.min(70, W * 0.16), Math.min(80, H * 0.1), 22);
+  // graveyard skyline along the bottom
+  for (let i = 0, n = Math.ceil(W / 56) + 1; i < n; i++) { const k = PROPS[(i * 7 + 3) % PROPS.length]; if (k === 'pumpkin') pumpkinGlow(i * 56 + 20, H - 26, tsec * 7 + i); SPR.drawSprite(ctx, SPR.baked[k], 'idle', 0, i * 56 + 20, H - 34, 3); }
+  drawFog(tsec * 20, 0, tsec);
+  drawVignette();
+  text('TONE ZONE', W / 2, L.titleY, 36, '#fde047');
+  text('SURVIVORS', W / 2, L.titleY + 34, 36, '#fde047');
+  text('survive the night', W / 2, L.titleY + 58, 14, '#c4b5fd');
+  // character portrait (tap to start) with arrows to cycle
+  const P = L.portrait;
+  ctx.fillStyle = 'rgba(8,12,30,0.6)'; ctx.fillRect(P.x, P.y, P.w, P.h); ctx.strokeStyle = ch.color; ctx.lineWidth = 2; ctx.strokeRect(P.x + 1, P.y + 1, P.w - 2, P.h - 2);
+  SPR.drawSprite(ctx, SPR.variant('player', ch.color), 'idle', (tsec * 2) | 0, P.x + P.w / 2, P.y + P.h / 2 - 2, 5);
+  button(L.left, '<', 24, '#fde047', 'rgba(8,12,30,0.6)', 'rgba(251,191,36,0.5)');
+  button(L.right, '>', 24, '#fde047', 'rgba(8,12,30,0.6)', 'rgba(251,191,36,0.5)');
+  text(ch.name, W / 2, L.nameY, 20, ch.color);
+  text(ch.desc, W / 2, L.descY, 14, '#cbd5e1', 'center', L.cw);
+  const pulse = 0.5 + 0.5 * Math.sin(tsec * 4);
+  button(L.start, touchUi ? 'TAP TO START' : 'START (SPACE)', 22, '#0b1020', `rgb(${110 + pulse * 30 | 0},231,183)`, '#ecfdf5');
+  button(L.hard, hard ? 'HARD MODE: ON (+40% foes, +50% gold)' : 'HARD MODE: OFF' + (touchUi ? '' : '  (H)'), 14, hard ? '#fca5a5' : '#94a3b8', hard ? 'rgba(127,29,29,0.6)' : 'rgba(8,12,30,0.6)', hard ? '#ef4444' : 'rgba(148,163,184,0.4)');
+  text('Gold: ' + getGold() + (touchUi ? '  -  tap to buy' : '  -  1-3 to buy'), W / 2, L.goldY, 14, '#fde047');
+  const mu = loadMeta();
+  META_KEYS.forEach((k, i) => {
+    const d = META[k], l = mu[k] || 0, can = l < d.max && getGold() >= d.cost(l), r = L.meta[i];
+    button(r, '', 14, '#fff', can ? 'rgba(6,78,59,0.55)' : 'rgba(8,12,30,0.6)', can ? '#6ee7b7' : 'rgba(100,116,139,0.5)');
+    text(`${d.name} ${l}/${d.max}`, r.x + 10, r.y + 20, 14, can ? '#d1fae5' : '#94a3b8', 'left', r.w * 0.6);
+    text(d.desc, r.x + 10, r.y + 36, 12, '#94a3b8', 'left', r.w * 0.6);
+    text(l >= d.max ? 'MAX' : d.cost(l) + 'G', r.x + r.w - 10, r.y + 28, 16, can ? '#fde047' : '#64748b', 'right');
+  });
+  const b = +(localStorage.getItem('tzs_best') || 0);
+  text(b ? 'Best survival: ' + fmt(b) : (touchUi ? 'Drag to move. Weapons fire on their own.' : 'WASD / arrows to move. Weapons fire on their own.'), W / 2, L.bestY, 12, '#94a3b8', 'center', L.cw);
+}
 function woodlandFloor() {
   if (FLOOR_PAT) return FLOOR_PAT;
   // 8x8 baked 16x16 pixel tiles drawn at 2x = 256px pattern (see sprites.js tiles)
@@ -677,20 +926,7 @@ function groundShadow(x, y, r) {
 function render() {
   ctx.imageSmoothingEnabled = false; // resets on canvas resize
   ctx.fillStyle = '#1b1b26'; ctx.fillRect(0, 0, W, H);
-  if (state === 'title') {
-    text('TONE ZONE SURVIVORS', W / 2, H / 2 - 40, 36, '#fde047');
-    text('WASD / arrows / drag to move. Weapons fire automatically.', W / 2, H / 2, 16);
-    const ch = CHARS[charIdx];
-    text(`< ${ch.name} >  ${ch.desc}`, W / 2, H / 2 + 22, 16, ch.color);
-    text('Press SPACE or tap to start', W / 2, H / 2 + 46, 20, '#6ee7b7');
-    const b = +(localStorage.getItem('tzs_best') || 0);
-    if (b) text('Best survival: ' + fmt(b), W / 2, H / 2 + 70, 16, '#aaa');
-    const mu = loadMeta();
-    text('Mode: ' + (hard ? 'HARD (+40% enemies, +50% gold)' : 'Normal') + '  -  H to toggle', W / 2, H / 2 + 92, 14, hard ? '#f87171' : '#aaa');
-    text('Gold: ' + getGold() + '  -  press 1-3 to buy upgrades', W / 2, H / 2 + 110, 16, '#fde047');
-    META_KEYS.forEach((k, i) => { const d = META[k], l = mu[k] || 0; text(`${i + 1}. ${d.name} ${l}/${d.max}  ${d.desc}  ` + (l >= d.max ? 'MAX' : d.cost(l) + 'g'), W / 2, H / 2 + 136 + i * 22, 14, l < d.max && getGold() >= d.cost(l) ? '#6ee7b7' : '#888'); });
-    return;
-  }
+  if (state === 'title') { renderTitle(performance.now()); return; }
   const { cam, p } = G;
   const sh = G.shake * 20;
   ctx.save(); ctx.translate(-cam.x + rnd(-sh, sh), -cam.y + rnd(-sh, sh));
@@ -698,12 +934,29 @@ function render() {
   ctx.fillStyle = woodlandFloor(); ctx.fillRect(cam.x - 64, cam.y - 64, W + 128, H + 128);
   // props: sparse trees/rocks/mushrooms on a hashed 112px grid, view-culled, drawn under all units
   if (!window.__tzsNoProps) for (let gy = Math.floor((cam.y - 40) / 112), ey = Math.floor((cam.y + H + 40) / 112); gy <= ey; gy++) for (let gx = Math.floor((cam.x - 40) / 112), ex = Math.floor((cam.x + W + 40) / 112); gx <= ex; gx++) {
-    const h = (Math.imul(gx, 374761393) ^ Math.imul(gy, 668265263)) >>> 0;
-    if (h % 5 > 1 || (gx === 0 && gy === 0)) continue;
-    const k = (h >> 3) % 6, kind = k < 3 ? 'tree' : k < 5 ? 'rock' : 'mush', px = gx * 112 + 16 + (h >> 8) % 80, py = gy * 112 + 16 + (h >> 16) % 80;
-    groundShadow(px, py + 12, kind === 'tree' ? 14 : 10);
-    SPR.drawSprite(ctx, SPR.baked[kind], 'idle', 0, px, py, 2);
+    const pr = propAt(gx, gy);
+    if (!pr || isCut(pr)) continue;
+    const { kind } = pr, wob = G.chop && G.chop.key === pr.key ? Math.round(Math.sin(G.t * 50) * 1.5) : 0; // shudders while being chopped
+    if (kind === 'grass') { SPR.drawSprite(ctx, SPR.baked.grass, 'idle', 0, pr.x + wob, pr.y, 2); continue; }
+    // spooky skin over the farming kinds: tree -> dead tree, mushroom -> jack-o'-lantern, rock -> headstone/cross
+    const skin = kind === 'tree' ? 'deadtree' : kind === 'mush' ? 'pumpkin' : kind === 'rock' ? (pr.key & 1 ? 'cross' : 'grave') : kind;
+    if (skin === 'pumpkin') pumpkinGlow(pr.x, pr.y + 6, G.t * 7 + gx * 3.1 + gy);
+    groundShadow(pr.x, pr.y + 12, kind === 'tree' ? 14 : 10);
+    SPR.drawSprite(ctx, SPR.baked[skin], 'idle', 0, pr.x + wob, pr.y, 2);
   }
+  // crops: sprout (small, then bigger) until ripe; a ripe crop bobs inside a pulsing ring; growth bar under unripe ones
+  for (const c of G.crops) {
+    const f = Math.min(1, c.age / c.grow), ripe = f >= 1;
+    if (ripe) {
+      ctx.strokeStyle = c.golden ? '#fde047' : '#fdba74'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(c.x, c.y, 14 + Math.sin(G.t * 6) * 2, 0, 7); ctx.stroke();
+      drawPickup('crop', c.golden ? '#fbbf24' : '#f97316', c.x, c.y - 2 + Math.sin(G.t * 4) * 1.5, 3);
+    } else {
+      SPR.drawSprite(ctx, SPR.baked.sprout, 'idle', 0, c.x, c.y, f < 0.5 ? 2 : 3, { flash: c.hurt && ((G.t * 16) | 0) % 2 });
+      pixBar(c.x - 12, c.y + 14, 24, 5, f, '#bef264');
+    }
+  }
+  for (const l of G.loot) drawPickup(l.kind, '#fcd34d', l.x, l.y + Math.sin(G.t * 5 + l.x) * 1.5, 2);
+  if (G.chop) pixBar(G.chop.x - 16, G.chop.y - 30, 32, 6, G.chop.prog / G.chop.need, '#bef264');
   // soft ground shadows for enemies go under every sprite (player shadow is drawn in drawPlayer)
   // (shadows outside the visible area are culled; crowded scenes can hold hundreds of enemies)
   const vx0 = cam.x - 160, vy0 = cam.y - 160, vx1 = cam.x + W + 160, vy1 = cam.y + H + 160; // margin > largest shadow (boss r*1.1)
@@ -744,9 +997,12 @@ function render() {
   for (const t of G.texts) text(t.s, t.x, t.y, t.big ? 18 : 12, t.big ? '#fde047' : '#fff');
   ctx.restore();
 
+  drawFog(cam.x, cam.y, G.t);
+  drawVignette();
   if (G.freeze > 0) { ctx.fillStyle = 'rgba(125,211,252,' + Math.min(0.18, G.freeze * 0.1) + ')'; ctx.fillRect(0, 0, W, H); }
   // HUD
   pixBar(0, 0, W, 14, Math.min(1, p.xp / p.need), '#38bdf8');
+  if (G.xpPulse > 0) { ctx.fillStyle = 'rgba(253,224,71,' + (G.xpPulse / 0.6 * 0.7).toFixed(3) + ')'; ctx.fillRect(0, 0, W, 14 + Math.round(G.xpPulse * 10)); }
   text('LV ' + p.lvl, W / 2, 11, 12);
   pixBar(16, 24, W < 480 ? 108 : 160, 12, Math.max(0, p.hp / p.maxHp), '#ef4444');
   // Readout plates keep text legible over busy floor art; narrow screens drop the key hint so the
@@ -762,21 +1018,38 @@ function render() {
   text('Kills ' + G.kills, W - 16, 40, 16, '#fff', 'right');
   const dashTxt = p.dashCd > 0 ? 'Dash ' + p.dashCd.toFixed(1) : (narrow ? 'Dash READY' : 'Dash READY (Shift/Space)');
   text(dashTxt, W - 16, 58, 12, p.dashCd > 0 ? '#94a3b8' : '#6ee7b7', 'right');
+  { const pb = pauseBtn(); ctx.fillStyle = 'rgba(8,12,30,0.62)'; ctx.fillRect(pb.x, pb.y, pb.w, pb.h); ctx.strokeStyle = 'rgba(251,191,36,0.35)'; ctx.lineWidth = 1; ctx.strokeRect(pb.x + 0.5, pb.y + 0.5, pb.w - 1, pb.h - 1);
+    ctx.fillStyle = '#e2e8f0'; ctx.fillRect(pb.x + 14, pb.y + 12, 5, 20); ctx.fillRect(pb.x + 25, pb.y + 12, 5, 20); }
+  if (touch && state === 'play') { // faint stick ring so the player sees where their thumb anchored
+    const tx = touch.x - touch.sx, ty = touch.y - touch.sy, tm = Math.hypot(tx, ty), k = tm > 60 ? 60 / tm : 1;
+    ctx.strokeStyle = 'rgba(226,232,240,0.25)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(touch.sx, touch.sy, 60, 0, 7); ctx.stroke();
+    circle(touch.sx + tx * k, touch.sy + ty * k, 18, 'rgba(226,232,240,0.3)');
+  }
   if (touchUi) {
     const b = dashBtn(), rdy = p.dashCd <= 0;
     ctx.fillStyle = rdy ? 'rgba(16,185,129,0.55)' : 'rgba(30,41,59,0.6)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
     ctx.strokeStyle = rdy ? '#6ee7b7' : '#64748b'; ctx.lineWidth = 2; ctx.stroke();
     text(rdy ? 'DASH' : p.dashCd.toFixed(1), b.x, b.y + 4, 12, '#fff', 'center');
+    const pb = plantBtn(), has = G.seeds > 0;
+    ctx.fillStyle = has ? 'rgba(101,163,13,0.55)' : 'rgba(30,41,59,0.5)'; ctx.beginPath(); ctx.arc(pb.x, pb.y, pb.r, 0, 7); ctx.fill();
+    ctx.strokeStyle = has ? '#bef264' : '#64748b'; ctx.lineWidth = 2; ctx.stroke();
+    text('PLANT', pb.x, pb.y, 12, has ? '#fff' : '#94a3b8', 'center'); text('x' + G.seeds, pb.x, pb.y + 14, 12, has ? '#bef264' : '#64748b', 'center');
   }
-  let y = 56; ctx.textAlign = 'left';
+  text(`Seeds ${G.seeds}  Wood ${G.wood}` + (p.fed > 0 ? `  FED ${Math.ceil(p.fed)}` : ''), 16, 56, 12, p.fed > 0 ? '#fde047' : '#bef264', 'left');
+  let y = 70; ctx.textAlign = 'left';
   for (const k in G.w) { text(`${WEAPONS[k].name} ${G.w[k] >= EVO_LVL ? 'EVO' : G.w[k]}`, 16, y, 12, '#fde047', 'left'); y += 14; }
   for (const k in G.pa) { text(`${PASSIVES[k].name} ${G.pa[k]}`, 16, y, 12, '#a7f3d0', 'left'); y += 14; }
 
   if (state === 'levelup') {
-    ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(0, 0, W, H);
-    text('LEVEL UP! Pick one (1-3 or tap)', W / 2, H / 2 - 150, 22, '#fde047');
-    choiceRects().forEach((r, i) => {
+    const lt = G.lvlT || 0;
+    ctx.fillStyle = 'rgba(0,0,0,' + (0.65 * Math.min(1, lt / 0.15)).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H);
+    if (lt < 0.18) { ctx.fillStyle = 'rgba(253,224,71,' + (0.45 * (1 - lt / 0.18)).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); }
+    text(touchUi ? 'LEVEL UP! Tap one' : 'LEVEL UP! Pick one (1-3)', W / 2, H / 2 - 150 - Math.round(Math.max(0, 1 - lt / 0.2) * 20), 22, '#fde047');
+    choiceRects().forEach((r0, i) => {
       const c = G.choices[i]; if (!c) return;
+      // cards slide up from below, staggered; ease-out
+      const f = Math.min(1, Math.max(0, (lt - i * 0.05) / LVL_SLIDE)), ease = 1 - (1 - f) ** 3;
+      const r = { x: r0.x, y: r0.y + Math.round((1 - ease) * (H - r0.y + 40)), w: r0.w, h: r0.h };
       const d = c.kind === 'w' ? WEAPONS[c.k] : PASSIVES[c.k];
       ctx.fillStyle = '#2d2d44'; ctx.fillRect(r.x, r.y, r.w, r.h);
       ctx.strokeStyle = c.kind === 'w' ? '#fde047' : '#6ee7b7'; ctx.lineWidth = 2; ctx.strokeRect(r.x, r.y, r.w, r.h);
@@ -794,11 +1067,11 @@ function render() {
   }
   if (state === 'pause') {
     ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, H);
-    // Same navy plate as the end screen: title plus a separate hint line, readable over any terrain.
-    const pw = Math.min(W - 16, 320), px = (W - pw) / 2;
-    hudPlate(px, H / 2 - 52, pw, 104);
-    text('PAUSED', W / 2, H / 2 - 6, 36, '#fde047');
-    text('P / Esc to resume', W / 2, H / 2 + 28, 16, '#6ee7b7', 'center', pw - 24);
+    const pr = pauseRects();
+    hudPlate(pr.panel.x, pr.panel.y, pr.panel.w, pr.panel.h);
+    text('PAUSED', W / 2, pr.panel.y + 46, 36, '#fde047');
+    button(pr.resume, touchUi ? 'RESUME' : 'RESUME (P / ESC)', 18, '#0b1020', '#6ee7b7', '#ecfdf5');
+    button(pr.menu, 'QUIT TO MENU', 14, '#cbd5e1', 'rgba(8,12,30,0.6)', 'rgba(148,163,184,0.5)');
   }
   if (state === 'dead') {
     ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, W, H);
@@ -806,7 +1079,7 @@ function render() {
     const pw = Math.min(W - 16, 520), px = (W - pw) / 2;
     hudPlate(px, H / 2 - 84, pw, 276);
     const fit = (str, max) => Math.max(9, Math.min(max, Math.floor((pw - 24) / (str.length * 0.62))));
-    if (G.won) text('YOU SURVIVED!', W / 2, H / 2 - 30, 40, '#fde047'); else text('YOU DIED', W / 2, H / 2 - 30, 40, '#ef4444');
+    if (G.won) text('DAWN BREAKS!', W / 2, H / 2 - 30, 40, '#fde047'); else text('YOU DIED', W / 2, H / 2 - 30, 40, '#ef4444');
     const survived = `Survived ${fmt(G.t)} - Kills ${G.kills} - Level ${p.lvl}`;
     text(survived, W / 2, H / 2 + 10, Math.max(12, fit(survived, 18)));
     const best = 'Best ' + fmt(+(localStorage.getItem('tzs_best') || 0)) + ' - Gold +' + G.gold;
@@ -819,6 +1092,8 @@ function render() {
     if (pl) { const t = 'Passives: ' + pl; text(t, W / 2, H / 2 + 144, fit(t, 13), '#a7f3d0'); }
     const bb = localStorage.getItem('tzs_bestbuild');
     if (bb && !G.newBest) { const t = 'Best run: ' + bb; text(t, W / 2, H / 2 + 164, fit(t, 13), '#fcd34d'); }
+    const fm = `Farm: ${G.chopped} chopped - ${G.harvests} harvests - ${G.wood} wood`;
+    text(fm, W / 2, H / 2 + 182, fit(fm, 13), '#bef264');
     text('SPACE or tap to retry', W / 2, H / 2 + 98, Math.min(18, fit('SPACE or tap to retry', 18)), '#6ee7b7');
     text('Esc / tap bottom: menu', W / 2, H - 14, 12, '#94a3b8');
   }
@@ -831,11 +1106,13 @@ function frame(now) {
   if (SHEET) { SPR.drawSheet(ctx, W, H, now / 1000); requestAnimationFrame(frame); return; }
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   if (state === 'play') { if (G.hitstop > 0) G.hitstop -= dt; else update(dt); }
+  if (G && state === 'levelup') G.lvlT += dt;
+  if (G && G.xpPulse > 0) G.xpPulse -= dt;
   render();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, dashBtn, hitDash, set touchUi(v) { touchUi = v; }, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES };
+window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, dashBtn, hitDash, set touchUi(v) { touchUi = v; }, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES, propAt, plant, plantBtn, hitPlant , titleLayout, titleTap, choiceRects, pauseBtn, pauseRects, setTouch(v) { touch = v; }, get charIdx() { return charIdx; }, get hard() { return hard; } };
 })();
