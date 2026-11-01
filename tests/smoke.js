@@ -89,6 +89,16 @@ try {
     return { banner, warned, n: w.length, moved, done: G.lane === null || second, second };
   });
   if (ln.banner !== 'SWARM LANE!' || ln.warned !== 0 || ln.n < 3 || !ln.moved || ln.moved.dx < 30 || ln.moved.dy > 10 || !ln.second) { console.log('swarm lane failed', JSON.stringify(ln)); errs.push('lane'); }
+  const chs = await pg.evaluate(() => {
+    const t = window.__tzs, out = {}; t.state = 'title';
+    for (let i = 0; i < 6; i++) { t.render(); t.start(); const G = t.G; out[Object.keys(G.w)[0]] = Math.round(G.p.speed); t.state = 'title'; t.press('arrowright'); }
+    t.state = 'title'; t.press('arrowleft'); t.start(); const G = t.G; G.enemies.length = 0; G.timers.zap = 0;
+    const mk = (dx) => ({ x: G.p.x + dx, y: G.p.y, r: 10, hp: 1000, maxHp: 1000, speed: 0, dmg: 0, xp: 1, color: '#a78bfa', flash: 0, kind: 'bat' });
+    G.enemies.push(mk(100), mk(120)); t.update(0.02);
+    t.state = 'title'; t.press('arrowright'); // back to the first character
+    return { out, splash: G.p.zapSplash, hurt: G.enemies.filter(e => e.hp < 1000).length };
+  });
+  if (chs.out.mine !== 126 || chs.out.zap !== 140 || chs.splash !== 40 || chs.hurt !== 2) { console.log('characters failed', JSON.stringify(chs)); errs.push('chars'); }
   const fr = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.shots.length = 0; G.w.frost = 1; G.timers.frost = 0;
     t.update(0.02); const shards = G.shots.filter(s => s.frost);
