@@ -63,6 +63,8 @@ try {
   if (rs !== 2) { console.log('run stats failed'); errs.push('runstats'); }
   const rst = await pg.evaluate(() => { const t = window.__tzs; t.start(); t.state = 'dead'; t.press(' '); const a = t.state; t.state = 'dead'; t.press('escape'); return a + ',' + t.state; });
   if (rst !== 'play,title') { console.log('restart failed', rst); errs.push('restart'); }
+  const wsp = await pg.evaluate(() => { const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.parts.length = 0; const e = { x: G.p.x + 50, y: G.p.y, r: 9, hp: 1, maxHp: 1, speed: 0, dmg: 0, xp: 1, color: '#a78bfa', flash: 0, kind: 'bat' }; G.enemies.push(e); t.damage(e, 5); const n = G.parts.filter(q => q.wisp).length; t.render(); return n; });
+  if (wsp !== 1) { console.log('wisp failed', wsp); errs.push('wisp'); }
   const dsh = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.t = 250;
     const e = { x: G.p.x + 600, y: G.p.y, r: 10, hp: 30, maxHp: 30, speed: 60, dmg: 12, xp: 4, color: '#f472b6', flash: 0, kind: 'dasher', ct: 0.01 };

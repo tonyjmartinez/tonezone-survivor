@@ -230,6 +230,7 @@ function damage(e, amt, kx, ky) {
   if (e.hp <= 0 && (e.elite || e.boss)) G.hitstop = 0.06; // tiny freeze when a big enemy dies
   if (G.parts.length < 200) for (let i = 0; i < 2; i++) G.parts.push({ x: e.x, y: e.y, vx: rnd(-80, 80), vy: rnd(-80, 80), t: 0.3, c: e.color });
   if (e.hp <= 0 && G.parts.length < 200) for (let i = 0; i < 6; i++) G.parts.push({ x: e.x, y: e.y, vx: rnd(-140, 140), vy: rnd(-140, 140), t: 0.4, c: e.color }); // kill pop
+  if (e.hp <= 0 && !e.boss && ['bat', 'ghoul', 'wraith'].includes(e.kind) && G.parts.length < 200) G.parts.push({ x: e.x, y: e.y - 4, vx: rnd(-8, 8), vy: -48, t: 0.9, c: '#a5f3fc', wisp: true }); // ghost wisp rises from slain undead
 }
 
 // ---------- level up ----------
@@ -974,7 +975,7 @@ function render() {
     if (e.boss) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 3, 0, 7); ctx.stroke();
       const bw = e.r * 2.4, f = Math.max(0, e.hp / e.maxHp); ctx.fillStyle = '#000a'; ctx.fillRect(e.x - bw / 2, e.y - e.r - 14, bw, 6); ctx.fillStyle = '#ef4444'; ctx.fillRect(e.x - bw / 2, e.y - e.r - 14, bw * f, 6); }
   }
-  for (const q of G.parts) { const z = q.t > 0.15 ? 4 : 2, px = Math.round(q.x / 2) * 2, py = Math.round(q.y / 2) * 2; ctx.fillStyle = '#0b1020'; ctx.fillRect(px - z / 2 - 1, py - z / 2 - 1, z + 2, z + 2); ctx.fillStyle = q.c; ctx.fillRect(px - z / 2, py - z / 2, z, z); }
+  for (const q of G.parts) { if (q.wisp) { ctx.globalAlpha = Math.min(1, q.t * 1.6); const wx = Math.round(q.x + Math.sin(q.t * 9) * 3), wy = Math.round(q.y); ctx.fillStyle = '#0b1020'; ctx.fillRect(wx - 4, wy - 7, 8, 12); ctx.fillStyle = q.c; ctx.fillRect(wx - 3, wy - 6, 6, 6); ctx.fillRect(wx - 2, wy, 4, 3); ctx.fillRect(wx - 1, wy + 3, 2, 2); ctx.fillStyle = '#0b1020'; ctx.fillRect(wx - 2, wy - 4, 1, 2); ctx.fillRect(wx + 1, wy - 4, 1, 2); ctx.globalAlpha = 1; continue; } const z = q.t > 0.15 ? 4 : 2, px = Math.round(q.x / 2) * 2, py = Math.round(q.y / 2) * 2; ctx.fillStyle = '#0b1020'; ctx.fillRect(px - z / 2 - 1, py - z / 2 - 1, z + 2, z + 2); ctx.fillStyle = q.c; ctx.fillRect(px - z / 2, py - z / 2, z, z); }
   for (const b of G.booms) drawBoom(b);
   for (const m of G.mines) { drawPickup('mine', m.age < 0.5 ? '#78350f' : '#f59e0b', m.x, m.y, 2); }
   for (const b of G.bolts) {
