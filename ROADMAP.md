@@ -52,7 +52,7 @@ Goal: two runs should not feel the same. Each item is one loop iteration, ordere
 - [x] (product) Timed map events beyond hordes: add a "swarm lane" event (a stream of fast enemies crossing the screen, telegraphed by a banner) alternating with `spawnHorde` every `HORDE_EVERY`. Why: the only scripted event is the 75s ring, so minutes 3-9 feel alike.
 - [x] (product) Elite enemies: from 3:00 a small chance a normal enemy spawns as an elite (2.5x HP, larger, tinted, guaranteed heart or chest chance). Why: enemy types unlock on a fixed schedule (`ENEMY_TYPES.from`) and bosses are the only standouts.
 - [x] (product) Two more characters: Pyro (Mines start, -10% speed) and Stormcaller (Lightning start, +1 area). Why: `CHARS` has 4 entries and only they define starting weapon variety; cheap to add and gives replay choice.
-- [ ] (design) Pixel portraits for the character-select screen (16x16 player variants per class, drawn at 3x with the class colour). Why: select screen is text with a tint; ART.md slice 7 left menus without sprites.
+- [x] (design) Pixel portraits for the character-select screen (16x16 player variants per class, drawn at 3x with the class colour). Why: select screen is text with a tint; ART.md slice 7 left menus without sprites.
 - [ ] (design) Elite and swarm-lane readability: distinct elite silhouette marker (crown pixel/ember outline) and banner art that obeys the readability rule at 390px. Why: new threats must be distinguishable by silhouette per ART.md.
 - [x] (product) End-screen run stats: kills, level, gold earned, and a one-line "best build" memory in localStorage. Why: the end screen shows a build summary but nothing to beat besides time (`tzs_best`).
 - [x] (design) ART.md slice 8: crowded-scene perf check (300+ enemies, 390px) with screenshots, plus visual check of pause/end screens (known leftover in MEMORY.md).
@@ -61,7 +61,7 @@ Goal: two runs should not feel the same. Each item is one loop iteration, ordere
 Vision: a stranger plays on a phone for ten minutes and wants to replay. Game feel over features. Each item is one small PR with a smoke assertion and a 390px screenshot in the PR body. Already present: enemy hit flash, floating damage numbers, small shake on horde/bomb (check before adding).
 - [x] (feel) Hit feedback pass 1: default knockback away from the player (non-bosses), kill-pop particles, shake scaled to damage taken.
 - [x] (feel) Hit feedback pass 2: tiny hit-stop on kills, and damage numbers coloured/larger for crits and elites.
-- [ ] (feel) Level-up moment: short freeze + screen flash + chime, cards slide in, XP bar pulse before the screen opens.
+- [x] (feel) Level-up moment: short freeze + screen flash + chime, cards slide in, XP bar pulse before the screen opens.
 - [x] (feel) Difficulty curve pass 1: 5:00 spawn spike (x1.6 for 30s, 'THE SURGE!' banner) then a relief window (x0.6 for 60s).
 - [x] (feel) Difficulty curve pass 2: wraith (blinks) unlocks at 5:00; titan climax boss at 9:00 with telegraphed ground slam.
 - [ ] (feel) Meaningful build choice (first level-up = 3 distinct weapons DONE; evolutions/branching + build summary remain): every run offers a decision (weapon evolutions or branching passives; first level-up offers 3 distinct weapons), shown on the end screen as the build summary.
@@ -75,6 +75,13 @@ Vision: survivors-genre pressure with a farming loop in the middle of the run: y
 - [ ] (farm) Crop variety: seed types from different props (pumpkin = heal, berry = XP, thorn = turret-like damage plant).
 - [ ] (farm) Harvest Moon event (e.g. at 4:00): all crops ripen instantly and grass bursts with seeds, then a horde arrives.
 - [ ] (farm) Real playtest: are seeds too rare/common, does trampling feel fair, is standing still to chop a fun risk?
+
+## Milestone: Spooky graveyard identity (2026-11-01, owner request)
+Owner: "make the game a bit more unique with a more consistent and interesting spooky theme". First pass done (PR: graveyard props, fog, vignette, spooky event names, themed title). Next ideas, one per loop iteration:
+- [ ] (design) Kill fx: a small ghost wisp rises from slain undead (bats/ghouls/wraiths) instead of generic pixels.
+- [ ] (design) Rename/reskin the remaining non-spooky bits so names match the night: gems read as souls (cyan wisp gem sprite), chests as coffins.
+- [ ] (feel) Low drone + occasional distant bell (WebAudio only, no assets), off with M.
+- [ ] (design) Moon phase: the night slowly reddens toward 9:00 (titan), dawn light at 10:00 win.
 
 ### Blocked on Tony
 - Real 5+ minute human playtest for balance numbers (needs a person playing on a phone/desktop; bot results only approximate).
