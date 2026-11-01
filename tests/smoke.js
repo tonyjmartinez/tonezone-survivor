@@ -188,6 +188,15 @@ try {
     return bad;
   });
   if (cardBad.length) { console.log('card text failed', cardBad); errs.push('cards'); }
+  // hit feedback: default knockback pushes non-bosses away from the player; bosses hold; lethal hits pop extra particles
+  const hf = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.parts.length = 0;
+    const mk = (boss) => ({ x: G.p.x + 100, y: G.p.y, r: 12, hp: 100, maxHp: 100, speed: 0, dmg: 5, xp: 1, color: '#fff', flash: 0, kind: 'ghoul', boss });
+    const a = mk(false), b = mk(true); t.damage(a, 1); t.damage(b, 1);
+    G.parts.length = 0; const c = mk(false); c.hp = 1; t.damage(c, 50); const pop = G.parts.length;
+    return { da: a.x - (G.p.x + 100), db: b.x - (G.p.x + 100), pop };
+  });
+  if (!(hf.da > 3) || hf.db !== 0 || hf.pop < 8) { console.log('hit feedback failed', JSON.stringify(hf)); errs.push('hitfx'); }
   // sprite-sheet review page renders without errors
   const sheetErrs = [];
   const sp = await b.newPage({ viewport: { width: 390, height: 844 } });

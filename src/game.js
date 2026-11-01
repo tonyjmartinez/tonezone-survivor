@@ -152,8 +152,10 @@ function nearest(from, maxD) {
 function damage(e, amt, kx, ky) {
   amt *= G.p.dmgMul; e.hp -= amt; e.flash = 0.08; e.hitT = 1.5;
   if (kx !== undefined) { e.x += kx; e.y += ky; }
+  else if (!e.boss) { const dx = e.x - G.p.x, dy = e.y - G.p.y, d = Math.hypot(dx, dy) || 1; e.x += dx / d * 5; e.y += dy / d * 5; } // default nudge away from the player so hits read
   G.texts.push({ x: e.x, y: e.y - e.r, s: Math.round(amt), t: 0.5 });
   if (G.parts.length < 200) for (let i = 0; i < 2; i++) G.parts.push({ x: e.x, y: e.y, vx: rnd(-80, 80), vy: rnd(-80, 80), t: 0.3, c: e.color });
+  if (e.hp <= 0 && G.parts.length < 200) for (let i = 0; i < 6; i++) G.parts.push({ x: e.x, y: e.y, vx: rnd(-140, 140), vy: rnd(-140, 140), t: 0.4, c: e.color }); // kill pop
 }
 
 // ---------- level up ----------
@@ -432,7 +434,7 @@ function update(dt) {
         if (dx * dx + dy * dy < min * min) { const d = Math.hypot(dx, dy) || 1, k = (min - d) / 2 / d; e.x += dx * k; e.y += dy * k; o.x -= dx * k; o.y -= dy * k; }
       }
     }
-    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= Math.max(1, e.dmg - (p.armor || 0)); p.hurt = 0.6; G.shake = 0.25; sfx(120, 0.15, 'sawtooth', 0.06); }
+    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= Math.max(1, e.dmg - (p.armor || 0)); p.hurt = 0.6; G.shake = Math.min(0.5, 0.12 + e.dmg * 0.01); sfx(120, 0.15, 'sawtooth', 0.06); }
   }
   for (const e of G.enemies) if (e.hp <= 0) {
     if (e.kind === 'bloat') for (let k = 0; k < 3; k++) G.enemies.push({ x: e.x + rnd(-14, 14), y: e.y + rnd(-14, 14), r: 7, hp: e.maxHp * 0.15, maxHp: e.maxHp * 0.15, speed: e.speed * 1.8, dmg: 4, xp: 1, color: e.color, flash: 0, kind: 'minibloat' });
@@ -790,5 +792,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, buildSummary, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES };
+window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, buildSummary, damage, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES };
 })();
