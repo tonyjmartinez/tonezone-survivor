@@ -65,3 +65,4 @@
 - 2026-10-31: first level-up now offers 3 distinct unowned weapons (rollChoices, lvl<=2). Next: phone ergonomics or evolutions.
 
 - 2026-11-02 (L33): on-screen 64px DASH button for touch (bottom-right, touchUi flag; touch had no dash before). Joystick unchanged (8px dead-zone, 60px radius). Next: one-tap restart, pixel portraits.
+- 2026-11-01: end screen restarts straight into a new run (Space/Enter/tap); Esc/M or tapping bottom 12% returns to the title/shop. Next: pixel portraits, best-build memory.
