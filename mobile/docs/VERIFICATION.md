@@ -1,5 +1,20 @@
 # Verified Android runtime — 2026-11-01
 
+## Shared game update: 1.0.1+2
+
+The port now consumes canonical web main `f95757d` (source tree's last-touch commit `c6223a1`) including farming, spooky theme and the actual web game's touch menus/input. The duplicate mobile menu/dash implementation is removed. Root `src/` and `index.html` match origin/main unchanged.
+
+- Canonical source fingerprint: `a53926e7b19c32864f4302a1a8aedf3563e2fd7f446a2d273cb6ae4f74513bc2`.
+- Windows and Ubuntu `npm run build`, `mobile:check`, and all three packaging tests pass; web/mobile outputs match, source changes/tampering/obsolete output are detected.
+- Original engine smoke and shared touch smoke against both web source and mobile assets pass with no JS errors or network requests.
+- Flutter analysis and navigation unit test pass.
+- Actual API 36 Android WebView integration passes: shared title/character selection, movement, multi-touch dash, plant control, pause/resume, guarded level-up tap and persistent storage.
+- `npm run mobile:android` and `npm run mobile:bundle` successfully refresh assets and build optimized APK/AAB. APK 1.0.1+2 installed and played offline on the emulator.
+- New native screenshots: [shared title](screenshots/06-shared-title-emulator.png), [shared gameplay](screenshots/07-shared-gameplay-emulator.png).
+- APK SHA-256: `4B505E74EAA7008BF7B365FEBBE6F827E4C9DCF8B49F94BA1D4F0E00866A8800`.
+
+## Initial packaging proof: 1.0.0+1 (historical)
+
 Flutter 3.47.9, Dart 3.13.7, Android SDK 36, OpenJDK 21, API 36 x86_64 emulator `medium_phone`, 1080x2400, WHPX acceleration.
 
 Checks completed:

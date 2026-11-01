@@ -62,10 +62,20 @@ class GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
               ? NavigationDecision.navigate
               : NavigationDecision.prevent,
           onPageFinished: (_) async {
-            final ready = await controller.runJavaScriptReturningResult(
-              'Boolean(window.__tzs && window.TonezoneMobile)',
-            );
-            if (mounted) setState(() => pageReady = ready == true);
+            try {
+              await controller.runJavaScript(
+                await rootBundle.loadString('assets/native/host.js'),
+              );
+              final ready = await controller.runJavaScriptReturningResult(
+                'Boolean(window.__tzs && window.TonezoneHost)',
+              );
+              if (ready != true) {
+                throw StateError('The shared game did not initialize');
+              }
+              if (mounted) setState(() => pageReady = true);
+            } catch (error) {
+              if (mounted) setState(() => gameError = error.toString());
+            }
           },
           onWebResourceError: (error) {
             if (error.isForMainFrame == true && mounted) {
@@ -83,7 +93,7 @@ class GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (pageReady && state != AppLifecycleState.resumed) {
-      unawaited(controller.runJavaScript('window.TonezoneMobile.pause()'));
+      unawaited(controller.runJavaScript('window.TonezoneHost.pause()'));
     }
   }
 
@@ -98,7 +108,7 @@ class GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     canPop: false,
     onPopInvokedWithResult: (didPop, result) {
       if (!didPop && pageReady) {
-        unawaited(controller.runJavaScript('window.TonezoneMobile.back()'));
+        unawaited(controller.runJavaScript('window.TonezoneHost.back()'));
       }
     },
     child: Scaffold(

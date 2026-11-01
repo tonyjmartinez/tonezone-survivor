@@ -94,3 +94,5 @@ Owner: "make the game a bit more unique with a more consistent and interesting s
 - [x] Browser smoke plus actual Android WebView integration tests.
 - [x] Optimized Android APK installed and played offline on API 36 emulator; native screenshots of camp, combat and a naturally reached level-up.
 - [ ] Build and test on macOS/iPhone; configure owned IDs and production signing before store release.
+- [x] Share root index.html/src with web development; generate mobile assets automatically before builds and reject stale bundles.
+- [x] Adopt shared web touch menus/input/farming, remove duplicate mobile-only implementations, test both entry points plus actual Android runtime.
