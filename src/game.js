@@ -166,6 +166,9 @@ function damage(e, amt, kx, ky) {
 function rollChoices() {
   const pool = [];
   for (const k in WEAPONS) { const l = G.w[k] || 0; if (l < WEAPONS[k].max) pool.push({ kind: 'w', k, lvl: l + 1 }); }
+  const firstPick = G.p.lvl <= 2; // first level-up: three distinct weapons so the opening build is a real decision
+  const fresh = pool.filter(c => !G.w[c.k]);
+  if (firstPick && fresh.length >= 3) { fresh.sort(() => Math.random() - 0.5); return fresh.slice(0, 3); }
   for (const k in PASSIVES) { const l = G.pa[k] || 0; if (l < PASSIVES[k].max) pool.push({ kind: 'p', k, lvl: l + 1 }); }
   pool.sort(() => Math.random() - 0.5);
   return pool.slice(0, 3);
@@ -818,5 +821,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, buildSummary, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES };
+window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES };
 })();

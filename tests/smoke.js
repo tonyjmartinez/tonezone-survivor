@@ -182,6 +182,12 @@ try {
     return { start, swapped, after, unchanged, luck: G.rerolls };
   });
   if (rr.start !== 1 || !rr.swapped || rr.after !== 0 || !rr.unchanged || rr.luck !== 1) { console.log('reroll failed', JSON.stringify(rr)); errs.push('reroll'); }
+  // first level-up offers three distinct unowned weapons
+  const fp = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G; G.p.lvl = 2;
+    const c = t.rollChoices(); return { n: c.length, ok: c.every(x => x.kind === 'w' && !G.w[x.k]), uniq: new Set(c.map(x => x.k)).size };
+  });
+  if (fp.n !== 3 || !fp.ok || fp.uniq !== 3) { console.log('first levelup failed', JSON.stringify(fp)); errs.push('firstlevelup'); }
   // level-up cards: every weapon and passive description fits the 300px card in at most two lines at 2x
   // (a longer one would drop to the tiny 1x font)
   const cardBad = await pg.evaluate(() => {
