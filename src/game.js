@@ -153,7 +153,9 @@ function damage(e, amt, kx, ky) {
   amt *= G.p.dmgMul; e.hp -= amt; e.flash = 0.08; e.hitT = 1.5;
   if (kx !== undefined) { e.x += kx; e.y += ky; }
   else if (!e.boss) { const dx = e.x - G.p.x, dy = e.y - G.p.y, d = Math.hypot(dx, dy) || 1; e.x += dx / d * 5; e.y += dy / d * 5; } // default nudge away from the player so hits read
-  G.texts.push({ x: e.x, y: e.y - e.r, s: Math.round(amt), t: 0.5 });
+  const big = !!(e.elite || e.boss || amt >= 30); // heavy hits read larger and gold
+  G.texts.push({ x: e.x, y: e.y - e.r, s: Math.round(amt), t: big ? 0.7 : 0.5, big });
+  if (e.hp <= 0 && (e.elite || e.boss)) G.hitstop = 0.06; // tiny freeze when a big enemy dies
   if (G.parts.length < 200) for (let i = 0; i < 2; i++) G.parts.push({ x: e.x, y: e.y, vx: rnd(-80, 80), vy: rnd(-80, 80), t: 0.3, c: e.color });
   if (e.hp <= 0 && G.parts.length < 200) for (let i = 0; i < 6; i++) G.parts.push({ x: e.x, y: e.y, vx: rnd(-140, 140), vy: rnd(-140, 140), t: 0.4, c: e.color }); // kill pop
 }
@@ -707,7 +709,7 @@ function render() {
   for (const f of G.mineFx) { ctx.fillStyle = 'rgba(245,158,11,' + (f.t / f.max * 0.6) + ')'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 - f.t / f.max * 0.4), 0, 7); ctx.fill(); }
   if (G.novaRing) { ctx.strokeStyle = 'rgba(125,211,252,' + (G.novaRing.t / 0.3) + ')'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(p.x, p.y, G.novaRing.r, 0, 7); ctx.stroke(); }
   drawPlayer(p);
-  for (const t of G.texts) text(t.s, t.x, t.y, 12, '#fff');
+  for (const t of G.texts) text(t.s, t.x, t.y, t.big ? 18 : 12, t.big ? '#fde047' : '#fff');
   ctx.restore();
 
   if (G.freeze > 0) { ctx.fillStyle = 'rgba(125,211,252,' + Math.min(0.18, G.freeze * 0.1) + ')'; ctx.fillRect(0, 0, W, H); }
@@ -787,7 +789,7 @@ const SHEET = /[?&]sprites=1/.test(location.search); // sprite-sheet review page
 function frame(now) {
   if (SHEET) { SPR.drawSheet(ctx, W, H, now / 1000); requestAnimationFrame(frame); return; }
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  if (state === 'play') update(dt);
+  if (state === 'play') { if (G.hitstop > 0) G.hitstop -= dt; else update(dt); }
   render();
   requestAnimationFrame(frame);
 }

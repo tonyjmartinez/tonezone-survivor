@@ -205,6 +205,16 @@ try {
     return { stored, newBest: t.G.newBest };
   });
   if (!bbm.stored || bbm.newBest) { console.log('best build failed', JSON.stringify(bbm)); errs.push('bestbuild'); }
+  // hit feedback 2: heavy hits (elite/boss/30+) get big gold numbers; killing an elite sets a hit-stop
+  const hf2 = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.texts.length = 0; G.hitstop = 0;
+    const mk = (o) => Object.assign({ x: G.p.x + 100, y: G.p.y, r: 12, hp: 100, maxHp: 100, speed: 0, dmg: 5, xp: 1, color: '#fff', flash: 0, kind: 'ghoul' }, o);
+    t.damage(mk({}), 1); const small = G.texts[G.texts.length - 1].big;
+    t.damage(mk({}), 40); const heavy = G.texts[G.texts.length - 1].big;
+    t.damage(mk({ elite: true, hp: 1 }), 5);
+    return { small, heavy, stop: G.hitstop };
+  });
+  if (hf2.small || !hf2.heavy || !(hf2.stop > 0)) { console.log('hit feedback 2 failed', JSON.stringify(hf2)); errs.push('hitfx2'); }
   // sprite-sheet review page renders without errors
   const sheetErrs = [];
   const sp = await b.newPage({ viewport: { width: 390, height: 844 } });
