@@ -63,7 +63,7 @@ Vision: a stranger plays on a phone for ten minutes and wants to replay. Game fe
 - [x] (feel) Hit feedback pass 2: tiny hit-stop on kills, and damage numbers coloured/larger for crits and elites.
 - [ ] (feel) Level-up moment: short freeze + screen flash + chime, cards slide in, XP bar pulse before the screen opens.
 - [x] (feel) Difficulty curve pass 1: 5:00 spawn spike (x1.6 for 30s, 'THE SURGE!' banner) then a relief window (x0.6 for 60s).
-- [ ] (feel) Difficulty curve pass 2: a new enemy type at the 5:00 spike, and a boss climax near 10:00 (bigger final boss with telegraphed attacks) before the win.
+- [x] (feel) Difficulty curve pass 2: wraith (blinks) unlocks at 5:00; titan climax boss at 9:00 with telegraphed ground slam.
 - [ ] (feel) Meaningful build choice: every run offers a decision (weapon evolutions or branching passives; first level-up offers 3 distinct weapons), shown on the end screen as the build summary.
 - [ ] (feel) Phone ergonomics: touch joystick dead-zone and size, dash button target >= 48px, nothing important under thumbs.
 - [ ] (feel) Death and restart: quick restart (one tap), run stats, "best build" memory so a replay feels motivated.

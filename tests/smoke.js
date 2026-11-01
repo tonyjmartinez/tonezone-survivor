@@ -223,6 +223,18 @@ try {
     return { before, spike, relief, later, banner: G.bannerText };
   });
   if (!(pc.spike > pc.before * 1.4) || !(pc.relief < pc.before) || !(pc.later > pc.relief) || pc.banner !== 'THE SURGE!') { console.log('pacing failed', JSON.stringify(pc)); errs.push('pacing'); }
+  // difficulty pass 2: wraith unlocks at 5:00; titan climax boss at 9:00 telegraphs a slam, then hits
+  const cl = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G; G.p.hp = G.p.maxHp = 1e9;
+    G.t = 299; G.enemies.length = 0; for (let i = 0; i < 300; i++) t.spawnEnemy(false); const early = G.enemies.some(e => e.kind === 'wraith');
+    G.t = 301; G.enemies.length = 0; for (let i = 0; i < 400; i++) t.spawnEnemy(false); const late = G.enemies.some(e => e.kind === 'wraith');
+    t.start(); const H = t.G; H.p.hp = H.p.maxHp = 1e9; H.t = 539.99; H.nextBoss = 1e9; H.enemies.length = 0; t.update(0.02);
+    const ti = H.enemies.find(e => e.titan); if (!ti) return { early, late, titan: false };
+    ti.x = H.p.x + 2000; ti.y = H.p.y; ti.st = 0; t.update(0.02); const warned = !!ti.slam; t.render();
+    ti.slam.t = 0.01; ti.slam.x = H.p.x; ti.slam.y = H.p.y; H.p.hurt = 0; const hp0 = H.p.hp; t.update(0.05);
+    return { early, late, titan: true, warned, hit: H.p.hp < hp0, cleared: !ti.slam };
+  });
+  if (cl.early || !cl.late || !cl.titan || !cl.warned || !cl.hit || !cl.cleared) { console.log('climax failed', JSON.stringify(cl)); errs.push('climax'); }
   // sprite-sheet review page renders without errors
   const sheetErrs = [];
   const sp = await b.newPage({ viewport: { width: 390, height: 844 } });

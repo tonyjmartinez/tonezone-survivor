@@ -51,9 +51,11 @@ const ENEMY_TYPES = [
   { name: 'bloat', hp: 40,  speed: 50,  r: 14, dmg: 10, xp: 3, color: '#bef264', from: 180, split: 3 }, // bursts into mini bloats
   { name: 'dasher', hp: 30, speed: 60,  r: 10, dmg: 12, xp: 4, color: '#f472b6', from: 200, lunges: true }, // periodic 3.5x speed lunge
   { name: 'troll', hp: 70, speed: 50,  r: 15, dmg: 14, xp: 6, color: '#65a30d', from: 270, regen: true }, // heals 8% max HP/s unless hit in the last 1.5s
+  { name: 'wraith', hp: 60, speed: 80, r: 11, dmg: 14, xp: 7, color: '#c4b5fd', from: 300, spr: 'bat', blinks: true }, // 5:00 spike enemy: blinks 100px toward the player every 4s
   { name: 'golem', hp: 220, speed: 35,  r: 22, dmg: 22, xp: 15, color: '#94a3b8', from: 240 },
 ];
 const BOSS_EVERY = 120; // seconds
+const CLIMAX_AT = 540, SLAM_EVERY = 5, SLAM_WARN = 1, SLAM_R = 130; // 9:00 titan boss; telegraphed ground slam
 const WIN_TIME = 600; // survive this long to win (10:00)
 const HORDE_EVERY = 75; // seconds; ring of enemies closes in on the player
 const ELITE_FROM = 180, ELITE_CHANCE = 0.04; // from 3:00, a normal spawn may be an elite
@@ -205,8 +207,14 @@ function spawnEnemy(boss) {
   const a = rnd(0, Math.PI * 2), d = Math.hypot(W, H) / 2 + 40;
   const hpScale = 1 + G.t / 90;
   const n = base.pack || 1;
-  for (let i = 0; i < n; i++) G.enemies.push({ x: G.p.x + Math.cos(a) * d + (i ? rnd(-30, 30) : 0), y: G.p.y + Math.sin(a) * d + (i ? rnd(-30, 30) : 0), r: base.r, hp: base.hp * hpScale * (boss ? 1 + G.t / 240 : 1), speed: base.speed * (1 + Math.min(G.t / 600, 0.6)), dmg: base.dmg, xp: base.xp, color: base.color, flash: 0, boss, kind: base.name, maxHp: base.hp * hpScale * (boss ? 1 + G.t / 240 : 1) });
+  for (let i = 0; i < n; i++) G.enemies.push({ x: G.p.x + Math.cos(a) * d + (i ? rnd(-30, 30) : 0), y: G.p.y + Math.sin(a) * d + (i ? rnd(-30, 30) : 0), r: base.r, hp: base.hp * hpScale * (boss ? 1 + G.t / 240 : 1), speed: base.speed * (1 + Math.min(G.t / 600, 0.6)), dmg: base.dmg, xp: base.xp, color: base.color, flash: 0, boss, kind: base.name, spr: base.spr, maxHp: base.hp * hpScale * (boss ? 1 + G.t / 240 : 1) });
   if (!boss && n === 1 && G.t >= ELITE_FROM && Math.random() < ELITE_CHANCE) makeElite(G.enemies[G.enemies.length - 1]);
+}
+// Climax: a huge titan boss that periodically telegraphs a ground slam (ring fills for SLAM_WARN s, then hits anything inside).
+function spawnTitan() {
+  const a = rnd(0, Math.PI * 2), d = Math.hypot(W, H) / 2 + 80, hp = 2500 + G.t * 4;
+  G.enemies.push({ x: G.p.x + Math.cos(a) * d, y: G.p.y + Math.sin(a) * d, r: 52, hp, maxHp: hp, speed: 38, dmg: 30, xp: 120, color: '#f97316', flash: 0, boss: true, titan: true, kind: 'boss', sc: 3, st: SLAM_EVERY });
+  G.hordeBanner = 3; G.bannerText = 'THE TITAN AWAKENS!'; G.shake = Math.max(G.shake, 0.5); sfx(80, 0.5, 'sawtooth', 0.08);
 }
 // Elite: 2.5x HP, bigger, gold ring; always drops a heart, 20% a chest.
 function makeElite(e) { e.elite = true; e.hp *= 2.5; e.maxHp *= 2.5; e.r = Math.round(e.r * 1.3); e.xp *= 3; e.dmg = Math.round(e.dmg * 1.25); return e; }
@@ -267,6 +275,7 @@ function update(dt) {
   updateLane(dt);
   if (!G.surged && G.t >= SURGE_AT) { G.surged = true; G.hordeBanner = 2.5; G.bannerText = 'THE SURGE!'; G.shake = Math.max(G.shake, 0.4); }
   G.hordeBanner = Math.max(0, G.hordeBanner - dt);
+  if (!G.titan && G.t >= CLIMAX_AT) { G.titan = true; spawnTitan(); }
   if (G.t >= G.nextBoss) { G.nextBoss += BOSS_EVERY; spawnEnemy(true); }
 
   // weapons
@@ -427,6 +436,12 @@ function update(dt) {
     let lm = 1;
     if (e.kind === 'troll') { e.hitT = (e.hitT || 0) - dt; if (e.hitT <= 0 && e.hp < e.maxHp) e.hp = Math.min(e.maxHp, e.hp + e.maxHp * 0.08 * dt); }
     if (e.kind === 'dasher') { e.ct = (e.ct === undefined ? rnd(1, 3) : e.ct) - dt; if (e.ct <= 0) { e.ct = 3; e.lunge = 0.5; } if (e.lunge > 0) { e.lunge -= dt; lm = 3.5; } }
+    if (e.kind === 'wraith') { e.bt = (e.bt === undefined ? rnd(1, 4) : e.bt) - dt; if (e.bt <= 0) { e.bt = 4; e.x += Math.cos(a) * 100; e.y += Math.sin(a) * 100; e.flash = 0.15; } }
+    if (e.titan) {
+      e.st -= dt;
+      if (e.st <= 0 && !e.slam) { e.slam = { x: p.x, y: p.y, t: SLAM_WARN }; e.st = SLAM_EVERY; }
+      if (e.slam) { e.slam.t -= dt; lm = 0.3; if (e.slam.t <= 0) { if (p.hurt <= 0 && dist2(p, e.slam) < (SLAM_R + p.r) ** 2) { p.hp -= Math.max(1, 35 - (p.armor || 0)); p.hurt = 0.6; } G.shake = Math.max(G.shake, 0.5); sfx(70, 0.3, 'sawtooth', 0.08); e.slam = null; } }
+    }
     if (e.lane) { e.x += e.lane.x * e.speed * sp * dt; e.y += e.lane.y * e.speed * sp * dt; }
     else { e.x += Math.cos(a) * e.speed * sp * lm * dt; e.y += Math.sin(a) * e.speed * sp * lm * dt; }
     e.flash = Math.max(0, e.flash - dt);
@@ -573,11 +588,11 @@ function drawPlayer(p) {
 }
 const ENEMY_SPR = {};
 function drawEnemy(e) {
-  const S = window.TZS_SPRITES, base = S && S.baked[e.kind];
+  const S = window.TZS_SPRITES, kk = e.spr || e.kind, base = S && S.baked[kk];
   if (!base) return;
-  const spr = ENEMY_SPR[e.kind + e.color] || (ENEMY_SPR[e.kind + e.color] = S.variant(e.kind, e.color));
+  const spr = ENEMY_SPR[kk + e.color] || (ENEMY_SPR[kk + e.color] = S.variant(kk, e.color));
   const f = Math.floor(G.t * (e.kind === 'bat' || e.kind === 'wisp' ? 12 : 7) + e.x * 0.07);
-  const k = e.boss ? 2 : e.elite ? (e.r <= 19 ? 3 : 4) : e.r <= 15 ? 2 : 3;
+  const k = e.sc || (e.boss ? 2 : e.elite ? (e.r <= 19 ? 3 : 4) : e.r <= 15 ? 2 : 3);
   if (e.elite) { ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); ctx.lineDashOffset = -G.t * 20; ctx.beginPath(); ctx.arc(e.x, e.y, k * 8 + 4, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
   S.drawSprite(ctx, spr, 'walk', f, e.x, e.y, k, { flash: e.flash > 0 });
 }
@@ -689,6 +704,7 @@ function render() {
   for (const c of G.chests) drawChest(c);
   for (const e of G.enemies) {
     if (!e.boss && !(e.x > vx0 && e.x < vx1 && e.y > vy0 && e.y < vy1)) continue; // view cull (bosses keep drawing for the HP bar)
+    if (e.slam) { const f = 1 - Math.max(0, e.slam.t) / SLAM_WARN; ctx.fillStyle = 'rgba(239,68,68,' + (0.15 + 0.25 * f) + ')'; ctx.beginPath(); ctx.arc(e.slam.x, e.slam.y, SLAM_R, 0, 7); ctx.fill(); ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.slam.x, e.slam.y, SLAM_R * f, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(e.slam.x, e.slam.y, SLAM_R, 0, 7); ctx.stroke(); }
     drawEnemy(e);
     if (e.boss) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 3, 0, 7); ctx.stroke();
       const bw = e.r * 2.4, f = Math.max(0, e.hp / e.maxHp); ctx.fillStyle = '#000a'; ctx.fillRect(e.x - bw / 2, e.y - e.r - 14, bw, 6); ctx.fillStyle = '#ef4444'; ctx.fillRect(e.x - bw / 2, e.y - e.r - 14, bw * f, 6); }
