@@ -1,6 +1,6 @@
 # Tone Zone Survivors: art direction
 
-Goal: read as one game, not a pile of random shapes. Dark-fantasy woodland arena at night, navy and moss ground, warm gold and cyan magic. No third-party or copyrighted art: every sprite is hand-authored in this repo. No new dependencies.
+Goal: read as one game, not a pile of random shapes. Spooky graveyard at night (owner direction 2026-11-01): violet-navy ground, headstones, dead trees and glowing jack-o'-lanterns under faint drifting fog and a moonlit vignette; warm gold and cyan magic. Keep fog faint (enemies must stay readable). No third-party or copyrighted art: every sprite is hand-authored in this repo. No new dependencies.
 
 ## Approach: pixel sprites (replaces ad-hoc canvas paths)
 
