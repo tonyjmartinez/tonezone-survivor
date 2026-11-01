@@ -51,6 +51,9 @@ try {
     const t = window.__tzs; t.start(); const x0 = t.G.p.x; t.press('shift'); t.update(0.05); t.render();
     return { dx: t.G.p.x - x0, cd: t.G.p.dashCd };
   });
+  const dbtn = await pg.evaluate(() => { const t = window.__tzs; t.touchUi = true; t.start(); t.render(); const b = t.dashBtn(); return { d: b.r * 2, hit: t.hitDash(b.x, b.y), W: innerWidth, bx: b.x, by: b.y, H: innerHeight }; });
+  if (dbtn.d < 48 || !dbtn.hit || dbtn.bx > dbtn.W || dbtn.by > dbtn.H) { console.log('dash button failed', JSON.stringify(dbtn)); errs.push('dashbtn'); }
+  await pg.evaluate(() => { window.__tzs.touchUi = false; });
   if (dash.dx < 20 || dash.cd <= 0) { console.log('dash failed', JSON.stringify(dash)); errs.push('dash'); }
   const sum = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); t.G.w.bolt = 8; t.G.pa.haste = 2; return t.buildSummary();

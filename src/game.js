@@ -12,7 +12,11 @@ const keys = {};
 addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; onKey(e.key.toLowerCase()); });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 let touch = null; // {sx,sy,x,y}
-cv.addEventListener('pointerdown', e => { touch = { sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY }; if (state !== 'play') onKey('tap', e); });
+// On-screen dash button (touch has no Shift/Space): 64px circle bottom-right, 48px+ hit target.
+let touchUi = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+function dashBtn() { return { x: W - 52, y: H - 60, r: 32 }; }
+function hitDash(px, py) { const b = dashBtn(); return Math.hypot(px - b.x, py - b.y) <= b.r + 8; }
+cv.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') touchUi = true; if (state === 'play' && touchUi && hitDash(e.clientX, e.clientY)) { onKey('shift'); return; } touch = { sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY }; if (state !== 'play') onKey('tap', e); });
 cv.addEventListener('pointermove', e => { if (touch) { touch.x = e.clientX; touch.y = e.clientY; } });
 addEventListener('pointerup', () => { touch = null; });
 
@@ -753,6 +757,12 @@ function render() {
   text('Kills ' + G.kills, W - 16, 40, 16, '#fff', 'right');
   const dashTxt = p.dashCd > 0 ? 'Dash ' + p.dashCd.toFixed(1) : (narrow ? 'Dash READY' : 'Dash READY (Shift/Space)');
   text(dashTxt, W - 16, 58, 12, p.dashCd > 0 ? '#94a3b8' : '#6ee7b7', 'right');
+  if (touchUi) {
+    const b = dashBtn(), rdy = p.dashCd <= 0;
+    ctx.fillStyle = rdy ? 'rgba(16,185,129,0.55)' : 'rgba(30,41,59,0.6)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
+    ctx.strokeStyle = rdy ? '#6ee7b7' : '#64748b'; ctx.lineWidth = 2; ctx.stroke();
+    text(rdy ? 'DASH' : p.dashCd.toFixed(1), b.x, b.y + 4, 12, '#fff', 'center');
+  }
   let y = 56; ctx.textAlign = 'left';
   for (const k in G.w) { text(`${WEAPONS[k].name} ${G.w[k] >= EVO_LVL ? 'EVO' : G.w[k]}`, 16, y, 12, '#fde047', 'left'); y += 14; }
   for (const k in G.pa) { text(`${PASSIVES[k].name} ${G.pa[k]}`, 16, y, 12, '#a7f3d0', 'left'); y += 14; }
@@ -821,5 +831,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES };
+window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, dashBtn, hitDash, set touchUi(v) { touchUi = v; }, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES };
 })();
