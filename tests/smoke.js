@@ -53,6 +53,20 @@ try {
   });
   const dbtn = await pg.evaluate(() => { const t = window.__tzs; t.touchUi = true; t.start(); t.render(); const b = t.dashBtn(); return { d: b.r * 2, hit: t.hitDash(b.x, b.y), W: innerWidth, bx: b.x, by: b.y, H: innerHeight }; });
   if (dbtn.d < 48 || !dbtn.hit || dbtn.bx > dbtn.W || dbtn.by > dbtn.H) { console.log('dash button failed', JSON.stringify(dbtn)); errs.push('dashbtn'); }
+  // two-finger dash: stick finger holds LEFT, second finger taps (and jitters on) DASH; dash must go left and the stick must survive
+  const dl = await pg.evaluate(() => {
+    const t = window.__tzs, cv = document.getElementById('c'); t.touchUi = true; t.start(); const G = t.G; G.enemies.length = 0; G.spawnAcc = -1e9;
+    const ev = (type, id, x, y) => cv.dispatchEvent(new PointerEvent(type, { pointerId: id, clientX: x, clientY: y, pointerType: 'touch', bubbles: true }));
+    const b = t.dashBtn();
+    ev('pointerdown', 1, 200, 300); ev('pointermove', 1, 140, 300); t.update(0.05);
+    const x0 = G.p.x; ev('pointerdown', 2, b.x, b.y); ev('pointermove', 2, b.x + 3, b.y + 2); t.update(0.05);
+    const dashX = G.p.x - x0; ev('pointerup', 2, b.x, b.y); for (let i = 0; i < 5; i++) t.update(0.05);
+    const stillLeft = G.p.x - x0 < dashX; ev('pointerup', 1, 140, 300);
+    // keyboard: hold left, press Space
+    t.start(); t.keys['a'] = true; const k0 = t.G.p.x; t.press(' '); t.update(0.05); const keyX = t.G.p.x - k0; t.keys['a'] = false;
+    t.touchUi = false; return { dashX, stillLeft, keyX };
+  });
+  if (!(dl.dashX < -20) || !dl.stillLeft || !(dl.keyX < -20)) { console.log('dash direction failed', JSON.stringify(dl)); errs.push('dashdir'); }
   await pg.evaluate(() => { window.__tzs.touchUi = false; });
   if (dash.dx < 20 || dash.cd <= 0) { console.log('dash failed', JSON.stringify(dash)); errs.push('dash'); }
   const sum = await pg.evaluate(() => {
