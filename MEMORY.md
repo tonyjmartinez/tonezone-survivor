@@ -57,6 +57,7 @@
 - 2026-10-31 Claude Code: Characters Pyro (Mines, 0.9 speed) and Storm (Lightning; `p.zapSplash` 40px: each strike hits foes within 40px for half damage). Named 'Storm' not 'Stormcaller' and desc kept short so the title line stays at 2x on 390px. Smoke cycles all 6 characters and checks the splash.
 - 2026-10-31 Claude Code: level-up card descriptions wrap to two lines at 2x (`wrapLines`) instead of dropping to the tiny 1x font; smoke asserts every description fits. Local smoke recipe without system Chromium libs: `apt-get download libnspr4 libnss3 libasound2t64`, `dpkg-deb -x` them into a dir and set LD_LIBRARY_PATH to its usr/lib/x86_64-linux-gnu.
 ## Next steps
+- Mobile port: see `mobile/README.md`; source snapshot pinned to `1a6b3f5`. Build/test iOS on a Mac before claiming iPhone support is verified. Future engine refreshes must preserve the adapter API and re-run both smoke tests and Android integration tests.
 - Pixel overhaul next: enemy sprites (docs/ART.md slice 2).
 - Check `origin/main` before starting (parallel session branches exist). use hash for weapon queries (low value), more weapons/enemy variety, sprite polish for projectiles, real playtest balance (5+ min). See ROADMAP "Next".
 
@@ -66,3 +67,5 @@
 
 - 2026-11-02 (L33): on-screen 64px DASH button for touch (bottom-right, touchUi flag; touch had no dash before). Joystick unchanged (8px dead-zone, 60px radius). Next: one-tap restart, pixel portraits.
 - 2026-11-01: end screen restarts straight into a new run (Space/Enter/tap); Esc/M or tapping bottom 12% returns to the title/shop. Next: pixel portraits, best-build memory.
+
+- 2026-11-01 (codex-flutter, Tony request): isolated branch `codex/flutter-mobile` adds `mobile/`, an offline Flutter WebView packaging port of committed `1a6b3f5`, with touch menus and lifecycle pause. Original `src/` is unchanged. Analysis, unit test, existing game smoke, new mobile smoke and actual emulator integration test passed. Optimized Android APK installed and manually played with network off on API 36 (1080x2400); combat and level-up screenshots in mobile/docs/screenshots. iOS scaffold only, not built/tested. Concurrent #101/#102 work is not included. No factory budget/loops/shared checkout changes.

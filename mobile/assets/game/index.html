@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'">
+<title>Tone Zone Survivors</title><link rel="stylesheet" href="mobile.css"><script src="errors.js"></script></head>
+<body>
+<canvas id="c" aria-label="Survival arena"></canvas>
+<main id="title" class="screen">
+  <header><span class="sigil">✦</span><span>TONEZONE / POCKET ARCADE</span><span class="edition">01</span></header>
+  <div class="intro"><p class="eyebrow">THE WOODS ARE WAKING UP</p><h1>TONE ZONE<br><span>SURVIVORS</span></h1><p class="tagline">Ten minutes. One survivor.</p></div>
+  <section class="character-panel" aria-label="Choose your survivor">
+    <div class="section-label"><span>CHOOSE YOUR SURVIVOR</span><span id="character-count">01 / 06</span></div>
+    <div class="character"><button id="previous" class="arrow" aria-label="Previous survivor">‹</button><div class="portrait"><canvas id="portrait" width="128" height="128"></canvas></div><button id="next" class="arrow" aria-label="Next survivor">›</button></div>
+    <h2 id="character-name">Mage</h2><p id="character-desc">Magic Bolt · Balanced</p><div id="character-dots" aria-hidden="true"></div>
+  </section>
+  <button id="start" class="primary">ENTER THE WOODS <span>↗</span></button>
+  <div class="settings"><button id="mode">NORMAL MODE</button><button id="sound">SOUND ON</button></div>
+  <details id="camp"><summary><span>CAMP UPGRADES</span><span id="gold">0 GOLD</span></summary><div class="shop"><button data-upgrade="1">Toughness</button><button data-upgrade="2">Power</button><button data-upgrade="3">Fleetfoot</button></div></details>
+  <footer><span>DRAG TO MOVE</span><i>·</i><span>AUTO-FIRE</span><i>·</i><span>TAP TO DASH</span></footer><p class="best" id="best">OFFLINE · NO ADS · JUST SURVIVE</p>
+</main>
+<button id="pause" class="pause-button" aria-label="Pause game">Ⅱ</button>
+<section id="paused" class="screen pause-screen" hidden><p class="eyebrow">TAKE A BREATH</p><h1>PAUSED</h1><p>The woods can wait.</p><button id="resume" class="primary">KEEP GOING <span>↗</span></button><button id="menu" class="secondary">BACK TO CAMP</button></section>
+<script src="src/sprites.js"></script><script src="src/game.js"></script><script src="mobile.js"></script>
+</body></html>

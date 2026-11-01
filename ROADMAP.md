@@ -72,3 +72,10 @@ Vision: a stranger plays on a phone for ten minutes and wants to replay. Game fe
 - Real 5+ minute human playtest for balance numbers (needs a person playing on a phone/desktop; bot results only approximate).
 - Any music/audio assets or licensed art: need files and licence confirmation from Tony.
 - Public hosting/analytics or leaderboard: needs a decision and credentials.
+
+## Flutter mobile packaging port (codex-flutter, 2026-11-01)
+- [x] Isolated Android/iOS Flutter host with the committed canvas engine bundled offline.
+- [x] Touch camp menu, character/shop/difficulty controls, pause and lifecycle handling.
+- [x] Browser smoke plus actual Android WebView integration tests.
+- [x] Optimized Android APK installed and played offline on API 36 emulator; native screenshots of camp, combat and a naturally reached level-up.
+- [ ] Build and test on macOS/iPhone; configure owned IDs and production signing before store release.
