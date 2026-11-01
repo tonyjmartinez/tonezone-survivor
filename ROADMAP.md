@@ -66,7 +66,7 @@ Vision: a stranger plays on a phone for ten minutes and wants to replay. Game fe
 - [x] (feel) Difficulty curve pass 2: wraith (blinks) unlocks at 5:00; titan climax boss at 9:00 with telegraphed ground slam.
 - [ ] (feel) Meaningful build choice: every run offers a decision (weapon evolutions or branching passives; first level-up offers 3 distinct weapons), shown on the end screen as the build summary.
 - [ ] (feel) Phone ergonomics: touch joystick dead-zone and size, dash button target >= 48px, nothing important under thumbs.
-- [ ] (feel) Death and restart: quick restart (one tap), run stats, "best build" memory so a replay feels motivated.
+- [ ] (feel) Death and restart: quick restart (one tap), run stats (bosses/elites/hurt line done), "best build" memory so a replay feels motivated.
 
 ### Blocked on Tony
 - Real 5+ minute human playtest for balance numbers (needs a person playing on a phone/desktop; bot results only approximate).

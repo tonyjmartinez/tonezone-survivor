@@ -56,6 +56,8 @@ try {
     const t = window.__tzs; t.start(); t.G.w.bolt = 8; t.G.pa.haste = 2; return t.buildSummary();
   });
   if (!/\(EVO\)/.test(sum.wl) || !/ 2$/.test(sum.pl)) { console.log('summary failed', JSON.stringify(sum)); errs.push('summary'); }
+  const rs = await pg.evaluate(() => { const t = window.__tzs; t.start(); t.G.bosses = 2; t.G.elites = 3; t.G.taken = 41; t.state = 'dead'; t.G.gold = 0; t.render(); return t.G.bosses; });
+  if (rs !== 2) { console.log('run stats failed'); errs.push('runstats'); }
   const dsh = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.t = 250;
     const e = { x: G.p.x + 600, y: G.p.y, r: 10, hp: 30, maxHp: 30, speed: 60, dmg: 12, xp: 4, color: '#f472b6', flash: 0, kind: 'dasher', ct: 0.01 };
