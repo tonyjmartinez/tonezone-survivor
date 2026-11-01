@@ -59,3 +59,5 @@
 ## Next steps
 - Pixel overhaul next: enemy sprites (docs/ART.md slice 2).
 - Check `origin/main` before starting (parallel session branches exist). use hash for weapon queries (low value), more weapons/enemy variety, sprite polish for projectiles, real playtest balance (5+ min). See ROADMAP "Next".
+
+- 2026-11-01 (L33): difficulty pass 2: wraith (blinks, bat sprite tinted via e.spr) unlocks 5:00; titan climax boss at 9:00 (CLIMAX_AT) with telegraphed ground slam. Next: build choice/evolutions item.
