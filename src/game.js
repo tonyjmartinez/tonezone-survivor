@@ -56,6 +56,7 @@ const ENEMY_TYPES = [
 const BOSS_EVERY = 120; // seconds
 const WIN_TIME = 600; // survive this long to win (10:00)
 const HORDE_EVERY = 75; // seconds; ring of enemies closes in on the player
+const ELITE_FROM = 180, ELITE_CHANCE = 0.04; // from 3:00, a normal spawn may be an elite
 
 // ---------- state ----------
 let state = 'title'; // title | play | levelup | dead | pause
@@ -186,7 +187,10 @@ function spawnEnemy(boss) {
   const hpScale = 1 + G.t / 90;
   const n = base.pack || 1;
   for (let i = 0; i < n; i++) G.enemies.push({ x: G.p.x + Math.cos(a) * d + (i ? rnd(-30, 30) : 0), y: G.p.y + Math.sin(a) * d + (i ? rnd(-30, 30) : 0), r: base.r, hp: base.hp * hpScale * (boss ? 1 + G.t / 240 : 1), speed: base.speed * (1 + Math.min(G.t / 600, 0.6)), dmg: base.dmg, xp: base.xp, color: base.color, flash: 0, boss, kind: base.name, maxHp: base.hp * hpScale * (boss ? 1 + G.t / 240 : 1) });
+  if (!boss && n === 1 && G.t >= ELITE_FROM && Math.random() < ELITE_CHANCE) makeElite(G.enemies[G.enemies.length - 1]);
 }
+// Elite: 2.5x HP, bigger, gold ring; always drops a heart, 20% a chest.
+function makeElite(e) { e.elite = true; e.hp *= 2.5; e.maxHp *= 2.5; e.r = Math.round(e.r * 1.3); e.xp *= 3; e.dmg = Math.round(e.dmg * 1.25); return e; }
 
 function spawnHorde() {
   const types = ENEMY_TYPES.filter(t => G.t >= t.from && !t.pack), base = types[types.length - 1 - ((Math.random() * Math.min(2, types.length)) | 0)];
@@ -399,11 +403,11 @@ function update(dt) {
     if (e.kind === 'bloat') for (let k = 0; k < 3; k++) G.enemies.push({ x: e.x + rnd(-14, 14), y: e.y + rnd(-14, 14), r: 7, hp: e.maxHp * 0.15, maxHp: e.maxHp * 0.15, speed: e.speed * 1.8, dmg: 4, xp: 1, color: e.color, flash: 0, kind: 'minibloat' });
     G.kills++; sfx(260 + Math.random() * 80, 0.06);
     G.gems.push({ x: e.x, y: e.y, v: e.xp, big: e.boss });
-    if (e.boss || Math.random() < 0.025 * (G.p.luck || 1)) G.hearts.push({ x: e.x + 8, y: e.y, heal: e.boss ? 60 : 20 });
+    if (e.boss || e.elite || Math.random() < 0.025 * (G.p.luck || 1)) G.hearts.push({ x: e.x + 8, y: e.y, heal: e.boss ? 60 : e.elite ? 30 : 20 });
     if (Math.random() < 0.006 * (G.p.luck || 1)) G.vacs.push({ x: e.x - 8, y: e.y });
     if (Math.random() < 0.004 * (G.p.luck || 1)) G.ices.push({ x: e.x, y: e.y + 8 });
     if (Math.random() < 0.004 * (G.p.luck || 1)) G.bombs.push({ x: e.x + 8, y: e.y - 8 });
-    if (e.boss) G.chests.push({ x: e.x - 12, y: e.y });
+    if (e.boss || (e.elite && Math.random() < 0.2)) G.chests.push({ x: e.x - 12, y: e.y });
     if (e.boss) for (let k = 0; k < 8; k++) G.gems.push({ x: e.x + rnd(-30, 30), y: e.y + rnd(-30, 30), v: 5 });
   }
   G.enemies = G.enemies.filter(e => e.hp > 0);
@@ -518,7 +522,9 @@ function drawEnemy(e) {
   if (!base) return;
   const spr = ENEMY_SPR[e.kind + e.color] || (ENEMY_SPR[e.kind + e.color] = S.variant(e.kind, e.color));
   const f = Math.floor(G.t * (e.kind === 'bat' || e.kind === 'wisp' ? 12 : 7) + e.x * 0.07);
-  S.drawSprite(ctx, spr, 'walk', f, e.x, e.y, e.boss ? 2 : e.r <= 15 ? 2 : 3, { flash: e.flash > 0 });
+  const k = e.boss ? 2 : e.elite ? (e.r <= 19 ? 3 : 4) : e.r <= 15 ? 2 : 3;
+  if (e.elite) { ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); ctx.lineDashOffset = -G.t * 20; ctx.beginPath(); ctx.arc(e.x, e.y, k * 8 + 4, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+  S.drawSprite(ctx, spr, 'walk', f, e.x, e.y, k, { flash: e.flash > 0 });
 }
 function circle(x, y, r, color) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); }
 
@@ -716,5 +722,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, buildSummary };
+window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, buildSummary, makeElite, spawnEnemy };
 })();

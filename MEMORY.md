@@ -50,6 +50,7 @@
 - 2026-10-25 pd loop: Added Mines weapon (`G.mines`; drops mines that blast foes, evolves with Luck). Smoke covers it.
 - 2026-10-26 pd loop: Added Troll enemy (from 4:30; regenerates 8% max HP/s unless hit in last 1.5s). Smoke covers it.
 - 2026-10-30 pd L18: Pixel sprite pipeline: `src/sprites.js` (palette grids, baked outline/flip/flash, `drawSprite`, `?sprites=1` sheet). Player ported to a 16x16 sprite. Smoke asserts sprite sizes/frames. See docs/ART.md.
+- 2026-10-31 Claude Code: Elite enemies (`makeElite`, `ELITE_FROM` 180s, `ELITE_CHANCE` 4% of single spawns): 2.5x HP, r x1.3, one sprite scale up, 3x XP, dashed gold ring; always drop a 30-heal heart, 20% a chest. Smoke covers stats, drop, spawn gate. Bot 154-261s.
 ## Next steps
 - Pixel overhaul next: enemy sprites (docs/ART.md slice 2).
 - Check `origin/main` before starting (parallel session branches exist). use hash for weapon queries (low value), more weapons/enemy variety, sprite polish for projectiles, real playtest balance (5+ min). See ROADMAP "Next".
