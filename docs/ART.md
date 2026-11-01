@@ -100,4 +100,16 @@ Earlier canvas-path slices (#55 floor, #58 HUD plates, #59 end panel) stay until
 7. HUD, level-up cards and menus with a pixel font from our own glyph grid.
 8. Crowded-scene perf check (300+ enemies on a phone) and final screenshots.
 
+### Slice 8 results (2026-10-31, `tests/perf.js`)
+
+Headless Chromium (software rendering), 390 px viewport, all weapons at level 3, average ms per frame over 120 frames:
+
+| Enemies | CPU x1 update + render | CPU x4 update + render |
+| --- | --- | --- |
+| 100 | 0.2 + 0.9 | 0.8 + 3.6 |
+| 300 | 0.3 + 1.7 | 1.3 + 5.7 |
+| 600 | 0.9 + 2.7 | 2.4 + 12.3 |
+
+300+ enemies fit the 16.7 ms budget at 4x throttle with room to spare; 600 is near the limit. Single frames spike to about 30-38 ms at 600 enemies (likely garbage collection from per-frame allocations); worth a look if a real phone stutters in late-game hordes. Not yet checked on a real device.
+
 Each slice: one PR, before and after screenshots at 390 px and desktop (sprite sheet and gameplay), smoke test passing, no mechanics, balance or control changes.
