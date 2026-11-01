@@ -57,6 +57,7 @@ const BOSS_EVERY = 120; // seconds
 const WIN_TIME = 600; // survive this long to win (10:00)
 const HORDE_EVERY = 75; // seconds; ring of enemies closes in on the player
 const ELITE_FROM = 180, ELITE_CHANCE = 0.04; // from 3:00, a normal spawn may be an elite
+const LANE_WARN = 1.5, LANE_TIME = 3, LANE_RATE = 12, LANE_SPEED = 240, LANE_HALF = 70; // swarm lane: every other event
 
 // ---------- state ----------
 let state = 'title'; // title | play | levelup | dead | pause
@@ -94,7 +95,7 @@ function pickChar(d) { charIdx = (charIdx + d + CHARS.length) % CHARS.length; tr
 function newGame() {
   const mu = loadMeta(), ch = CHARS[charIdx];
   G = {
-    t: 0, kills: 0, spawnAcc: 0, nextBoss: BOSS_EVERY, nextHorde: HORDE_EVERY, hordeBanner: 0,
+    t: 0, kills: 0, spawnAcc: 0, nextBoss: BOSS_EVERY, nextHorde: HORDE_EVERY, hordeBanner: 0, bannerText: '', events: 0, lane: null,
     cam: { x: 0, y: 0 },
     p: { x: 0, y: 0, r: 10, hp: 120 + ch.hp + 10 * (mu.hp || 0), maxHp: 120 + ch.hp + 10 * (mu.hp || 0), speed: 140 * ch.spd * (1 + 0.03 * (mu.spd || 0)), dmgMul: ch.dmg * (1 + 0.05 * (mu.dmg || 0)), magnet: 60, cdMul: 1, hurt: 0, dashT: 0, dashCd: 0, face: { x: 1, y: 0 }, xp: 0, lvl: 1, need: 3 },
     w: { [ch.w]: 1 }, pa: {},
@@ -208,7 +209,27 @@ function spawnHorde() {
     const a = (i / n) * Math.PI * 2;
     G.enemies.push({ x: G.p.x + Math.cos(a) * d, y: G.p.y + Math.sin(a) * d, r: base.r, hp: base.hp * hpScale, speed: base.speed * (1 + Math.min(G.t / 600, 0.6)), dmg: base.dmg, xp: base.xp, color: base.color, flash: 0, kind: base.name });
   }
-  G.hordeBanner = 2.5; G.shake = Math.max(G.shake, 0.3);
+  G.hordeBanner = 2.5; G.bannerText = 'A HORDE APPROACHES!'; G.shake = Math.max(G.shake, 0.3);
+}
+// Swarm lane: banner + edge arrows for LANE_WARN s, then a stream of fast wisps crosses the screen in a straight band.
+const LANE_DIRS = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
+function startLane(dir) {
+  const d = dir || LANE_DIRS[(Math.random() * 4) | 0];
+  G.lane = { d, cx: G.p.x, cy: G.p.y, warn: LANE_WARN, time: LANE_TIME, acc: 0 };
+  G.hordeBanner = 2.5; G.bannerText = 'SWARM LANE!'; sfx(700, 0.25, 'square', 0.05);
+}
+function updateLane(dt) {
+  const L = G.lane; if (!L) return;
+  if (L.warn > 0) { L.warn -= dt; return; }
+  L.time -= dt; L.acc += LANE_RATE * dt;
+  const base = ENEMY_TYPES.find(t => t.name === 'wisp'), hpScale = 1 + G.t / 90, ext = (L.d.x ? W : H) / 2 + 40;
+  while (L.acc >= 1) {
+    L.acc--;
+    const off = rnd(-LANE_HALF, LANE_HALF);
+    const x = L.d.x ? G.p.x - L.d.x * ext : L.cx + off, y = L.d.y ? G.p.y - L.d.y * ext : L.cy + off;
+    G.enemies.push({ x, y, r: base.r, hp: base.hp * hpScale, maxHp: base.hp * hpScale, speed: LANE_SPEED, dmg: base.dmg, xp: base.xp, color: base.color, flash: 0, kind: 'wisp', lane: L.d });
+  }
+  if (L.time <= 0) G.lane = null;
 }
 
 // ---------- update ----------
@@ -233,7 +254,8 @@ function update(dt) {
   // spawn
   G.spawnAcc += spawnRate() * (hard ? 1.4 : 1) * dt;
   while (G.spawnAcc >= 1 && G.enemies.length < 800) { G.spawnAcc--; spawnEnemy(false); }
-  if (G.t >= G.nextHorde) { G.nextHorde += HORDE_EVERY; spawnHorde(); }
+  if (G.t >= G.nextHorde) { G.nextHorde += HORDE_EVERY; G.events++; G.events % 2 ? spawnHorde() : startLane(); }
+  updateLane(dt);
   G.hordeBanner = Math.max(0, G.hordeBanner - dt);
   if (G.t >= G.nextBoss) { G.nextBoss += BOSS_EVERY; spawnEnemy(true); }
 
@@ -394,7 +416,8 @@ function update(dt) {
     let lm = 1;
     if (e.kind === 'troll') { e.hitT = (e.hitT || 0) - dt; if (e.hitT <= 0 && e.hp < e.maxHp) e.hp = Math.min(e.maxHp, e.hp + e.maxHp * 0.08 * dt); }
     if (e.kind === 'dasher') { e.ct = (e.ct === undefined ? rnd(1, 3) : e.ct) - dt; if (e.ct <= 0) { e.ct = 3; e.lunge = 0.5; } if (e.lunge > 0) { e.lunge -= dt; lm = 3.5; } }
-    e.x += Math.cos(a) * e.speed * sp * lm * dt; e.y += Math.sin(a) * e.speed * sp * lm * dt;
+    if (e.lane) { e.x += e.lane.x * e.speed * sp * dt; e.y += e.lane.y * e.speed * sp * dt; }
+    else { e.x += Math.cos(a) * e.speed * sp * lm * dt; e.y += Math.sin(a) * e.speed * sp * lm * dt; }
     e.flash = Math.max(0, e.flash - dt);
     // soft separation via spatial hash (cells of CELL px; each pair resolved once via index order)
     const cx = Math.floor(e.x / CELL), cy = Math.floor(e.y / CELL);
@@ -535,6 +558,18 @@ function drawEnemy(e) {
   if (e.elite) { ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); ctx.lineDashOffset = -G.t * 20; ctx.beginPath(); ctx.arc(e.x, e.y, k * 8 + 4, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
   S.drawSprite(ctx, spr, 'walk', f, e.x, e.y, k, { flash: e.flash > 0 });
 }
+// Pixel chevrons on the edge the swarm enters from, centred on the lane band; they blink during the warning.
+function drawLaneArrows(L) {
+  if (L.warn > 0 && ((L.warn * 6) | 0) % 2) return;
+  const z = 3, horiz = !!L.d.x;
+  const bx = horiz ? (L.d.x > 0 ? 16 : W - 16) : Math.round(L.cx - G.cam.x), by = horiz ? Math.round(L.cy - G.cam.y) : (L.d.y > 0 ? 96 : H - 16);
+  for (const o of [-LANE_HALF * 0.7, 0, LANE_HALF * 0.7]) for (let c = 0; c < 2; c++) for (let i = 0; i < 4; i++) for (const sg of [-1, 1]) {
+    const along = (c * 5 + i) * z, perp = o + sg * (3 - i) * z;
+    const x = bx + L.d.x * along + (horiz ? 0 : perp), y = by + L.d.y * along + (horiz ? perp : 0);
+    ctx.fillStyle = '#0b1020'; ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, z + 2, z + 2);
+    ctx.fillStyle = '#67e8f9'; ctx.fillRect(Math.round(x), Math.round(y), z, z);
+  }
+}
 function circle(x, y, r, color) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); }
 
 const PICK_SPR = {};
@@ -671,7 +706,8 @@ function render() {
   text(fmt(G.t), W / 2, 40, 22);
   text('goal ' + fmt(WIN_TIME), W / 2, 54, 11, '#94a3b8');
   // Narrow screens move the banner off the top-left weapon list (it would overlap at 390px).
-  if (G.hordeBanner > 0) narrow ? text('A HORDE APPROACHES!', W / 2, Math.round(H * 0.3), 16, '#f87171') : text('A HORDE APPROACHES!', W / 2, 70, 20, '#f87171');
+  if (G.hordeBanner > 0) narrow ? text(G.bannerText, W / 2, Math.round(H * 0.3), 16, '#f87171') : text(G.bannerText, W / 2, 70, 20, '#f87171');
+  if (G.lane) drawLaneArrows(G.lane);
   text('Kills ' + G.kills, W - 16, 40, 16, '#fff', 'right');
   const dashTxt = p.dashCd > 0 ? 'Dash ' + p.dashCd.toFixed(1) : (narrow ? 'Dash READY' : 'Dash READY (Shift/Space)');
   text(dashTxt, W - 16, 58, 12, p.dashCd > 0 ? '#94a3b8' : '#6ee7b7', 'right');
@@ -735,5 +771,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, buildSummary, makeElite, spawnEnemy };
+window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, buildSummary, makeElite, spawnEnemy, startLane };
 })();

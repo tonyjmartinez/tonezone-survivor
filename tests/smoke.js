@@ -79,6 +79,16 @@ try {
     return { big, hearts, spawned, early };
   });
   if (el.big.hp !== 55 || el.big.r !== 16 || el.hearts < 1 || !el.spawned || el.early) { console.log('elite failed', JSON.stringify(el)); errs.push('elite'); }
+  const ln = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.spawnAcc = -1e9; G.p.hp = G.p.maxHp = 1e9;
+    t.startLane({ x: 1, y: 0 }); const banner = G.bannerText; for (let i = 0; i < 10; i++) t.update(0.1); t.render(); const warned = G.enemies.length;
+    for (let i = 0; i < 10; i++) t.update(0.1); t.render(); const w = G.enemies.filter(e => e.lane); w.forEach(e => { e.hp = e.maxHp = 1e9; }); const x0 = w.length ? w[0].x : 0, y0 = w.length ? w[0].y : 0; t.update(0.1); t.update(0.1);
+    const moved = w.length ? { dx: w[0].x - x0, dy: Math.abs(w[0].y - y0) } : null;
+    for (let i = 0; i < 20; i++) t.update(0.1);
+    G.t = 2 * 75 - 0.01; G.nextHorde = 150; G.events = 1; G.lane = null; t.update(0.02); const second = !!G.lane;
+    return { banner, warned, n: w.length, moved, done: G.lane === null || second, second };
+  });
+  if (ln.banner !== 'SWARM LANE!' || ln.warned !== 0 || ln.n < 3 || !ln.moved || ln.moved.dx < 30 || ln.moved.dy > 10 || !ln.second) { console.log('swarm lane failed', JSON.stringify(ln)); errs.push('lane'); }
   const fr = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.shots.length = 0; G.w.frost = 1; G.timers.frost = 0;
     t.update(0.02); const shards = G.shots.filter(s => s.frost);
