@@ -49,7 +49,7 @@
 ## Milestone: varied, replayable 10-minute runs
 Goal: two runs should not feel the same. Each item is one loop iteration, ordered by user value. Follow docs/ART.md (12-colour palette, readability rule, 8x8/16x16 grids, smoke EXPECT table) and the MEMORY.md conventions (smoke test covers each feature; sync to origin/main first).
 - [ ] (product) Level-up reroll: one free reroll per run (key R / button on the card screen), +1 per Luck level. Why: choices are only 3 random cards (`choiceRects`), so a bad draw can wreck a run.
-- [ ] (product) Timed map events beyond hordes: add a "swarm lane" event (a stream of fast enemies crossing the screen, telegraphed by a banner) alternating with `spawnHorde` every `HORDE_EVERY`. Why: the only scripted event is the 75s ring, so minutes 3-9 feel alike.
+- [x] (product) Timed map events beyond hordes: add a "swarm lane" event (a stream of fast enemies crossing the screen, telegraphed by a banner) alternating with `spawnHorde` every `HORDE_EVERY`. Why: the only scripted event is the 75s ring, so minutes 3-9 feel alike.
 - [x] (product) Elite enemies: from 3:00 a small chance a normal enemy spawns as an elite (2.5x HP, larger, tinted, guaranteed heart or chest chance). Why: enemy types unlock on a fixed schedule (`ENEMY_TYPES.from`) and bosses are the only standouts.
 - [ ] (product) Two more characters: Pyro (Mines start, -10% speed) and Stormcaller (Lightning start, +1 area). Why: `CHARS` has 4 entries and only they define starting weapon variety; cheap to add and gives replay choice.
 - [ ] (design) Pixel portraits for the character-select screen (16x16 player variants per class, drawn at 3x with the class colour). Why: select screen is text with a tint; ART.md slice 7 left menus without sprites.

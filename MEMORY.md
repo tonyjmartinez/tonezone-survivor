@@ -53,6 +53,7 @@
 - 2026-10-31 Claude Code: slice 8 perf check. `tests/perf.js` probes frame time at 100/300/600 enemies (x1 and x4 CPU); results in docs/ART.md. 300 enemies ~7 ms/frame at x4; 600 ~15 ms with ~35 ms GC-like spikes.
 - 2026-10-31 Claude Code: level-up reroll (`G.rerolls`: 1 free per run, +1 per Luck level; R key or the button under the cards). Smoke covers it. ROADMAP milestone item 1 (PR #76).
 - 2026-10-31 Claude Code: Elite enemies (`makeElite`, `ELITE_FROM` 180s, `ELITE_CHANCE` 4% of single spawns): 2.5x HP, r x1.3, one sprite scale up, 3x XP, dashed gold ring; always drop a 30-heal heart, 20% a chest. Smoke covers stats, drop, spawn gate. Bot 154-261s.
+- 2026-10-31 Claude Code: Swarm lane event (`startLane`/`updateLane`, `G.lane`, `G.events`): every other `HORDE_EVERY` event (horde at 1:15, lane at 2:30, horde 3:45...). 1.5s banner + blinking edge chevrons, then 3s of wisps (12/s, 240 px/s) moving straight (`e.lane`) through a 140px band. Banner text is now `G.bannerText`. Smoke covers warn, stream, straight motion, alternation. Bot 120-173s.
 ## Next steps
 - Pixel overhaul next: enemy sprites (docs/ART.md slice 2).
 - Check `origin/main` before starting (parallel session branches exist). use hash for weapon queries (low value), more weapons/enemy variety, sprite polish for projectiles, real playtest balance (5+ min). See ROADMAP "Next".
