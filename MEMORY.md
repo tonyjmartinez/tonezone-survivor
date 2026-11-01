@@ -50,6 +50,7 @@
 - 2026-10-25 pd loop: Added Mines weapon (`G.mines`; drops mines that blast foes, evolves with Luck). Smoke covers it.
 - 2026-10-26 pd loop: Added Troll enemy (from 4:30; regenerates 8% max HP/s unless hit in last 1.5s). Smoke covers it.
 - 2026-10-30 pd L18: Pixel sprite pipeline: `src/sprites.js` (palette grids, baked outline/flip/flash, `drawSprite`, `?sprites=1` sheet). Player ported to a 16x16 sprite. Smoke asserts sprite sizes/frames. See docs/ART.md.
+- 2026-10-31 Claude Code: Characters Pyro (Mines, 0.9 speed) and Storm (Lightning; `p.zapSplash` 40px: each strike hits foes within 40px for half damage). Named 'Storm' not 'Stormcaller' and desc kept short so the title line stays at 2x on 390px. Smoke cycles all 6 characters and checks the splash.
 ## Next steps
 - Pixel overhaul next: enemy sprites (docs/ART.md slice 2).
 - Check `origin/main` before starting (parallel session branches exist). use hash for weapon queries (low value), more weapons/enemy variety, sprite polish for projectiles, real playtest balance (5+ min). See ROADMAP "Next".
