@@ -137,7 +137,8 @@ function onKey(k, e) {
   if (state === 'title' && k === 'h') { toggleHard(); return; }
   if (state === 'title' && k >= '1' && k <= '3') { buyMeta(META_KEYS[+k - 1]); return; }
   if (state === 'title' && (k === ' ' || k === 'enter' || k === 'tap')) { newGame(); state = 'play'; }
-  else if (state === 'dead' && (k === ' ' || k === 'enter' || k === 'tap')) { state = 'title'; }
+  else if (state === 'dead' && (k === 'escape' || k === 'm' || (k === 'tap' && e && e.clientY > innerHeight * 0.88))) { state = 'title'; }
+  else if (state === 'dead' && (k === ' ' || k === 'enter' || k === 'tap')) { newGame(); state = 'play'; }
   else if (state === 'levelup') {
     let i = -1;
     if (k >= '1' && k <= '3') i = +k - 1;
@@ -814,7 +815,8 @@ function render() {
     if (pl) { const t = 'Passives: ' + pl; text(t, W / 2, H / 2 + 144, fit(t, 13), '#a7f3d0'); }
     const bb = localStorage.getItem('tzs_bestbuild');
     if (bb && !G.newBest) { const t = 'Best run: ' + bb; text(t, W / 2, H / 2 + 164, fit(t, 13), '#fcd34d'); }
-    text('SPACE or tap to continue', W / 2, H / 2 + 98, Math.min(18, fit('SPACE or tap to continue', 18)), '#6ee7b7');
+    text('SPACE or tap to retry', W / 2, H / 2 + 98, Math.min(18, fit('SPACE or tap to retry', 18)), '#6ee7b7');
+    text('Esc / tap bottom: menu', W / 2, H - 14, 12, '#94a3b8');
   }
 }
 
