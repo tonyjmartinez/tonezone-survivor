@@ -67,3 +67,5 @@
 
 - 2026-11-02 (L33): on-screen 64px DASH button for touch (bottom-right, touchUi flag; touch had no dash before). Joystick unchanged (8px dead-zone, 60px radius). Next: one-tap restart, pixel portraits.
 - 2026-11-01: end screen restarts straight into a new run (Space/Enter/tap); Esc/M or tapping bottom 12% returns to the title/shop. Next: pixel portraits, best-build memory.
+
+- 2026-11-01 Claude Code (claude-farm): farming v1 (`updateFarm`, `propAt`, `plant`, `harvest`; state `G.cut/chop/loot/crops/seeds/wood/harvests/chopped`, `p.fed`). Floor props on the 112px hash grid are now workable (tree/mush; new grass at h%5===2); rocks stay decor. F/E or the touch PLANT button (above DASH) plants. Wood adds to end gold. Smoke covers chop, plant, trample, golden harvest, gold, plant button. Next: see ROADMAP 'Farm while you survive'.

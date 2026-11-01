@@ -20,6 +20,9 @@ let touch = null; // {sx,sy,x,y}
 let touchUi = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 function dashBtn() { return { x: W - 52, y: H - 60, r: 32 }; }
 function hitDash(px, py) { const b = dashBtn(); return Math.hypot(px - b.x, py - b.y) <= b.r + 8; }
+// PLANT button sits above DASH (touch has no F key).
+function plantBtn() { return { x: W - 52, y: H - 140, r: 28 }; }
+function hitPlant(px, py) { const b = plantBtn(); return Math.hypot(px - b.x, py - b.y) <= b.r + 8; }
 // Pause button: 44px square under the kills plate (top-right, away from both thumbs).
 function pauseBtn() { return { x: W - 54, y: 74, w: 44, h: 44 }; }
 // The joystick follows ONE finger (by pointerId). A second finger on DASH or PAUSE must not move it
@@ -28,6 +31,7 @@ cv.addEventListener('pointerdown', e => {
   if (e.pointerType === 'touch') touchUi = true;
   if (state === 'play' && inRect(pauseBtn(), e.clientX, e.clientY)) { state = 'pause'; return; }
   if (state === 'play' && touchUi && hitDash(e.clientX, e.clientY)) { onKey('shift'); return; }
+  if (state === 'play' && touchUi && hitPlant(e.clientX, e.clientY)) { onKey('f'); return; }
   if (state === 'play' && touch) return; // stick already held by another finger
   touch = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY };
   if (state !== 'play') onKey('tap', e);
@@ -130,6 +134,7 @@ function newGame() {
     choices: [], gold: 0,
     rerolls: 1, // level-up rerolls left: one free per run, +1 per Luck level
     lvlT: 9, xpPulse: 0, // level-up moment: time since the card screen opened; XP bar glow
+    cut: new Map(), chop: null, loot: [], crops: [], seeds: 0, wood: 0, harvests: 0, chopped: 0, // farming (see updateFarm)
   };
 }
 
@@ -187,6 +192,7 @@ function titleTap(px, py) {
 function onKey(k, e) {
   if (k === 'm') { muted = !muted; return; }
   if (state === 'play' && (k === 'shift' || k === ' ') && G.p.dashCd <= 0 && G.p.face) { const mv = moveInput(), mm = Math.hypot(mv.x, mv.y); G.p.dashDir = mm > 0.05 ? { x: mv.x / mm, y: mv.y / mm } : { x: G.p.face.x, y: G.p.face.y }; G.p.dashT = 0.16; G.p.dashCd = 2.5; G.p.hurt = Math.max(G.p.hurt, 0.2); sfx(300, 0.08, 'triangle', 0.05); return; }
+  if (state === 'play' && (k === 'f' || k === 'e')) { plant(); return; }
   if ((k === 'p' || k === 'escape') && (state === 'play' || state === 'pause')) { state = state === 'play' ? 'pause' : 'play'; return; }
   if (state === 'title' && (k === 'arrowleft' || k === 'a')) { pickChar(-1); return; }
   if (state === 'title' && (k === 'arrowright' || k === 'd')) { pickChar(1); return; }
@@ -216,7 +222,7 @@ function nearest(from, maxD) {
   return best;
 }
 function damage(e, amt, kx, ky) {
-  amt *= G.p.dmgMul; e.hp -= amt; e.flash = 0.08; e.hitT = 1.5;
+  amt *= G.p.dmgMul * (G.p.fed > 0 ? 1.25 : 1); e.hp -= amt; e.flash = 0.08; e.hitT = 1.5;
   if (kx !== undefined) { e.x += kx; e.y += ky; }
   else if (!e.boss) { const dx = e.x - G.p.x, dy = e.y - G.p.y, d = Math.hypot(dx, dy) || 1; e.x += dx / d * 5; e.y += dy / d * 5; } // default nudge away from the player so hits read
   const big = !!(e.elite || e.boss || amt >= 30); // heavy hits read larger and gold
@@ -316,6 +322,104 @@ function updateLane(dt) {
   if (L.time <= 0) G.lane = null;
 }
 
+// ---------- farming ----------
+// The woodland props are workable: walk up to a tree, mushroom or grass tuft and you chop it
+// automatically (trees take a moment, grass is cut just by running through it). Chopping drops
+// wood (sold for gold at the end), seeds and sometimes a heart. F / PLANT sows a seed at your feet;
+// it grows while you fight, enemies standing on it trample it, and walking over a ripe crop heals
+// you and drops XP. Golden crops also give WELL FED (+25% damage for 20s).
+const PROP_CELL = 112;
+const FARM = {
+  tree: { need: 1.6, reach: 26, col: '#7c4a2a' },
+  mush: { need: 0.6, reach: 20, col: '#f97316' }, // drawn as a jack-o'-lantern
+  grass: { need: 0.35, reach: 18, col: '#3f7a4a', regrow: 45 },
+};
+const CROP_GROW = 20, CROP_HP = 2, CROP_MAX = 12, FED_TIME = 20;
+// Same hashed 112px grid the floor props have always used (r 0-1 = tree/rock/mush); r 2 adds grass.
+function propAt(gx, gy) {
+  const h = (Math.imul(gx, 374761393) ^ Math.imul(gy, 668265263)) >>> 0, r = h % 5;
+  if (r > 2 || (gx === 0 && gy === 0)) return null;
+  const k = (h >> 3) % 6, kind = r === 2 ? 'grass' : k < 3 ? 'tree' : k < 5 ? 'rock' : 'mush';
+  return { kind, key: gx * 100003 + gy, x: gx * PROP_CELL + 16 + (h >> 8) % 80, y: gy * PROP_CELL + 16 + (h >> 16) % 80 };
+}
+function isCut(pr) { const c = G.cut.get(pr.key); return c !== undefined && (pr.kind !== 'grass' || G.t - c < FARM.grass.regrow); }
+function burst(x, y, c, n, sp = 90) { if (G.parts.length < 200) for (let i = 0; i < n; i++) G.parts.push({ x, y, vx: rnd(-sp, sp), vy: rnd(-sp, sp), t: 0.35, c }); }
+function dropFarm(pr) {
+  const L = G.p.luck || 1, drop = k => G.loot.push({ kind: k, x: pr.x + rnd(-14, 14), y: pr.y + rnd(-10, 10) });
+  if (pr.kind === 'tree') {
+    for (let i = 0, n = 2 + (Math.random() < 0.5); i < n; i++) drop('wood');
+    if (Math.random() < 0.4 * L) drop('seed');
+    if (Math.random() < 0.1 * L) G.hearts.push({ x: pr.x, y: pr.y, heal: 15 });
+    G.shake = Math.max(G.shake, 0.12); sfx(130, 0.22, 'triangle', 0.06);
+  } else if (pr.kind === 'mush') {
+    if (Math.random() < 0.5 * L) G.hearts.push({ x: pr.x, y: pr.y, heal: 15 });
+    if (Math.random() < 0.3 * L) drop('seed');
+    sfx(380, 0.1, 'sine', 0.05);
+  } else {
+    if (Math.random() < 0.25 * L) drop('seed');
+    if (Math.random() < 0.12 * L) G.hearts.push({ x: pr.x, y: pr.y, heal: 8 });
+    sfx(600, 0.04, 'square', 0.025);
+  }
+  G.chopped++; burst(pr.x, pr.y, FARM[pr.kind].col, pr.kind === 'tree' ? 10 : 5, 120);
+}
+function plant() {
+  const p = G.p;
+  if (G.seeds <= 0 || G.crops.length >= CROP_MAX || G.crops.some(c => dist2(c, p) < 22 * 22)) { sfx(140, 0.08, 'square', 0.03); return false; }
+  G.seeds--; G.crops.push({ x: Math.round(p.x), y: Math.round(p.y + 6), age: 0, grow: CROP_GROW, hp: CROP_HP, golden: Math.random() < 0.15 });
+  sfx(480, 0.12, 'triangle', 0.05); burst(p.x, p.y + 6, '#7c4a2a', 4, 50);
+  return true;
+}
+function harvest(c) {
+  const p = G.p, heal = c.golden ? 40 : 20;
+  p.hp = Math.min(p.maxHp, p.hp + heal); G.harvests++;
+  G.gems.push({ x: c.x, y: c.y - 8, v: c.golden ? 8 : 3, big: c.golden });
+  if (Math.random() < 0.5) G.loot.push({ kind: 'seed', x: c.x + 10, y: c.y });
+  if (c.golden) { p.fed = FED_TIME; G.texts.push({ x: p.x, y: p.y - 30, s: 'WELL FED! +25% DMG', t: 1.6, big: true }); }
+  G.texts.push({ x: p.x, y: p.y - 16, s: 'HARVEST +' + heal, t: 1 });
+  sfx(c.golden ? 880 : 620, 0.2, 'triangle', 0.07); burst(c.x, c.y, c.golden ? '#fbbf24' : '#f97316', 8, 110);
+}
+function updateFarm(dt) {
+  const p = G.p;
+  if (!G.farmHint && G.t >= 2) { G.farmHint = true; G.hordeBanner = 3; G.bannerText = 'CHOP TREES FOR SEEDS + WOOD'; }
+  p.fed = Math.max(0, (p.fed || 0) - dt);
+  // chop the nearest workable prop in reach; progress resets if you leave it
+  let target = null, bd = Infinity;
+  const cx = Math.floor(p.x / PROP_CELL), cy = Math.floor(p.y / PROP_CELL);
+  for (let gx = cx - 1; gx <= cx + 1; gx++) for (let gy = cy - 1; gy <= cy + 1; gy++) {
+    const pr = propAt(gx, gy); if (!pr || !FARM[pr.kind] || isCut(pr)) continue;
+    const d = dist2(p, pr), reach = p.r + FARM[pr.kind].reach;
+    if (d < reach * reach && d < bd) { bd = d; target = pr; }
+  }
+  if (!target) G.chop = null;
+  else {
+    if (!G.chop || G.chop.key !== target.key) G.chop = { key: target.key, x: target.x, y: target.y, kind: target.kind, prog: 0, need: FARM[target.kind].need, tick: 0 };
+    const c = G.chop; c.prog += dt; c.tick -= dt;
+    if (c.tick <= 0) { c.tick = 0.22; sfx(target.kind === 'tree' ? 200 : 450, 0.04, 'square', 0.03); burst(target.x, target.y, FARM[target.kind].col, 2, 60); }
+    if (c.prog >= c.need) { G.cut.set(target.key, G.t); G.chop = null; dropFarm(target); }
+  }
+  // loot (seeds, wood) is pulled in by the magnet like gems
+  const mr2 = p.magnet * p.magnet;
+  for (const l of G.loot) {
+    const d2 = dist2(p, l);
+    if (d2 < mr2 || l.pull) { l.pull = true; const a = Math.atan2(p.y - l.y, p.x - l.x); l.x += Math.cos(a) * 300 * dt; l.y += Math.sin(a) * 300 * dt; }
+    if (d2 < (p.r + 8) ** 2) {
+      l.dead = true; sfx(l.kind === 'seed' ? 760 : 300, 0.06, 'triangle', 0.04);
+      if (l.kind === 'seed') { G.seeds++; if (!G.plantHint) { G.plantHint = true; G.texts.push({ x: p.x, y: p.y - 30, s: touchUi ? 'TAP PLANT TO SOW' : 'PRESS F TO PLANT', t: 2.5, big: true }); } }
+      else G.wood++;
+    }
+  }
+  G.loot = G.loot.filter(l => !l.dead && dist2(p, l) < 1600 * 1600);
+  // crops grow; enemies standing on a growing crop trample it; walk over a ripe one to harvest
+  for (const c of G.crops) {
+    if (c.age < c.grow) {
+      c.age += dt; c.hurt = false;
+      for (const e of G.enemies) if (dist2(c, e) < (e.r + 6) ** 2) { c.hp -= dt; c.hurt = true; break; }
+      if (c.hp <= 0) { c.dead = true; burst(c.x, c.y, '#3f7a4a', 6, 80); G.texts.push({ x: c.x, y: c.y - 12, s: 'TRAMPLED', t: 0.8 }); }
+    } else if (dist2(p, c) < (p.r + 12) ** 2) { c.dead = true; harvest(c); }
+  }
+  G.crops = G.crops.filter(c => !c.dead);
+}
+
 // ---------- update ----------
 // Movement vector from keys or the touch stick (length <= 1; 8px dead zone, full speed at 60px).
 function moveInput() {
@@ -339,6 +443,7 @@ function update(dt) {
   p.hurt = Math.max(0, p.hurt - dt);
   if (p.regen) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
   G.cam.x = p.x - W / 2; G.cam.y = p.y - H / 2;
+  updateFarm(dt);
 
   // spawn
   G.spawnAcc += spawnRate() * (hard ? 1.4 : 1) * dt;
@@ -600,7 +705,7 @@ function update(dt) {
     G.won = p.hp > 0;
     state = 'dead'; sfx(G.won ? 660 : 90, 0.6, G.won ? 'triangle' : 'sawtooth', 0.08);
     const score = Math.floor(G.t);
-    G.gold = Math.round((G.kills + Math.floor(G.t / 10) + (G.won ? 200 : 0)) * (hard ? 1.5 : 1));
+    G.gold = Math.round((G.kills + Math.floor(G.t / 10) + (G.won ? 200 : 0) + G.wood) * (hard ? 1.5 : 1)); // wood sells for 1 gold
     localStorage.setItem('tzs_gold', getGold() + G.gold);
     G.newBest = score > +(localStorage.getItem('tzs_best') || 0);
     if (G.newBest) { localStorage.setItem('tzs_best', score); localStorage.setItem('tzs_bestbuild', buildSummary().wl); }
@@ -829,13 +934,29 @@ function render() {
   ctx.fillStyle = woodlandFloor(); ctx.fillRect(cam.x - 64, cam.y - 64, W + 128, H + 128);
   // props: sparse trees/rocks/mushrooms on a hashed 112px grid, view-culled, drawn under all units
   if (!window.__tzsNoProps) for (let gy = Math.floor((cam.y - 40) / 112), ey = Math.floor((cam.y + H + 40) / 112); gy <= ey; gy++) for (let gx = Math.floor((cam.x - 40) / 112), ex = Math.floor((cam.x + W + 40) / 112); gx <= ex; gx++) {
-    const h = (Math.imul(gx, 374761393) ^ Math.imul(gy, 668265263)) >>> 0;
-    if (h % 5 > 1 || (gx === 0 && gy === 0)) continue;
-    const kind = PROPS[(h >>> 3) % PROPS.length], px = gx * 112 + 16 + (h >> 8) % 80, py = gy * 112 + 16 + (h >> 16) % 80;
-    if (kind === 'pumpkin') pumpkinGlow(px, py + 6, G.t * 7 + gx * 3.1 + gy);
-    groundShadow(px, py + 12, kind === 'deadtree' ? 14 : 10);
-    SPR.drawSprite(ctx, SPR.baked[kind], 'idle', 0, px, py, 2);
+    const pr = propAt(gx, gy);
+    if (!pr || isCut(pr)) continue;
+    const { kind } = pr, wob = G.chop && G.chop.key === pr.key ? Math.round(Math.sin(G.t * 50) * 1.5) : 0; // shudders while being chopped
+    if (kind === 'grass') { SPR.drawSprite(ctx, SPR.baked.grass, 'idle', 0, pr.x + wob, pr.y, 2); continue; }
+    // spooky skin over the farming kinds: tree -> dead tree, mushroom -> jack-o'-lantern, rock -> headstone/cross
+    const skin = kind === 'tree' ? 'deadtree' : kind === 'mush' ? 'pumpkin' : kind === 'rock' ? (pr.key & 1 ? 'cross' : 'grave') : kind;
+    if (skin === 'pumpkin') pumpkinGlow(pr.x, pr.y + 6, G.t * 7 + gx * 3.1 + gy);
+    groundShadow(pr.x, pr.y + 12, kind === 'tree' ? 14 : 10);
+    SPR.drawSprite(ctx, SPR.baked[skin], 'idle', 0, pr.x + wob, pr.y, 2);
   }
+  // crops: sprout (small, then bigger) until ripe; a ripe crop bobs inside a pulsing ring; growth bar under unripe ones
+  for (const c of G.crops) {
+    const f = Math.min(1, c.age / c.grow), ripe = f >= 1;
+    if (ripe) {
+      ctx.strokeStyle = c.golden ? '#fde047' : '#fdba74'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(c.x, c.y, 14 + Math.sin(G.t * 6) * 2, 0, 7); ctx.stroke();
+      drawPickup('crop', c.golden ? '#fbbf24' : '#f97316', c.x, c.y - 2 + Math.sin(G.t * 4) * 1.5, 3);
+    } else {
+      SPR.drawSprite(ctx, SPR.baked.sprout, 'idle', 0, c.x, c.y, f < 0.5 ? 2 : 3, { flash: c.hurt && ((G.t * 16) | 0) % 2 });
+      pixBar(c.x - 12, c.y + 14, 24, 5, f, '#bef264');
+    }
+  }
+  for (const l of G.loot) drawPickup(l.kind, '#fcd34d', l.x, l.y + Math.sin(G.t * 5 + l.x) * 1.5, 2);
+  if (G.chop) pixBar(G.chop.x - 16, G.chop.y - 30, 32, 6, G.chop.prog / G.chop.need, '#bef264');
   // soft ground shadows for enemies go under every sprite (player shadow is drawn in drawPlayer)
   // (shadows outside the visible area are culled; crowded scenes can hold hundreds of enemies)
   const vx0 = cam.x - 160, vy0 = cam.y - 160, vx1 = cam.x + W + 160, vy1 = cam.y + H + 160; // margin > largest shadow (boss r*1.1)
@@ -909,8 +1030,13 @@ function render() {
     ctx.fillStyle = rdy ? 'rgba(16,185,129,0.55)' : 'rgba(30,41,59,0.6)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
     ctx.strokeStyle = rdy ? '#6ee7b7' : '#64748b'; ctx.lineWidth = 2; ctx.stroke();
     text(rdy ? 'DASH' : p.dashCd.toFixed(1), b.x, b.y + 4, 12, '#fff', 'center');
+    const pb = plantBtn(), has = G.seeds > 0;
+    ctx.fillStyle = has ? 'rgba(101,163,13,0.55)' : 'rgba(30,41,59,0.5)'; ctx.beginPath(); ctx.arc(pb.x, pb.y, pb.r, 0, 7); ctx.fill();
+    ctx.strokeStyle = has ? '#bef264' : '#64748b'; ctx.lineWidth = 2; ctx.stroke();
+    text('PLANT', pb.x, pb.y, 12, has ? '#fff' : '#94a3b8', 'center'); text('x' + G.seeds, pb.x, pb.y + 14, 12, has ? '#bef264' : '#64748b', 'center');
   }
-  let y = 56; ctx.textAlign = 'left';
+  text(`Seeds ${G.seeds}  Wood ${G.wood}` + (p.fed > 0 ? `  FED ${Math.ceil(p.fed)}` : ''), 16, 56, 12, p.fed > 0 ? '#fde047' : '#bef264', 'left');
+  let y = 70; ctx.textAlign = 'left';
   for (const k in G.w) { text(`${WEAPONS[k].name} ${G.w[k] >= EVO_LVL ? 'EVO' : G.w[k]}`, 16, y, 12, '#fde047', 'left'); y += 14; }
   for (const k in G.pa) { text(`${PASSIVES[k].name} ${G.pa[k]}`, 16, y, 12, '#a7f3d0', 'left'); y += 14; }
 
@@ -966,6 +1092,8 @@ function render() {
     if (pl) { const t = 'Passives: ' + pl; text(t, W / 2, H / 2 + 144, fit(t, 13), '#a7f3d0'); }
     const bb = localStorage.getItem('tzs_bestbuild');
     if (bb && !G.newBest) { const t = 'Best run: ' + bb; text(t, W / 2, H / 2 + 164, fit(t, 13), '#fcd34d'); }
+    const fm = `Farm: ${G.chopped} chopped - ${G.harvests} harvests - ${G.wood} wood`;
+    text(fm, W / 2, H / 2 + 182, fit(fm, 13), '#bef264');
     text('SPACE or tap to retry', W / 2, H / 2 + 98, Math.min(18, fit('SPACE or tap to retry', 18)), '#6ee7b7');
     text('Esc / tap bottom: menu', W / 2, H - 14, 12, '#94a3b8');
   }
@@ -986,5 +1114,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, dashBtn, hitDash, set touchUi(v) { touchUi = v; }, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES, titleLayout, titleTap, choiceRects, pauseBtn, pauseRects, setTouch(v) { touch = v; }, get charIdx() { return charIdx; }, get hard() { return hard; } };
+window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, dashBtn, hitDash, set touchUi(v) { touchUi = v; }, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES, propAt, plant, plantBtn, hitPlant , titleLayout, titleTap, choiceRects, pauseBtn, pauseRects, setTouch(v) { touch = v; }, get charIdx() { return charIdx; }, get hard() { return hard; } };
 })();

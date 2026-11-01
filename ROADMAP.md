@@ -68,6 +68,14 @@ Vision: a stranger plays on a phone for ten minutes and wants to replay. Game fe
 - [x] (feel) Phone ergonomics: touch joystick dead-zone and size, dash button target >= 48px, nothing important under thumbs.
 - [ ] (feel) Death and restart: run stats (bosses/elites/hurt line done), "best build" memory so a replay feels motivated.
 
+## Milestone: Farm while you survive
+Vision: survivors-genre pressure with a farming loop in the middle of the run: you work the land between fights, and the land pays you back. v1 is in; each next item is one small PR with a smoke assertion.
+- [x] (farm v1) Choppable woodland: trees (1.6s, wood + seed + rare heart), mushrooms (heart/seed), new grass tufts (cut by running through, regrow after 45s). Seeds: F / PLANT button sows a crop at your feet; it ripens in 20s; enemies standing on it trample it; walking over a ripe crop heals 20 HP + XP gem; 15% golden crops heal 40 + WELL FED (+25% dmg, 20s). Wood sells for 1 gold at run end; end screen shows a Farm line.
+- [ ] (farm) Spend wood mid-run: build a scarecrow/fence that slows enemies around your crops (makes the field worth defending).
+- [ ] (farm) Crop variety: seed types from different props (pumpkin = heal, berry = XP, thorn = turret-like damage plant).
+- [ ] (farm) Harvest Moon event (e.g. at 4:00): all crops ripen instantly and grass bursts with seeds, then a horde arrives.
+- [ ] (farm) Real playtest: are seeds too rare/common, does trampling feel fair, is standing still to chop a fun risk?
+
 ## Milestone: Spooky graveyard identity (2026-11-01, owner request)
 Owner: "make the game a bit more unique with a more consistent and interesting spooky theme". First pass done (PR: graveyard props, fog, vignette, spooky event names, themed title). Next ideas, one per loop iteration:
 - [ ] (design) Kill fx: a small ghost wisp rises from slain undead (bats/ghouls/wraiths) instead of generic pixels.
