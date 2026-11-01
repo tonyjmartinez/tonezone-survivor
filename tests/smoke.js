@@ -215,6 +215,14 @@ try {
     return { small, heavy, stop: G.hitstop };
   });
   if (hf2.small || !hf2.heavy || !(hf2.stop > 0)) { console.log('hit feedback 2 failed', JSON.stringify(hf2)); errs.push('hitfx2'); }
+  // pacing: spawn rate spikes at 5:00, then eases (relief) before ramping again; banner announces the surge
+  const pc = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G; const at = (s) => { G.t = s; return t.spawnRate(); };
+    const before = at(299), spike = at(305), relief = at(345), later = at(400);
+    G.t = 299.99; G.enemies.length = 0; G.p.hp = G.p.maxHp = 1e9; t.update(0.02);
+    return { before, spike, relief, later, banner: G.bannerText };
+  });
+  if (!(pc.spike > pc.before * 1.4) || !(pc.relief < pc.before) || !(pc.later > pc.relief) || pc.banner !== 'THE SURGE!') { console.log('pacing failed', JSON.stringify(pc)); errs.push('pacing'); }
   // sprite-sheet review page renders without errors
   const sheetErrs = [];
   const sp = await b.newPage({ viewport: { width: 390, height: 844 } });

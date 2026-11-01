@@ -195,7 +195,10 @@ function reroll() {
 function pickAt(x, y) { return choiceRects().findIndex(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h); }
 
 // ---------- spawning / difficulty ----------
-function spawnRate() { return 0.8 + G.t / 30 + (G.t / 130) ** 2; } // enemies per second, ramps up
+// Pacing: a clear spike at 5:00 (x1.6 for 30s, announced by a banner), then a relief window (x0.6 until 6:30).
+const SURGE_AT = 300, SURGE_LEN = 30, RELIEF_LEN = 60;
+function pacing(t) { return t < SURGE_AT ? 1 : t < SURGE_AT + SURGE_LEN ? 1.6 : t < SURGE_AT + SURGE_LEN + RELIEF_LEN ? 0.6 : 1; }
+function spawnRate() { return (0.8 + G.t / 30 + (G.t / 130) ** 2) * pacing(G.t); } // enemies per second, ramps up
 function spawnEnemy(boss) {
   const types = ENEMY_TYPES.filter(t => G.t >= t.from);
   const base = boss ? { name: 'boss', hp: 600, speed: 60, r: 34, dmg: 25, xp: 40, color: '#fde047' } : types[(Math.random() * types.length) | 0];
@@ -262,6 +265,7 @@ function update(dt) {
   while (G.spawnAcc >= 1 && G.enemies.length < 800) { G.spawnAcc--; spawnEnemy(false); }
   if (G.t >= G.nextHorde) { G.nextHorde += HORDE_EVERY; G.events++; G.events % 2 ? spawnHorde() : startLane(); }
   updateLane(dt);
+  if (!G.surged && G.t >= SURGE_AT) { G.surged = true; G.hordeBanner = 2.5; G.bannerText = 'THE SURGE!'; G.shake = Math.max(G.shake, 0.4); }
   G.hordeBanner = Math.max(0, G.hordeBanner - dt);
   if (G.t >= G.nextBoss) { G.nextBoss += BOSS_EVERY; spawnEnemy(true); }
 
@@ -796,5 +800,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, buildSummary, damage, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES };
+window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, buildSummary, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES };
 })();
