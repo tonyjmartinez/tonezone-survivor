@@ -455,11 +455,11 @@ function update(dt) {
         if (dx * dx + dy * dy < min * min) { const d = Math.hypot(dx, dy) || 1, k = (min - d) / 2 / d; e.x += dx * k; e.y += dy * k; o.x -= dx * k; o.y -= dy * k; }
       }
     }
-    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { p.hp -= Math.max(1, e.dmg - (p.armor || 0)); p.hurt = 0.6; G.shake = Math.min(0.5, 0.12 + e.dmg * 0.01); sfx(120, 0.15, 'sawtooth', 0.06); }
+    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { { const d = Math.max(1, e.dmg - (p.armor || 0)); p.hp -= d; G.taken = (G.taken || 0) + d; } p.hurt = 0.6; G.shake = Math.min(0.5, 0.12 + e.dmg * 0.01); sfx(120, 0.15, 'sawtooth', 0.06); }
   }
   for (const e of G.enemies) if (e.hp <= 0) {
     if (e.kind === 'bloat') for (let k = 0; k < 3; k++) G.enemies.push({ x: e.x + rnd(-14, 14), y: e.y + rnd(-14, 14), r: 7, hp: e.maxHp * 0.15, maxHp: e.maxHp * 0.15, speed: e.speed * 1.8, dmg: 4, xp: 1, color: e.color, flash: 0, kind: 'minibloat' });
-    G.kills++; sfx(260 + Math.random() * 80, 0.06);
+    G.kills++; if (e.boss) G.bosses = (G.bosses || 0) + 1; else if (e.elite) G.elites = (G.elites || 0) + 1; sfx(260 + Math.random() * 80, 0.06);
     G.gems.push({ x: e.x, y: e.y, v: e.xp, big: e.boss });
     if (e.boss || e.elite || Math.random() < 0.025 * (G.p.luck || 1)) G.hearts.push({ x: e.x + 8, y: e.y, heal: e.boss ? 60 : e.elite ? 30 : 20 });
     if (Math.random() < 0.006 * (G.p.luck || 1)) G.vacs.push({ x: e.x - 8, y: e.y });
@@ -793,6 +793,8 @@ function render() {
     text(survived, W / 2, H / 2 + 10, Math.max(12, fit(survived, 18)));
     const best = 'Best ' + fmt(+(localStorage.getItem('tzs_best') || 0)) + ' - Gold +' + G.gold;
     text(best, W / 2, H / 2 + 40, fit(best, 16), '#cbd5e1');
+    const ex = `Bosses ${G.bosses || 0} - Elites ${G.elites || 0} - Hurt ${Math.round(G.taken || 0)}`;
+    text(ex, W / 2, H / 2 + 112, fit(ex, 13), '#e2e8f0');
     if (G.newBest) text('NEW BEST!', W / 2, H / 2 + 66, 16, '#fde047');
     const { wl, pl } = buildSummary();
     if (wl) { const t = 'Weapons: ' + wl; text(t, W / 2, H / 2 + 126, fit(t, 13), '#93c5fd'); }
