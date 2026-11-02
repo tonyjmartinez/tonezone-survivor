@@ -83,6 +83,16 @@ Owner: "make the game a bit more unique with a more consistent and interesting s
 - [ ] (feel) Low drone + occasional distant bell (WebAudio only, no assets), off with M.
 - [ ] (design) Moon phase: the night slowly reddens toward 9:00 (titan), dawn light at 10:00 win.
 
+## Milestone: Graphic overhaul (2026-11-01, owner request; plan in docs/ART.md)
+One small PR per slice, 390px + desktop screenshots, perf check, smoke EXPECT entries.
+- [ ] (art) 1 Ground: tiled dirt/grass/path variation + soft fog layer, no flat navy.
+- [ ] (art) 2 Player + 6 characters: 3-4 frame walk, idle breathe, distinct silhouettes.
+- [ ] (art) 3 Enemies: silhouette rules, 3-frame walk, death frames.
+- [ ] (art) 4 Weapon/projectile VFX pass (trail, glow, ring, arc, lightning).
+- [ ] (art) 5 Pickups as souls/coffins + farming sprites matching the theme.
+- [ ] (art) 6 HUD/menus: pixel frames, icons, fonts, end screen fits 390px.
+- [ ] (art) 7 Lighting: player light radius, vignette, moon tint over time.
+
 ### Blocked on Tony
 - Real 5+ minute human playtest for balance numbers (needs a person playing on a phone/desktop; bot results only approximate).
 - Any music/audio assets or licensed art: need files and licence confirmation from Tony.
