@@ -439,10 +439,15 @@ function variant(name, color) {
   const key = name + color;
   return variants[key] || (variants[key] = bake(name, bodySlots(color)));
 }
+// Camera snap: while the world is drawn under ctx.scale(z) + translate(ox,oy), sprite corners are rounded to
+// whole screen pixels so every art pixel stays the same size (no shimmer at ZOOM 1.5). setView(1,0,0) = off.
+const view = { z: 1, ox: 0, oy: 0 };
+function setView(z, ox, oy) { view.z = z; view.ox = ox; view.oy = oy; }
 function drawSprite(ctx, spr, anim, i, x, y, scale, opt) {
   const a = spr.anims[anim], n = a.frames.length, k = ((i % n) + n) % n;
   const img = opt && opt.flash ? a.flash[k] : opt && opt.flip ? a.flip[k] : a.frames[k];
   const s = spr.size * scale;
+  if (view.z !== 1) { const z = view.z; ctx.drawImage(img, Math.round((x - s / 2 + view.ox) * z) / z - view.ox, Math.round((y - s / 2 + view.oy) * z) / z - view.oy, s, s); return; }
   ctx.drawImage(img, Math.round(x - s / 2), Math.round(y - s / 2), s, s);
 }
 // Sprite sheet for screenshot review (?sprites=1): every sprite, anim and frame on a grid,
@@ -483,5 +488,5 @@ function drawSheet(ctx, W, H, t) {
     }
   }
 }
-window.TZS_SPRITES = { FONT, glyphImg, fontWidth, drawText, tiles, PAL, BASE, DEFS, baked, variant, drawSprite, drawSheet, mix };
+window.TZS_SPRITES = { FONT, glyphImg, fontWidth, drawText, tiles, PAL, BASE, DEFS, baked, variant, drawSprite, setView, drawSheet, mix };
 })();
