@@ -952,7 +952,8 @@ function render() {
   if (state === 'title') { renderTitle(performance.now()); return; }
   const { cam, p } = G;
   const sh = G.shake * 14;
-  ctx.save(); ctx.scale(ZOOM, ZOOM); ctx.translate(-cam.x + rnd(-sh, sh), -cam.y + rnd(-sh, sh));
+  const tx = -cam.x + rnd(-sh, sh), ty = -cam.y + rnd(-sh, sh);
+  ctx.save(); ctx.scale(ZOOM, ZOOM); ctx.translate(tx, ty); SPR.setView(ZOOM, tx, ty);
   // themed floor: one cached 4x4-tile pattern (see woodlandFloor), filled over the visible area
   ctx.fillStyle = woodlandFloor(); ctx.fillRect(cam.x - 64, cam.y - 64, VW + 128, VH + 128);
   // props: sparse trees/rocks/mushrooms on a hashed 112px grid, view-culled, drawn under all units
@@ -1018,7 +1019,7 @@ function render() {
   if (G.novaRing) { ctx.strokeStyle = 'rgba(125,211,252,' + (G.novaRing.t / 0.3) + ')'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(p.x, p.y, G.novaRing.r, 0, 7); ctx.stroke(); }
   drawPlayer(p);
   for (const t of G.texts) text(t.s, t.x, t.y, t.big ? 18 : 12, t.big ? '#fde047' : '#fff', 'center', VW);
-  ctx.restore();
+  ctx.restore(); SPR.setView(1, 0, 0);
 
   drawFog(cam.x, cam.y, G.t);
   drawVignette();
