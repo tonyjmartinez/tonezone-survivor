@@ -85,7 +85,7 @@ Owner: "make the game a bit more unique with a more consistent and interesting s
 
 ## Milestone: Graphic overhaul (2026-11-01, owner request; plan in docs/ART.md)
 One small PR per slice, 390px + desktop screenshots, perf check, smoke EXPECT entries.
-- [ ] (art) 1 Ground: tiled dirt/grass/path variation + soft fog layer, no flat navy.
+- [x] (art) 1 Ground: tiled dirt/grass/path variation + soft fog layer, no flat navy.
 - [ ] (art) 2 Player + 6 characters: 3-4 frame walk, idle breathe, distinct silhouettes.
 - [ ] (art) 3 Enemies: silhouette rules, 3-frame walk, death frames.
 - [ ] (art) 4 Weapon/projectile VFX pass (trail, glow, ring, arc, lightning).

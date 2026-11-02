@@ -201,6 +201,8 @@ try {
     }
     return bad;
   }, EXPECT);
+  const nt = await pg.evaluate(() => window.TZS_SPRITES.tiles.length);
+  if (nt !== 12) { console.log('tiles', nt); errs.push('tiles'); }
   if (spr.length) { console.log('sprites failed', JSON.stringify(spr)); errs.push('sprites'); }
   // level-up reroll: one free per run, R swaps the cards, none left means no change; each Luck level adds one
   const rr = await pg.evaluate(() => {
