@@ -73,3 +73,5 @@
 - 2026-11-02 (L33): ghost wisp rises from slain bat/ghoul/wraith (part with wisp:true, drawn as pale 6px ghost, fades). Next spooky items: gems as souls / chests as coffins, drone+bell, moon reddening.
 
 - 2026-11-01 (L72): Graphic overhaul plan added to docs/ART.md and ROADMAP (7 slices). Next: slice 1 ground (check existing pd/art-woodland-floor work first).
+
+- 2026-11-01 (L72 art slice 1): ground now 512px pattern (16x16 cells) from 12 tiles: night 0-5, grass 6-7, dirt 8-9, path 10-11; periodic value noise picks patches, wavy path ribbon + dirt verge. Fog/vignette already existed. Smoke asserts 12 tiles. Next: slice 2 player/characters.

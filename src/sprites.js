@@ -328,9 +328,20 @@ const TILE_DEFS = [
   [[6, 6, 's'], [7, 6, 'W'], [6, 7, 'd'], [7, 7, 'd'], [12, 12, 'u']],
   [[3, 12, 'T'], [4, 12, 'T'], [5, 12, 'T'], [4, 11, 'g'], [11, 5, 'u'], [13, 3, 'd']],
 ];
-const tiles = TILE_DEFS.map(list => {
+// Terrain variants (indices 6-11): grass (2), dirt (2), path (2). Own base colours, still palette-derived.
+const GRASS_BASE = mix(TILE_BASE, BASE.mossD, 0.55), DIRT_BASE = '#2a2030', PATH_BASE = '#3a2d3a';
+TILE_DEFS.push(
+  [[2, 12, 'g'], [9, 6, 'g'], [13, 13, 'g']],
+  [[3, 5, 'm'], [3, 4, 'g'], [4, 5, 'g'], [11, 10, 'm'], [11, 9, 'g'], [12, 10, 'g'], [7, 14, 'g']],
+  [[4, 3, 'T'], [12, 8, 'T'], [8, 13, 'd']],
+  [[2, 9, 's'], [3, 9, 'd'], [10, 4, 'T'], [11, 4, 'T'], [13, 12, 'd'], [6, 7, 'T']],
+  [[3, 3, 'd'], [9, 8, 'd'], [12, 13, 'd'], [5, 12, 's']],
+  [[2, 5, 's'], [3, 5, 'W'], [10, 11, 's'], [11, 11, 'd'], [7, 2, 'd'], [14, 8, 'd']],
+);
+const TILE_BASES = [TILE_BASE, TILE_BASE, TILE_BASE, TILE_BASE, TILE_BASE, TILE_BASE, GRASS_BASE, GRASS_BASE, DIRT_BASE, DIRT_BASE, PATH_BASE, PATH_BASE];
+const tiles = TILE_DEFS.map((list, n) => {
   const c = document.createElement('canvas'); c.width = c.height = 16;
-  const g = c.getContext('2d'); g.fillStyle = TILE_BASE; g.fillRect(0, 0, 16, 16);
+  const g = c.getContext('2d'); g.fillStyle = TILE_BASES[n]; g.fillRect(0, 0, 16, 16);
   for (const [x, y, k] of list) { g.fillStyle = k === 'y' ? '#a07c1c' : PAL[k]; g.fillRect(x, y, 1, 1); }
   return c;
 });

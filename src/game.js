@@ -903,13 +903,29 @@ function renderTitle(now) {
 }
 function woodlandFloor() {
   if (FLOOR_PAT) return FLOOR_PAT;
-  // 8x8 baked 16x16 pixel tiles drawn at 2x = 256px pattern (see sprites.js tiles)
-  const N = 8, c = document.createElement('canvas'), T = SPR.tiles;
+  // 16x16 baked pixel tiles drawn at 2x = 512px seamless pattern (see sprites.js tiles):
+  // coarse periodic noise picks grass/night/dirt patches, a wavy path ribbon winds down the middle.
+  const N = 16, c = document.createElement('canvas'), T = SPR.tiles;
   c.width = c.height = N * 32;
   const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  const hash = (i, j) => (Math.imul(((i % 4) + 4) % 4 + 1, 73856093) ^ Math.imul(((j % 4) + 4) % 4 + 7, 19349663)) >>> 0;
+  const lat = (i, j) => (hash(i, j) % 1000) / 1000;
+  const noise = (i, j) => { // bilinear value noise over a 4-cell lattice, periodic in 16
+    const x = i / 4, y = j / 4, xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi;
+    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    const a = lat(xi, yi), b = lat(xi + 1, yi), cc = lat(xi, yi + 1), d = lat(xi + 1, yi + 1);
+    return (a + (b - a) * sx) * (1 - sy) + (cc + (d - cc) * sx) * sy;
+  };
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-    const h = (Math.imul(i, 73856093) ^ Math.imul(j, 19349663)) >>> 0, v = h % 9;
-    g.drawImage(T[v < 3 ? 0 : v - 2 > 5 ? 5 : v - 2 < 1 ? 1 : v - 2], i * 32, j * 32, 32, 32);
+    const h = (Math.imul(i, 73856093) ^ Math.imul(j, 19349663)) >>> 0, v = h % 9, n = noise(i, j);
+    const dx = Math.abs(i - (8 + Math.round(2.5 * Math.sin(j * Math.PI / 8))));
+    let t;
+    if (dx <= 1) t = 10 + (h >> 5) % 2; // path
+    else if (dx === 2 && (h >> 3) % 3) t = 8 + (h >> 7) % 2; // dirt verge
+    else if (n > 0.58) t = 6 + (h >> 5) % 2; // grass patch
+    else if (n < 0.3) t = 8 + (h >> 5) % 2; // bare dirt patch
+    else t = v < 3 ? 0 : v - 2 > 5 ? 5 : v - 2 < 1 ? 1 : v - 2;
+    g.drawImage(T[t], i * 32, j * 32, 32, 32);
   }
   FLOOR_PAT = ctx.createPattern(c, 'repeat');
   return FLOOR_PAT;
