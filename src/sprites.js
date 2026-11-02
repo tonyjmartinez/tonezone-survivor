@@ -47,9 +47,40 @@ const P_BODY = [
 ];
 const E = '................';
 // legs: [rowBelowBody, extraRowWhenBobbed]
-function pf(legs, bob) {
+function pf(legs, bob, body) {
   // bob=1 lifts the body one pixel; legs then show two rows tall.
-  return (bob ? [E, ...P_BODY, legs, legs, E, E] : [E, E, ...P_BODY, legs, E, E]).slice(0, 16);
+  const B = body || P_BODY;
+  return (bob ? [E, ...B, legs, legs, E, E] : [E, E, ...B, legs, E, E]).slice(0, 16);
+}
+// Playable characters: each swaps the 7 head rows of P_BODY and holds one item at the back (col 0-2),
+// so the six read apart by silhouette, not only by cloak tint. Item pixels are [x, bodyRow, key].
+const HEADS = {
+  mage: ['..........hB....', '.........hbbB...', '........hbbbB...', '.......hbbbbbB..', '...oyyyyyyyyyyo.', '....hbwwwwkwB...', '....lbbwwwwbB...'],
+  knight: ['.......r........', '......rrr.......', '.....WWWWWs.....', '....WWWWWWWs....', '....WWsskkkks...', '....WWWWWWWs....', '....lbbsssbbB...'],
+  druid: ['...t.....t......', '...tt...tt.m....', '....tthhbbmm....', '....hhbbbbbbB...', '....hbwwwwkwB...', '....hbwwwwkwB...', '....lbbwwwwbB...'],
+  rogue: ['................', '................', '.....hhbbbb.....', '...hhbbbbbbbB...', '.rrhkkkkkwkB....', '..r.hbwwwwwwB...', '....lbbwwwwbB...'],
+  pyro: ['........e.......', '.......eye......', '......eyyre.....', '....hhbebbbB....', '....hbwwwwkwB...', '....hbwwwwkwB...', '....lbbwwwwbB...'],
+  storm: ['.....c...c......', '.....cc.cc.c....', '....cccccccc....', '....hhbbbbbbB...', '....hbwwwwkwB...', '....hbwwwwkwB...', '....lbbwwwwbB...'],
+};
+const vline = (x, y0, y1, k) => Array.from({ length: y1 - y0 + 1 }, (_, i) => [x, y0 + i, k]);
+const ITEMS = {
+  mage: [...vline(1, 2, 11, 't'), [1, 0, 'c'], [1, 1, 'c'], [0, 1, 'c'], [2, 1, 'c']],
+  knight: [...vline(1, 0, 7, 'W'), [0, 8, 'y'], [1, 8, 'y'], [2, 8, 'y'], [1, 9, 't'], [1, 10, 't']],
+  druid: [...vline(1, 2, 11, 't'), [1, 0, 'm'], [0, 1, 'm'], [1, 1, 'g'], [2, 1, 'm']],
+  rogue: [[0, 6, 'y'], [1, 6, 'y'], [2, 6, 'o'], [0, 7, 'y'], [0, 8, 'o']],
+  pyro: [...vline(1, 4, 11, 't'), [1, 1, 'r'], [0, 2, 'e'], [1, 2, 'y'], [2, 2, 'e'], [1, 3, 'e']],
+  storm: [...vline(1, 3, 11, 's'), [2, 0, 'c'], [1, 1, 'c'], [0, 2, 'c'], [1, 2, 'c']],
+};
+function charBody(key) {
+  const r = HEADS[key].concat(P_BODY.slice(7)).map(row => row.split(''));
+  for (const [x, y, k] of ITEMS[key]) r[y][x] = k;
+  return r.map(a => a.join(''));
+}
+function charDef(body) {
+  return { size: 16, anims: {
+    idle: [pf('.....uu..uu.....', 0, body), pf('.....uu..uu.....', 1, body)],
+    walk: [pf('....uu....uu....', 0, body), pf('.....uu.uu......', 1, body), pf('...uu....uu.....', 0, body), pf('......uu.uu.....', 1, body)],
+  } };
 }
 const DEFS = {
   // Props (16x16, outlined, drawn under units): tree, rock, mushroom.
@@ -238,6 +269,7 @@ const ENEMY = {
   ['....g.g..g......', '...ggbbbbbgg....', '...hbbbbbbbB....', '...bwkbbbkwB....', '...bbbbhbbbB....', '....bbwwwbB.....',
     '..hhhbbbbbbBB...', '.hbbhbbbbbbBBo..', '.hbbbbbbbbbBBo..', '.BbbBbbbbbbBooo.', '..BB.bbbbbbB.oo.', '....bbbbbbbB....', '...bbb....bbB...', '..bbbb....bbbB..']].map(r => fit(r, 1)),
 };
+for (const k in HEADS) DEFS['player_' + k] = charDef(charBody(k));
 for (const k in ENEMY) DEFS[k] = { size: 16, anims: { walk: ENEMY[k] } };
 
 // Boss (32x32): horned, crowned brute. Authored as the left half (16 cols) of each row and mirrored

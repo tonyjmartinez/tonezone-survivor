@@ -120,6 +120,7 @@ const CHARS = [
   { name: 'Pyro',   w: 'mine',  desc: 'Mines. -10% speed.',              hp: 0,  spd: 0.9,  dmg: 1,    color: '#fdba74' },
   { name: 'Storm',  w: 'zap',   desc: 'Lightning splash.',              hp: 0,  spd: 1,    dmg: 1,    color: '#7dd3fc', zapSplash: 40 },
 ];
+function charSpr(ch) { return 'player_' + ch.name.toLowerCase(); }
 let charIdx = Math.min(CHARS.length - 1, +(localStorage.getItem('tzs_char') || 0));
 let hard = localStorage.getItem('tzs_hard') === '1'; // Hard: +40% spawns, +50% gold
 function toggleHard() { hard = !hard; try { localStorage.setItem('tzs_hard', hard ? '1' : '0'); } catch (err) {} }
@@ -763,7 +764,7 @@ let walking = false; // set in update() from movement input; render only reads i
 // Player: baked pixel sprite (src/sprites.js), body tinted per character, drawn at 2x.
 function drawPlayer(p) {
   const moved = walking;
-  const spr = SPR.variant('player', CHARS[charIdx].color);
+  const spr = SPR.variant(charSpr(CHARS[charIdx]), CHARS[charIdx].color);
   const flash = p.hurt > 0 && ((p.hurt * 20) | 0) % 2;
   const flip = p.face && p.face.x < 0;
   ctx.fillStyle = 'rgba(11,16,32,.4)'; ctx.beginPath(); ctx.ellipse(p.x, p.y + p.r + 2, p.r, 4, 0, 0, 7); ctx.fill();
@@ -887,7 +888,7 @@ function renderTitle(now) {
   // character portrait (tap to start) with arrows to cycle
   const P = L.portrait;
   ctx.fillStyle = 'rgba(8,12,30,0.6)'; ctx.fillRect(P.x, P.y, P.w, P.h); ctx.strokeStyle = ch.color; ctx.lineWidth = 2; ctx.strokeRect(P.x + 1, P.y + 1, P.w - 2, P.h - 2);
-  SPR.drawSprite(ctx, SPR.variant('player', ch.color), 'idle', (tsec * 2) | 0, P.x + P.w / 2, P.y + P.h / 2 - 2, 5);
+  SPR.drawSprite(ctx, SPR.variant(charSpr(ch), ch.color), 'idle', (tsec * 2) | 0, P.x + P.w / 2, P.y + P.h / 2 - 2, 5);
   button(L.left, '<', 24, '#fde047', 'rgba(8,12,30,0.6)', 'rgba(251,191,36,0.5)');
   button(L.right, '>', 24, '#fde047', 'rgba(8,12,30,0.6)', 'rgba(251,191,36,0.5)');
   text(ch.name, W / 2, L.nameY, 20, ch.color);
