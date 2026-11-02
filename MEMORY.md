@@ -75,3 +75,5 @@
 - 2026-11-01 (L72): Graphic overhaul plan added to docs/ART.md and ROADMAP (7 slices). Next: slice 1 ground (check existing pd/art-woodland-floor work first).
 
 - 2026-11-01 (L72 art slice 1): ground now 512px pattern (16x16 cells) from 12 tiles: night 0-5, grass 6-7, dirt 8-9, path 10-11; periodic value noise picks patches, wavy path ribbon + dirt verge. Fog/vignette already existed. Smoke asserts 12 tiles. Next: slice 2 player/characters.
+
+- 2026-11-02 Claude Code (claude-farm): world zoom + bigger UI (owner: 'make everything bigger, easier to see'). `ZOOM`/`VW`/`VH` set in resize(); render() scales the world; 'on screen' gameplay (camera, zap targets, bomb clear, lane extent, culling) uses VW/VH. Spawn rings stay at hypot(W,H)/2 via `spawnDist()` so pacing is unchanged (spawning at view distance made idle runs die before 1:00). Lane arrows convert world->screen with ZOOM. HUD minimum 2x font. End screen = row list with wrapLines. Smoke 'zoom' check.

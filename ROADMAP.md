@@ -86,11 +86,12 @@ Owner: "make the game a bit more unique with a more consistent and interesting s
 ## Milestone: Graphic overhaul (2026-11-01, owner request; plan in docs/ART.md)
 One small PR per slice, 390px + desktop screenshots, perf check, smoke EXPECT entries.
 - [x] (art) 1 Ground: tiled dirt/grass/path variation + soft fog layer, no flat navy.
+- [x] (art) 1b Bigger and easier to see (owner): world zoom (`ZOOM` 1.5, or 2 when min(W,H) >= 900; `VW/VH` = visible world), HUD at 2x font minimum, 18px bars, bigger DASH/PLANT/pause buttons, taller level-up cards, end screen stacks lines with wrap (390px overlap fixed). All later slices keep this scale.
 - [ ] (art) 2 Player + 6 characters: 3-4 frame walk, idle breathe, distinct silhouettes.
 - [ ] (art) 3 Enemies: silhouette rules, 3-frame walk, death frames.
 - [ ] (art) 4 Weapon/projectile VFX pass (trail, glow, ring, arc, lightning).
 - [ ] (art) 5 Pickups as souls/coffins + farming sprites matching the theme.
-- [ ] (art) 6 HUD/menus: pixel frames, icons, fonts, end screen fits 390px.
+- [ ] (art) 6 HUD/menus: pixel frames, weapon/passive icons (sizes + end screen done in 1b).
 - [ ] (art) 7 Lighting: player light radius, vignette, moon tint over time.
 
 ### Blocked on Tony

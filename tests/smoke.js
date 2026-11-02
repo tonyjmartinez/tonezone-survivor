@@ -53,6 +53,13 @@ try {
   });
   const dbtn = await pg.evaluate(() => { const t = window.__tzs; t.touchUi = true; t.start(); t.render(); const b = t.dashBtn(); return { d: b.r * 2, hit: t.hitDash(b.x, b.y), W: innerWidth, bx: b.x, by: b.y, H: innerHeight }; });
   if (dbtn.d < 48 || !dbtn.hit || dbtn.bx > dbtn.W || dbtn.by > dbtn.H) { console.log('dash button failed', JSON.stringify(dbtn)); errs.push('dashbtn'); }
+  // world zoom: units drawn bigger, and enemies still spawn just outside the (smaller) visible world
+  const zm = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; t.spawnEnemy(false); const e = G.enemies[0];
+    const d = Math.hypot(e.x - G.p.x, e.y - G.p.y), v = t.view; t.update(0.016); t.render();
+    return { zoom: t.zoom, d, half: Math.hypot(v.w, v.h) / 2, scr: Math.hypot(innerWidth, innerHeight) / 2, camX: G.p.x - G.cam.x, vw: v.w };
+  });
+  if (!(zm.zoom >= 1.5) || zm.d <= zm.half || zm.d > zm.scr + 60 || Math.abs(zm.camX - zm.vw / 2) > 1) { console.log('zoom failed', JSON.stringify(zm)); errs.push('zoom'); }
   await pg.evaluate(() => { window.__tzs.touchUi = false; });
   if (dash.dx < 20 || dash.cd <= 0) { console.log('dash failed', JSON.stringify(dash)); errs.push('dash'); }
   const sum = await pg.evaluate(() => {
