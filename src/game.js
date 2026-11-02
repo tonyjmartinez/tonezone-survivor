@@ -4,9 +4,12 @@
 const cv = document.getElementById('c');
 const ctx = cv.getContext('2d');
 let W, H;
+// World zoom: the arena is drawn ZOOM x bigger so units read on a phone. 1.5 (phones/laptops) or 2 (big screens) keeps
+// 2x sprites on whole device pixels (3 or 4 per art pixel). VW/VH = world units visible on screen; gameplay 'on screen' uses them.
+let ZOOM = 1.5, VW, VH;
 // Size to the visible viewport (visualViewport excludes the mobile URL bar; innerHeight can lag behind it).
 function viewSize() { const v = window.visualViewport; return v ? { w: Math.round(v.width), h: Math.round(v.height) } : { w: innerWidth, h: innerHeight }; }
-function resize() { const s = viewSize(); if (s.w === W && s.h === H) return; W = cv.width = s.w; H = cv.height = s.h; }
+function resize() { const s = viewSize(); if (s.w === W && s.h === H) return; W = cv.width = s.w; H = cv.height = s.h; ZOOM = Math.min(W, H) >= 900 ? 2 : 1.5; VW = W / ZOOM; VH = H / ZOOM; }
 addEventListener('resize', resize); addEventListener('orientationchange', resize);
 if (window.visualViewport) visualViewport.addEventListener('resize', resize);
 resize();
@@ -18,13 +21,13 @@ addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 let touch = null; // {sx,sy,x,y}
 // On-screen dash button (touch has no Shift/Space): 64px circle bottom-right, 48px+ hit target.
 let touchUi = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
-function dashBtn() { return { x: W - 52, y: H - 60, r: 32 }; }
+function dashBtn() { return { x: W - 58, y: H - 66, r: 40 }; }
 function hitDash(px, py) { const b = dashBtn(); return Math.hypot(px - b.x, py - b.y) <= b.r + 8; }
 // PLANT button sits above DASH (touch has no F key).
-function plantBtn() { return { x: W - 52, y: H - 140, r: 28 }; }
+function plantBtn() { return { x: W - 58, y: H - 162, r: 36 }; }
 function hitPlant(px, py) { const b = plantBtn(); return Math.hypot(px - b.x, py - b.y) <= b.r + 8; }
 // Pause button: 44px square under the kills plate (top-right, away from both thumbs).
-function pauseBtn() { return { x: W - 54, y: 74, w: 44, h: 44 }; }
+function pauseBtn() { return { x: W - 62, y: 88, w: 52, h: 52 }; }
 // The joystick follows ONE finger (by pointerId). A second finger on DASH or PAUSE must not move it
 // or end it; before this, the dash finger hijacked the stick and the dash aimed at the button.
 cv.addEventListener('pointerdown', e => {
@@ -260,8 +263,9 @@ function applyChoice(c) {
     if (c.k === 'growth') p.xpMul = (p.xpMul || 1) + 0.15;
   }
 }
-const choiceRects = () => [0, 1, 2].map(i => ({ x: W / 2 - 150, y: H / 2 - 120 + i * 90, w: 300, h: 76 }));
-const rerollRect = () => ({ x: W / 2 - 150, y: H / 2 - 120 + 3 * 90, w: 300, h: 40 });
+const cardW = () => Math.min(W - 24, 360);
+const choiceRects = () => [0, 1, 2].map(i => ({ x: W / 2 - cardW() / 2, y: H / 2 - 130 + i * 98, w: cardW(), h: 86 }));
+const rerollRect = () => ({ x: W / 2 - cardW() / 2, y: H / 2 - 130 + 3 * 98, w: cardW(), h: 56 });
 const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 // Swap the three level-up cards for a fresh draw, spending one reroll.
 function reroll() {
@@ -275,10 +279,12 @@ function pickAt(x, y) { return choiceRects().findIndex(r => x >= r.x && x <= r.x
 const SURGE_AT = 300, SURGE_LEN = 30, RELIEF_LEN = 60;
 function pacing(t) { return t < SURGE_AT ? 1 : t < SURGE_AT + SURGE_LEN ? 1.6 : t < SURGE_AT + SURGE_LEN + RELIEF_LEN ? 0.6 : 1; }
 function spawnRate() { return (0.8 + G.t / 30 + (G.t / 130) ** 2) * pacing(G.t); } // enemies per second, ramps up
+// Spawn ring: kept at the pre-zoom screen distance (always outside the smaller zoomed view) so arrival pacing is unchanged.
+function spawnDist(extra) { return Math.hypot(W, H) / 2 + extra; }
 function spawnEnemy(boss) {
   const types = ENEMY_TYPES.filter(t => G.t >= t.from);
   const base = boss ? { name: 'boss', hp: 600, speed: 60, r: 34, dmg: 25, xp: 40, color: '#fde047' } : types[(Math.random() * types.length) | 0];
-  const a = rnd(0, Math.PI * 2), d = Math.hypot(W, H) / 2 + 40;
+  const a = rnd(0, Math.PI * 2), d = spawnDist(40);
   const hpScale = 1 + G.t / 90;
   const n = base.pack || 1;
   for (let i = 0; i < n; i++) G.enemies.push({ x: G.p.x + Math.cos(a) * d + (i ? rnd(-30, 30) : 0), y: G.p.y + Math.sin(a) * d + (i ? rnd(-30, 30) : 0), r: base.r, hp: base.hp * hpScale * (boss ? 1 + G.t / 240 : 1), speed: base.speed * (1 + Math.min(G.t / 600, 0.6)), dmg: base.dmg, xp: base.xp, color: base.color, flash: 0, boss, kind: base.name, spr: base.spr, maxHp: base.hp * hpScale * (boss ? 1 + G.t / 240 : 1) });
@@ -286,7 +292,7 @@ function spawnEnemy(boss) {
 }
 // Climax: a huge titan boss that periodically telegraphs a ground slam (ring fills for SLAM_WARN s, then hits anything inside).
 function spawnTitan() {
-  const a = rnd(0, Math.PI * 2), d = Math.hypot(W, H) / 2 + 80, hp = 2500 + G.t * 4;
+  const a = rnd(0, Math.PI * 2), d = spawnDist(80), hp = 2500 + G.t * 4;
   G.enemies.push({ x: G.p.x + Math.cos(a) * d, y: G.p.y + Math.sin(a) * d, r: 52, hp, maxHp: hp, speed: 38, dmg: 30, xp: 120, color: '#f97316', flash: 0, boss: true, titan: true, kind: 'boss', sc: 3, st: SLAM_EVERY });
   G.hordeBanner = 3; G.bannerText = 'THE TITAN AWAKENS!'; G.shake = Math.max(G.shake, 0.5); sfx(80, 0.5, 'sawtooth', 0.08);
 }
@@ -295,7 +301,7 @@ function makeElite(e) { e.elite = true; e.hp *= 2.5; e.maxHp *= 2.5; e.r = Math.
 
 function spawnHorde() {
   const types = ENEMY_TYPES.filter(t => G.t >= t.from && !t.pack), base = types[types.length - 1 - ((Math.random() * Math.min(2, types.length)) | 0)];
-  const n = Math.min(40, 20 + Math.floor(G.t / 20)), d = Math.hypot(W, H) / 2 + 60, hpScale = 1 + G.t / 90;
+  const n = Math.min(40, 20 + Math.floor(G.t / 20)), d = spawnDist(60), hpScale = 1 + G.t / 90;
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2;
     G.enemies.push({ x: G.p.x + Math.cos(a) * d, y: G.p.y + Math.sin(a) * d, r: base.r, hp: base.hp * hpScale, speed: base.speed * (1 + Math.min(G.t / 600, 0.6)), dmg: base.dmg, xp: base.xp, color: base.color, flash: 0, kind: base.name });
@@ -313,7 +319,7 @@ function updateLane(dt) {
   const L = G.lane; if (!L) return;
   if (L.warn > 0) { L.warn -= dt; return; }
   L.time -= dt; L.acc += LANE_RATE * dt;
-  const base = ENEMY_TYPES.find(t => t.name === 'wisp'), hpScale = 1 + G.t / 90, ext = (L.d.x ? W : H) / 2 + 40;
+  const base = ENEMY_TYPES.find(t => t.name === 'wisp'), hpScale = 1 + G.t / 90, ext = (L.d.x ? VW : VH) / 2 + 40;
   while (L.acc >= 1) {
     L.acc--;
     const off = rnd(-LANE_HALF, LANE_HALF);
@@ -443,7 +449,7 @@ function update(dt) {
   else { p.x += dx * p.speed * dt; p.y += dy * p.speed * dt; }
   p.hurt = Math.max(0, p.hurt - dt);
   if (p.regen) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
-  G.cam.x = p.x - W / 2; G.cam.y = p.y - H / 2;
+  G.cam.x = p.x - VW / 2; G.cam.y = p.y - VH / 2;
   updateFarm(dt);
 
   // spawn
@@ -527,7 +533,7 @@ function update(dt) {
     G.timers.zap = (G.timers.zap || 0) - dt;
     if (G.timers.zap <= 0 && G.enemies.length) {
       G.timers.zap = (2.0 - wz * 0.12) * p.cdMul;
-      const n = 1 + Math.ceil(wz / 2), rx = W / 2 + 40, ry = H / 2 + 40;
+      const n = 1 + Math.ceil(wz / 2), rx = VW / 2 + 40, ry = VH / 2 + 40;
       const vis = G.enemies.filter(e => Math.abs(e.x - p.x) < rx && Math.abs(e.y - p.y) < ry);
       for (let i = 0; i < n && vis.length; i++) {
         const e = vis.splice((Math.random() * vis.length) | 0, 1)[0];
@@ -681,7 +687,7 @@ function update(dt) {
   G.vacs = G.vacs.filter(v => !v.dead);
   for (const b of G.bombs) if (dist2(p, b) < (p.r + 12) ** 2) {
     b.dead = true; sfx(90, 0.4, 'sawtooth', 0.09); G.shake = 0.5; G.texts.push({ x: p.x, y: p.y - 16, s: 'BOMB!', t: 1 });
-    for (const e of G.enemies) if (Math.abs(e.x - p.x) < W / 2 + 40 && Math.abs(e.y - p.y) < H / 2 + 40) damage(e, e.boss ? 120 : 9999);
+    for (const e of G.enemies) if (Math.abs(e.x - p.x) < VW / 2 + 40 && Math.abs(e.y - p.y) < VH / 2 + 40) damage(e, e.boss ? 120 : 9999);
   }
   G.bombs = G.bombs.filter(b => !b.dead);
   for (const f of G.ices) if (dist2(p, f) < (p.r + 12) ** 2) { f.dead = true; G.freeze = 4; sfx(900, 0.2, 'sine', 0.06); G.texts.push({ x: p.x, y: p.y - 16, s: 'FREEZE!', t: 1 }); }
@@ -777,9 +783,9 @@ function drawEnemy(e) {
 // Pixel chevrons on the edge the swarm enters from, centred on the lane band; they blink during the warning.
 function drawLaneArrows(L) {
   if (L.warn > 0 && ((L.warn * 6) | 0) % 2) return;
-  const z = 3, horiz = !!L.d.x;
-  const bx = horiz ? (L.d.x > 0 ? 16 : W - 16) : Math.round(L.cx - G.cam.x), by = horiz ? Math.round(L.cy - G.cam.y) : (L.d.y > 0 ? 96 : H - 16);
-  for (const o of [-LANE_HALF * 0.7, 0, LANE_HALF * 0.7]) for (let c = 0; c < 2; c++) for (let i = 0; i < 4; i++) for (const sg of [-1, 1]) {
+  const z = 4, horiz = !!L.d.x;
+  const bx = horiz ? (L.d.x > 0 ? 16 : W - 16) : Math.round((L.cx - G.cam.x) * ZOOM), by = horiz ? Math.round((L.cy - G.cam.y) * ZOOM) : (L.d.y > 0 ? 96 : H - 16);
+  for (const o of [-LANE_HALF * 0.7 * ZOOM, 0, LANE_HALF * 0.7 * ZOOM]) for (let c = 0; c < 2; c++) for (let i = 0; i < 4; i++) for (const sg of [-1, 1]) {
     const along = (c * 5 + i) * z, perp = o + sg * (3 - i) * z;
     const x = bx + L.d.x * along + (horiz ? 0 : perp), y = by + L.d.y * along + (horiz ? perp : 0);
     ctx.fillStyle = '#0b1020'; ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, z + 2, z + 2);
@@ -945,12 +951,12 @@ function render() {
   ctx.fillStyle = '#1b1b26'; ctx.fillRect(0, 0, W, H);
   if (state === 'title') { renderTitle(performance.now()); return; }
   const { cam, p } = G;
-  const sh = G.shake * 20;
-  ctx.save(); ctx.translate(-cam.x + rnd(-sh, sh), -cam.y + rnd(-sh, sh));
+  const sh = G.shake * 14;
+  ctx.save(); ctx.scale(ZOOM, ZOOM); ctx.translate(-cam.x + rnd(-sh, sh), -cam.y + rnd(-sh, sh));
   // themed floor: one cached 4x4-tile pattern (see woodlandFloor), filled over the visible area
-  ctx.fillStyle = woodlandFloor(); ctx.fillRect(cam.x - 64, cam.y - 64, W + 128, H + 128);
+  ctx.fillStyle = woodlandFloor(); ctx.fillRect(cam.x - 64, cam.y - 64, VW + 128, VH + 128);
   // props: sparse trees/rocks/mushrooms on a hashed 112px grid, view-culled, drawn under all units
-  if (!window.__tzsNoProps) for (let gy = Math.floor((cam.y - 40) / 112), ey = Math.floor((cam.y + H + 40) / 112); gy <= ey; gy++) for (let gx = Math.floor((cam.x - 40) / 112), ex = Math.floor((cam.x + W + 40) / 112); gx <= ex; gx++) {
+  if (!window.__tzsNoProps) for (let gy = Math.floor((cam.y - 40) / 112), ey = Math.floor((cam.y + VH + 40) / 112); gy <= ey; gy++) for (let gx = Math.floor((cam.x - 40) / 112), ex = Math.floor((cam.x + VW + 40) / 112); gx <= ex; gx++) {
     const pr = propAt(gx, gy);
     if (!pr || isCut(pr)) continue;
     const { kind } = pr, wob = G.chop && G.chop.key === pr.key ? Math.round(Math.sin(G.t * 50) * 1.5) : 0; // shudders while being chopped
@@ -976,7 +982,7 @@ function render() {
   if (G.chop) pixBar(G.chop.x - 16, G.chop.y - 30, 32, 6, G.chop.prog / G.chop.need, '#bef264');
   // soft ground shadows for enemies go under every sprite (player shadow is drawn in drawPlayer)
   // (shadows outside the visible area are culled; crowded scenes can hold hundreds of enemies)
-  const vx0 = cam.x - 160, vy0 = cam.y - 160, vx1 = cam.x + W + 160, vy1 = cam.y + H + 160; // margin > largest shadow (boss r*1.1)
+  const vx0 = cam.x - 160, vy0 = cam.y - 160, vx1 = cam.x + VW + 160, vy1 = cam.y + VH + 160; // margin > largest shadow (boss r*1.1)
   for (const e of G.enemies) if (e.x > vx0 && e.x < vx1 && e.y > vy0 && e.y < vy1) groundShadow(e.x, e.y + e.r * 0.6, e.r);
   for (const g of G.gems) drawGem(g);
   for (const h of G.hearts) drawHeart(h.x, h.y + Math.sin(G.t * 5 + h.x) * 1.5);
@@ -1011,51 +1017,53 @@ function render() {
   for (const f of G.mineFx) { ctx.fillStyle = 'rgba(245,158,11,' + (f.t / f.max * 0.6) + ')'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 - f.t / f.max * 0.4), 0, 7); ctx.fill(); }
   if (G.novaRing) { ctx.strokeStyle = 'rgba(125,211,252,' + (G.novaRing.t / 0.3) + ')'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(p.x, p.y, G.novaRing.r, 0, 7); ctx.stroke(); }
   drawPlayer(p);
-  for (const t of G.texts) text(t.s, t.x, t.y, t.big ? 18 : 12, t.big ? '#fde047' : '#fff');
+  for (const t of G.texts) text(t.s, t.x, t.y, t.big ? 18 : 12, t.big ? '#fde047' : '#fff', 'center', VW);
   ctx.restore();
 
   drawFog(cam.x, cam.y, G.t);
   drawVignette();
   if (G.freeze > 0) { ctx.fillStyle = 'rgba(125,211,252,' + Math.min(0.18, G.freeze * 0.1) + ')'; ctx.fillRect(0, 0, W, H); }
-  // HUD
-  pixBar(0, 0, W, 14, Math.min(1, p.xp / p.need), '#38bdf8');
-  if (G.xpPulse > 0) { ctx.fillStyle = 'rgba(253,224,71,' + (G.xpPulse / 0.6 * 0.7).toFixed(3) + ')'; ctx.fillRect(0, 0, W, 14 + Math.round(G.xpPulse * 10)); }
-  text('LV ' + p.lvl, W / 2, 11, 12);
-  pixBar(16, 24, W < 480 ? 108 : 160, 12, Math.max(0, p.hp / p.maxHp), '#ef4444');
-  // Readout plates keep text legible over busy floor art; narrow screens drop the key hint so the
-  // timer block (center) and dash/kills block (right) never overlap at 390px.
+  // HUD (screen space). Everything is 2x pixel font or bigger; bars are 18px. Narrow screens (phones) stack the
+  // seeds/weapon list under the top plates so nothing overlaps at 390px.
   const narrow = W < 480;
-  hudPlate(W / 2 - 62, 22, 124, 46);
-  hudPlate(W - (narrow ? 130 : 196), 22, narrow ? 122 : 188, 44);
-  text(fmt(G.t), W / 2, 40, 22);
-  text('goal ' + fmt(WIN_TIME), W / 2, 54, 11, '#94a3b8');
-  // Narrow screens move the banner off the top-left weapon list (it would overlap at 390px).
-  if (G.hordeBanner > 0) narrow ? text(G.bannerText, W / 2, Math.round(H * 0.3), 16, '#f87171') : text(G.bannerText, W / 2, 70, 20, '#f87171');
+  pixBar(0, 0, W, 18, Math.min(1, p.xp / p.need), '#38bdf8');
+  if (G.xpPulse > 0) { ctx.fillStyle = 'rgba(253,224,71,' + (G.xpPulse / 0.6 * 0.7).toFixed(3) + ')'; ctx.fillRect(0, 0, W, 18 + Math.round(G.xpPulse * 10)); }
+  text('LV ' + p.lvl, W / 2, 16, 14);
+  const hpW = narrow ? Math.min(112, W / 2 - 82) : 220;
+  pixBar(10, 26, hpW, 18, Math.max(0, p.hp / p.maxHp), '#ef4444');
+  if (!narrow) text(Math.ceil(Math.max(0, p.hp)) + '/' + p.maxHp, 10 + hpW + 8, 42, 14, '#fca5a5', 'left');
+  const cw = 140;
+  hudPlate(W / 2 - cw / 2, 24, cw, 54);
+  text(fmt(G.t), W / 2, 54, 28);
+  text('/ ' + fmt(WIN_TIME), W / 2, 73, 14, '#94a3b8');
+  const rw = narrow ? Math.min(124, W / 2 - cw / 2 - 12) : 210;
+  hudPlate(W - rw - 8, 24, rw, 54);
+  text((narrow ? 'K ' : 'Kills ') + G.kills, W - 16, 46, 14, '#fff', 'right', rw - 12);
+  const dashTxt = p.dashCd > 0 ? 'Dash ' + p.dashCd.toFixed(1) : (narrow ? 'Dash OK' : 'Dash READY');
+  text(dashTxt, W - 16, 70, 14, p.dashCd > 0 ? '#94a3b8' : '#6ee7b7', 'right', rw - 12);
+  if (G.hordeBanner > 0) text(G.bannerText, W / 2, narrow ? Math.round(H * 0.28) : 104, 22, '#f87171', 'center', W - 24);
   if (G.lane) drawLaneArrows(G.lane);
-  text('Kills ' + G.kills, W - 16, 40, 16, '#fff', 'right');
-  const dashTxt = p.dashCd > 0 ? 'Dash ' + p.dashCd.toFixed(1) : (narrow ? 'Dash READY' : 'Dash READY (Shift/Space)');
-  text(dashTxt, W - 16, 58, 12, p.dashCd > 0 ? '#94a3b8' : '#6ee7b7', 'right');
   { const pb = pauseBtn(); ctx.fillStyle = 'rgba(8,12,30,0.62)'; ctx.fillRect(pb.x, pb.y, pb.w, pb.h); ctx.strokeStyle = 'rgba(251,191,36,0.35)'; ctx.lineWidth = 1; ctx.strokeRect(pb.x + 0.5, pb.y + 0.5, pb.w - 1, pb.h - 1);
-    ctx.fillStyle = '#e2e8f0'; ctx.fillRect(pb.x + 14, pb.y + 12, 5, 20); ctx.fillRect(pb.x + 25, pb.y + 12, 5, 20); }
+    ctx.fillStyle = '#e2e8f0'; ctx.fillRect(pb.x + 16, pb.y + 14, 6, 24); ctx.fillRect(pb.x + 30, pb.y + 14, 6, 24); }
   if (touch && state === 'play') { // faint stick ring so the player sees where their thumb anchored
     const tx = touch.x - touch.sx, ty = touch.y - touch.sy, tm = Math.hypot(tx, ty), k = tm > 60 ? 60 / tm : 1;
-    ctx.strokeStyle = 'rgba(226,232,240,0.25)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(touch.sx, touch.sy, 60, 0, 7); ctx.stroke();
-    circle(touch.sx + tx * k, touch.sy + ty * k, 18, 'rgba(226,232,240,0.3)');
+    ctx.strokeStyle = 'rgba(226,232,240,0.3)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(touch.sx, touch.sy, 60, 0, 7); ctx.stroke();
+    circle(touch.sx + tx * k, touch.sy + ty * k, 22, 'rgba(226,232,240,0.35)');
   }
   if (touchUi) {
     const b = dashBtn(), rdy = p.dashCd <= 0;
-    ctx.fillStyle = rdy ? 'rgba(16,185,129,0.55)' : 'rgba(30,41,59,0.6)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
-    ctx.strokeStyle = rdy ? '#6ee7b7' : '#64748b'; ctx.lineWidth = 2; ctx.stroke();
-    text(rdy ? 'DASH' : p.dashCd.toFixed(1), b.x, b.y + 4, 12, '#fff', 'center');
+    ctx.fillStyle = rdy ? 'rgba(16,185,129,0.6)' : 'rgba(30,41,59,0.65)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
+    ctx.strokeStyle = rdy ? '#6ee7b7' : '#64748b'; ctx.lineWidth = 3; ctx.stroke();
+    text(rdy ? 'DASH' : p.dashCd.toFixed(1), b.x, b.y + 7, 14, '#fff', 'center');
     const pb = plantBtn(), has = G.seeds > 0;
-    ctx.fillStyle = has ? 'rgba(101,163,13,0.55)' : 'rgba(30,41,59,0.5)'; ctx.beginPath(); ctx.arc(pb.x, pb.y, pb.r, 0, 7); ctx.fill();
-    ctx.strokeStyle = has ? '#bef264' : '#64748b'; ctx.lineWidth = 2; ctx.stroke();
-    text('PLANT', pb.x, pb.y, 12, has ? '#fff' : '#94a3b8', 'center'); text('x' + G.seeds, pb.x, pb.y + 14, 12, has ? '#bef264' : '#64748b', 'center');
+    ctx.fillStyle = has ? 'rgba(101,163,13,0.6)' : 'rgba(30,41,59,0.55)'; ctx.beginPath(); ctx.arc(pb.x, pb.y, pb.r, 0, 7); ctx.fill();
+    ctx.strokeStyle = has ? '#bef264' : '#64748b'; ctx.lineWidth = 3; ctx.stroke();
+    text('PLANT', pb.x, pb.y + 2, 14, has ? '#fff' : '#94a3b8', 'center'); text('x' + G.seeds, pb.x, pb.y + 20, 14, has ? '#bef264' : '#64748b', 'center');
   }
-  text(`Seeds ${G.seeds}  Wood ${G.wood}` + (p.fed > 0 ? `  FED ${Math.ceil(p.fed)}` : ''), 16, 56, 12, p.fed > 0 ? '#fde047' : '#bef264', 'left');
-  let y = 70; ctx.textAlign = 'left';
-  for (const k in G.w) { text(`${WEAPONS[k].name} ${G.w[k] >= EVO_LVL ? 'EVO' : G.w[k]}`, 16, y, 12, '#fde047', 'left'); y += 14; }
-  for (const k in G.pa) { text(`${PASSIVES[k].name} ${G.pa[k]}`, 16, y, 12, '#a7f3d0', 'left'); y += 14; }
+  let y = narrow ? 104 : 70; const lw = narrow ? W - 90 : W / 2 - cw / 2 - 20;
+  text(`Seed ${G.seeds} Wood ${G.wood}` + (p.fed > 0 ? ` Fed ${Math.ceil(p.fed)}` : ''), 10, y, 14, p.fed > 0 ? '#fde047' : '#bef264', 'left', lw); y += 20;
+  for (const k in G.w) { text(`${WEAPONS[k].name} ${G.w[k] >= EVO_LVL ? 'EVO' : G.w[k]}`, 10, y, 14, '#fde047', 'left', lw); y += 18; }
+  for (const k in G.pa) { text(`${PASSIVES[k].name} ${G.pa[k]}`, 10, y, 14, '#a7f3d0', 'left', lw); y += 18; }
 
   if (state === 'levelup') {
     const lt = G.lvlT || 0;
@@ -1070,17 +1078,17 @@ function render() {
       const d = c.kind === 'w' ? WEAPONS[c.k] : PASSIVES[c.k];
       ctx.fillStyle = '#2d2d44'; ctx.fillRect(r.x, r.y, r.w, r.h);
       ctx.strokeStyle = c.kind === 'w' ? '#fde047' : '#6ee7b7'; ctx.lineWidth = 2; ctx.strokeRect(r.x, r.y, r.w, r.h);
-      text(`${i + 1}. ${d.name} (Lv ${c.lvl})`, r.x + 12, r.y + 30, 18, '#fff', 'left', r.w - 20);
+      text(`${i + 1}. ${d.name} (Lv ${c.lvl})`, r.x + 12, r.y + 32, 20, '#fff', 'left', r.w - 20);
       // Long descriptions wrap to two lines at the card's 2x scale rather than shrinking to the tiny 1x font.
       const lines = wrapLines(d.desc, r.w - 20, 2);
-      if (lines.length === 1) text(lines[0], r.x + 12, r.y + 56, 14, '#bbb', 'left', r.w - 20);
-      else if (lines.length === 2) lines.forEach((l, j) => text(l, r.x + 12, r.y + 50 + j * 17, 14, '#bbb', 'left', r.w - 20));
-      else text(d.desc, r.x + 12, r.y + 56, 14, '#bbb', 'left', r.w - 20);
+      if (lines.length === 1) text(lines[0], r.x + 12, r.y + 62, 14, '#bbb', 'left', r.w - 20);
+      else if (lines.length === 2) lines.forEach((l, j) => text(l, r.x + 12, r.y + 56 + j * 18, 14, '#bbb', 'left', r.w - 20));
+      else text(d.desc, r.x + 12, r.y + 62, 14, '#bbb', 'left', r.w - 20);
     });
     const rr = rerollRect(), has = G.rerolls > 0;
     ctx.fillStyle = has ? '#2d2d44' : '#1e1e2e'; ctx.fillRect(rr.x, rr.y, rr.w, rr.h);
     ctx.strokeStyle = has ? '#93c5fd' : '#475569'; ctx.lineWidth = 2; ctx.strokeRect(rr.x, rr.y, rr.w, rr.h);
-    text(has ? `R. Reroll (${G.rerolls} left)` : 'No rerolls left', W / 2, rr.y + 27, 16, has ? '#93c5fd' : '#64748b');
+    text(has ? `R. Reroll (${G.rerolls} left)` : 'No rerolls left', W / 2, rr.y + 36, 18, has ? '#93c5fd' : '#64748b');
   }
   if (state === 'pause') {
     ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, H);
@@ -1092,27 +1100,30 @@ function render() {
   }
   if (state === 'dead') {
     ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, W, H);
-    // Navy panel behind the summary block gives contrast over the arena; every line is fitted to the panel width.
-    const pw = Math.min(W - 16, 520), px = (W - pw) / 2;
-    hudPlate(px, H / 2 - 84, pw, 276);
-    const fit = (str, max) => Math.max(9, Math.min(max, Math.floor((pw - 24) / (str.length * 0.62))));
-    if (G.won) text('DAWN BREAKS!', W / 2, H / 2 - 30, 40, '#fde047'); else text('YOU DIED', W / 2, H / 2 - 30, 40, '#ef4444');
-    const survived = `Survived ${fmt(G.t)} - Kills ${G.kills} - Level ${p.lvl}`;
-    text(survived, W / 2, H / 2 + 10, Math.max(12, fit(survived, 18)));
-    const best = 'Best ' + fmt(+(localStorage.getItem('tzs_best') || 0)) + ' - Gold +' + G.gold;
-    text(best, W / 2, H / 2 + 40, fit(best, 16), '#cbd5e1');
-    const ex = `Bosses ${G.bosses || 0} - Elites ${G.elites || 0} - Hurt ${Math.round(G.taken || 0)}`;
-    text(ex, W / 2, H / 2 + 112, fit(ex, 13), '#e2e8f0');
-    if (G.newBest) text('NEW BEST!', W / 2, H / 2 + 66, 16, '#fde047');
-    const { wl, pl } = buildSummary();
-    if (wl) { const t = 'Weapons: ' + wl; text(t, W / 2, H / 2 + 126, fit(t, 13), '#93c5fd'); }
-    if (pl) { const t = 'Passives: ' + pl; text(t, W / 2, H / 2 + 144, fit(t, 13), '#a7f3d0'); }
-    const bb = localStorage.getItem('tzs_bestbuild');
-    if (bb && !G.newBest) { const t = 'Best run: ' + bb; text(t, W / 2, H / 2 + 164, fit(t, 13), '#fcd34d'); }
-    const fm = `Farm: ${G.chopped} chopped - ${G.harvests} harvests - ${G.wood} wood`;
-    text(fm, W / 2, H / 2 + 182, fit(fm, 13), '#bef264');
-    text('SPACE or tap to retry', W / 2, H / 2 + 98, Math.min(18, fit('SPACE or tap to retry', 18)), '#6ee7b7');
-    text('Esc / tap bottom: menu', W / 2, H - 14, 12, '#94a3b8');
+    // Lines stack top-down with a running y (no fixed offsets that collide). Long lines wrap at 2x; text() only drops
+    // to 1x if a single word cannot fit.
+    const pw = Math.min(W - 16, 560), px = (W - pw) / 2, iw = pw - 28;
+    const { wl, pl } = buildSummary(), bb = localStorage.getItem('tzs_bestbuild');
+    const rows = [];
+    const add = (str, size, col, gap = 8) => { const k = size < 27 ? 2 : size < 40 ? 3 : 4; for (const l of wrapLines(str, iw, k)) rows.push({ l, size, col, h: 8 * k + 4 }); rows[rows.length - 1].h += gap; };
+    add(G.won ? 'DAWN BREAKS!' : 'YOU DIED', 40, G.won ? '#fde047' : '#ef4444', 14);
+    add(`${fmt(G.t)}  ${G.kills} kills  LV ${p.lvl}`, 18, '#fff');
+    add('Best ' + fmt(+(localStorage.getItem('tzs_best') || 0)) + '  Gold +' + G.gold, 16, '#cbd5e1');
+    if (G.newBest) add('NEW BEST!', 20, '#fde047');
+    add(`Bosses ${G.bosses || 0}  Elites ${G.elites || 0}  Hurt ${Math.round(G.taken || 0)}`, 14, '#e2e8f0');
+    add(`Farm: ${G.chopped} chopped  ${G.harvests} harvests  ${G.wood} wood`, 14, '#bef264');
+    if (wl) add('Weapons: ' + wl, 14, '#93c5fd', 4);
+    if (pl) add('Passives: ' + pl, 14, '#a7f3d0', 4);
+    if (bb && !G.newBest) add('Best run: ' + bb, 14, '#fcd34d', 4);
+    add(touchUi ? 'TAP TO RETRY' : 'SPACE OR TAP TO RETRY', 20, '#6ee7b7', 0);
+    let tot = 24; for (const r of rows) tot += r.h;
+    // If it would not fit, shrink the middle detail lines to 1x rather than overflow.
+    if (tot > H - 60) { tot = 24; for (const r of rows) { if (r.size === 14) { r.size = 12; r.h = Math.round(r.h / 2) + 2; } tot += r.h; } }
+    let y = Math.max(8, Math.round((H - 40 - tot) / 2));
+    hudPlate(px, y, pw, tot);
+    y += 12;
+    for (const r of rows) { const k = r.size < 13 ? 1 : r.size < 27 ? 2 : r.size < 40 ? 3 : 4; text(r.l, W / 2, y + 7 * k + 2, r.size, r.col, 'center', iw); y += r.h; }
+    text('Esc / tap bottom: menu', W / 2, H - 14, 14, '#94a3b8');
   }
 }
 
@@ -1131,5 +1142,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, dashBtn, hitDash, set touchUi(v) { touchUi = v; }, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES, propAt, plant, plantBtn, hitPlant , titleLayout, titleTap, choiceRects, pauseBtn, pauseRects, setTouch(v) { touch = v; }, get charIdx() { return charIdx; }, get hard() { return hard; } };
+window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, dashBtn, hitDash, set touchUi(v) { touchUi = v; }, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES, propAt, plant, plantBtn, hitPlant, get zoom() { return ZOOM; }, get view() { return { w: VW, h: VH }; } , titleLayout, titleTap, choiceRects, pauseBtn, pauseRects, setTouch(v) { touch = v; }, get charIdx() { return charIdx; }, get hard() { return hard; } };
 })();
