@@ -80,7 +80,7 @@ Vision: survivors-genre pressure with a farming loop in the middle of the run: y
 Owner: "make the game a bit more unique with a more consistent and interesting spooky theme". First pass done (PR: graveyard props, fog, vignette, spooky event names, themed title). Next ideas, one per loop iteration:
 - [x] (design) Kill fx: a small ghost wisp rises from slain undead (bats/ghouls/wraiths) instead of generic pixels.
 - [ ] (design) Rename/reskin the remaining non-spooky bits so names match the night: gems read as souls (cyan wisp gem sprite), chests as coffins.
-- [ ] (feel) Low drone + occasional distant bell (WebAudio only, no assets), off with M.
+- [x] (feel) Low drone + occasional distant bell (WebAudio only, no assets), off with M.
 - [ ] (design) Moon phase: the night slowly reddens toward 9:00 (titan), dawn light at 10:00 win.
 
 ## Milestone: Graphic overhaul (2026-11-01, owner request; plan in docs/ART.md)

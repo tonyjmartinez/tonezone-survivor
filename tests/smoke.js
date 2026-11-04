@@ -323,6 +323,19 @@ try {
     return { early, late, titan: true, warned, hit: H.p.hp < hp0, cleared: !ti.slam };
   });
   if (cl.early || !cl.late || !cl.titan || !cl.warned || !cl.hit || !cl.cleared) { console.log('climax failed', JSON.stringify(cl)); errs.push('climax'); }
+  // ambience: the distant bell counts down, rings, and resets to 40-80s; the drone follows play + mute
+  const amb = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G;
+    const b0 = G.bell; t.update(0.02); const down = G.bell < b0;
+    G.bell = 0.005; t.update(0.01);
+    const r = { down, bells: G.bells, reset: G.bell >= 40 };
+    t.syncDrone(); r.drone = t.droneOn;
+    t.press('m'); t.syncDrone(); r.mutedOff = !t.droneOn; t.press('m');
+    t.syncDrone(); r.droneBack = t.droneOn;
+    t.state = 'pause'; t.syncDrone(); r.pausedOff = !t.droneOn; t.state = 'play';
+    return r;
+  });
+  if (!amb.down || !(amb.bells >= 1) || !amb.reset || !amb.mutedOff || !amb.pausedOff || amb.drone !== amb.droneBack) { console.log('ambience failed', JSON.stringify(amb)); errs.push('ambience'); }
   // sprite-sheet review page renders without errors
   const sheetErrs = [];
   const sp = await b.newPage({ viewport: { width: 390, height: 844 } });

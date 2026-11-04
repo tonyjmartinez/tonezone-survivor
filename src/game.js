@@ -138,6 +138,7 @@ function newGame() {
     rerolls: 1, // level-up rerolls left: one free per run, +1 per Luck level
     lvlT: 9, xpPulse: 0, // level-up moment: time since the card screen opened; XP bar glow
     cut: new Map(), chop: null, loot: [], crops: [], seeds: 0, wood: 0, harvests: 0, chopped: 0, // farming (see updateFarm)
+    bell: 18, bells: 0, // ambience: next distant-bell countdown, bells rung this run
   };
 }
 
@@ -157,6 +158,44 @@ function sfx(freq, dur = 0.08, type = 'square', vol = 0.04) {
 // Rising arpeggio (sfx() throttles notes closer than 20ms, so space them out).
 function chime(notes) { notes.forEach((f, i) => setTimeout(() => sfx(f, 0.18, 'triangle', 0.05), i * 70)); }
 const LVL_SLIDE = 0.28, LVL_GUARD = 0.35; // level-up: cards slide in over LVL_SLIDE s; taps ignored for LVL_GUARD s
+
+// ---------- ambience: low drone + distant bell (WebAudio only; off with M) ----------
+// Two slightly detuned sines at ~55Hz under every run. syncDrone() is called each
+// frame so the drone follows play state and mute without extra bookkeeping.
+let drone = null;
+function startDrone() {
+  if (drone || muted || typeof AudioContext === 'undefined') return;
+  try {
+    ac = ac || new AudioContext();
+    if (ac.state === 'suspended') ac.resume();
+    const now = ac.currentTime, g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(0.018, now + 2);
+    const mk = f => { const o = ac.createOscillator(); o.type = 'sine'; o.frequency.value = f; o.connect(g); o.start(now); return o; };
+    drone = { o1: mk(55), o2: mk(55.4), g };
+    g.connect(ac.destination);
+  } catch (err) { muted = true; }
+}
+function stopDrone() {
+  if (!drone) return;
+  try { drone.o1.stop(); drone.o2.stop(); drone.g.disconnect(); } catch (err) {}
+  drone = null;
+}
+function syncDrone() { if (state === 'play' && !muted) startDrone(); else stopDrone(); }
+// A soft bell somewhere off in the night: two partials, long decay, random pitch.
+function ringBell() {
+  if (muted || typeof AudioContext === 'undefined') return;
+  try {
+    ac = ac || new AudioContext();
+    if (ac.state === 'suspended') ac.resume();
+    const now = ac.currentTime, f = [196, 220, 165][(Math.random() * 3) | 0];
+    for (const [mul, v] of [[1, 0.035], [2.01, 0.012]]) {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine'; o.frequency.value = f * mul;
+      g.gain.setValueAtTime(v, now); g.gain.exponentialRampToValueAtTime(0.0001, now + 2.4);
+      o.connect(g); g.connect(ac.destination); o.start(now); o.stop(now + 2.4);
+    }
+  } catch (err) { muted = true; }
+}
 
 // ---------- title screen layout (shared by render and tap hit-tests) ----------
 // One centred column that fits 360px phones and desktop; every button is >= 44px tall.
@@ -193,7 +232,7 @@ function titleTap(px, py) {
 }
 
 function onKey(k, e) {
-  if (k === 'm') { muted = !muted; return; }
+  if (k === 'm') { muted = !muted; if (muted) stopDrone(); return; }
   if (state === 'play' && (k === 'shift' || k === ' ') && G.p.dashCd <= 0 && G.p.face) { const mv = moveInput(), mm = Math.hypot(mv.x, mv.y); G.p.dashDir = mm > 0.05 ? { x: mv.x / mm, y: mv.y / mm } : { x: G.p.face.x, y: G.p.face.y }; G.p.dashT = 0.16; G.p.dashCd = 2.5; G.p.hurt = Math.max(G.p.hurt, 0.2); sfx(300, 0.08, 'triangle', 0.05); return; }
   if (state === 'play' && (k === 'f' || k === 'e')) { plant(); return; }
   if ((k === 'p' || k === 'escape') && (state === 'play' || state === 'pause')) { state = state === 'play' ? 'pause' : 'play'; return; }
@@ -440,6 +479,7 @@ function moveInput() {
 function update(dt) {
   const p = G.p;
   G.t += dt;
+  G.bell -= dt; if (G.bell <= 0) { G.bell = 40 + Math.random() * 40; G.bells++; ringBell(); }
   // movement
   let { x: dx, y: dy } = moveInput();
   const fm = Math.hypot(dx, dy); if (fm > 0.05) p.face = { x: dx / fm, y: dy / fm };
@@ -1135,6 +1175,7 @@ function frame(now) {
   if (SHEET) { SPR.drawSheet(ctx, W, H, now / 1000); requestAnimationFrame(frame); return; }
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   if (state === 'play') { if (G.hitstop > 0) G.hitstop -= dt; else update(dt); }
+  if (G) syncDrone();
   if (G && state === 'levelup') G.lvlT += dt;
   if (G && G.xpPulse > 0) G.xpPulse -= dt;
   render();
@@ -1143,5 +1184,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, dashBtn, hitDash, set touchUi(v) { touchUi = v; }, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES, propAt, plant, plantBtn, hitPlant, get zoom() { return ZOOM; }, get view() { return { w: VW, h: VH }; } , titleLayout, titleTap, choiceRects, pauseBtn, pauseRects, setTouch(v) { touch = v; }, get charIdx() { return charIdx; }, get hard() { return hard; } };
+window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, dashBtn, hitDash, set touchUi(v) { touchUi = v; }, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES, propAt, plant, plantBtn, hitPlant, get zoom() { return ZOOM; }, get view() { return { w: VW, h: VH }; } , titleLayout, titleTap, choiceRects, pauseBtn, pauseRects, setTouch(v) { touch = v; }, get charIdx() { return charIdx; }, get hard() { return hard; }, get muted() { return muted; }, get droneOn() { return !!drone; }, syncDrone };
 })();
