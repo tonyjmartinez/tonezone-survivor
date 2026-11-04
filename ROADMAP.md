@@ -87,7 +87,7 @@ Owner: "make the game a bit more unique with a more consistent and interesting s
 One small PR per slice, 390px + desktop screenshots, perf check, smoke EXPECT entries.
 - [x] (art) 1 Ground: tiled dirt/grass/path variation + soft fog layer, no flat navy.
 - [x] (art) 1b Bigger and easier to see (owner): world zoom (`ZOOM` 1.5, or 2 when min(W,H) >= 900; `VW/VH` = visible world), HUD at 2x font minimum, 18px bars, bigger DASH/PLANT/pause buttons, taller level-up cards, end screen stacks lines with wrap (390px overlap fixed). All later slices keep this scale.
-- [ ] (art) 2 Player + 6 characters: 3-4 frame walk, idle breathe, distinct silhouettes.
+- [x] (art) 2 Player + 6 characters: 4-frame walk, 2-frame idle bob, distinct silhouettes (per-character head + held item: mage hat+staff, knight helm+sword, druid antlers+staff, rogue mask+scarf+boomerang, pyro flame+torch, storm spikes+rod).
 - [ ] (art) 3 Enemies: silhouette rules, 3-frame walk, death frames.
 - [ ] (art) 4 Weapon/projectile VFX pass (trail, glow, ring, arc, lightning).
 - [ ] (art) 5 Pickups as souls/coffins + farming sprites matching the theme.
