@@ -393,10 +393,10 @@ function harvest(c) {
   p.hp = Math.min(p.maxHp, p.hp + heal); G.harvests++;
   G.gems.push({ x: c.x, y: c.y - 8, v: c.golden ? 8 : 3, big: c.golden });
   if (Math.random() < 0.5) G.loot.push({ kind: 'seed', x: c.x + 10, y: c.y });
-  if (c.golden) { p.fed = FED_TIME; G.texts.push({ x: p.x, y: p.y - 30, s: 'WELL FED! +25% DMG', t: 1.6, big: true }); }
   G.texts.push({ x: p.x, y: p.y - 16, s: 'HARVEST +' + heal, t: 1 });
   const br = HARVEST_R * (c.golden ? 1.4 : 1), bd = (30 + G.t / 5) * (c.golden ? 2 : 1);
   for (const e of G.enemies) if (dist2(c, e) < (br + e.r) ** 2) { const a = Math.atan2(e.y - c.y, e.x - c.x); damage(e, e.boss ? bd / 2 : bd, Math.cos(a) * 30, Math.sin(a) * 30); }
+  if (c.golden) { p.fed = FED_TIME; G.texts.push({ x: p.x, y: p.y - 30, s: 'WELL FED! +25% DMG', t: 1.6, big: true }); } // after the burst, so golden = exactly 2x
   G.mineFx.push({ x: c.x, y: c.y, r: br, t: 0.35, max: 0.35, col: '190,242,100' }); G.shake = Math.max(G.shake, 0.25);
   sfx(c.golden ? 880 : 620, 0.2, 'triangle', 0.07); burst(c.x, c.y, c.golden ? '#fbbf24' : '#f97316', 8, 110);
 }
