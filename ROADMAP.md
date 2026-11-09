@@ -84,7 +84,7 @@ Owner: "make the game a bit more unique with a more consistent and interesting s
 - [x] (design) Kill fx: a small ghost wisp rises from slain undead (bats/ghouls/wraiths) instead of generic pixels.
 - [ ] (design) Rename/reskin the remaining non-spooky bits so names match the night: gems read as souls (cyan wisp gem sprite), chests as coffins.
 - [ ] (feel) Low drone + occasional distant bell (WebAudio only, no assets), off with M.
-- [ ] (design) Moon phase: the night slowly reddens toward 9:00 (titan), dawn light at 10:00 win.
+- [x] (design) Moon phase: the night slowly reddens toward 9:00 (titan), dawn light at 10:00 win (done with art slice 7, `NIGHT` keyframes).
 
 ## Milestone: Graphic overhaul (2026-11-01, owner request; plan in docs/ART.md)
 One small PR per slice, 390px + desktop screenshots, perf check, smoke EXPECT entries.
@@ -95,7 +95,7 @@ One small PR per slice, 390px + desktop screenshots, perf check, smoke EXPECT en
 - [ ] (art) 4 Weapon/projectile VFX pass (trail, glow, ring, arc, lightning).
 - [ ] (art) 5 Pickups as souls/coffins + farming sprites matching the theme.
 - [ ] (art) 6 HUD/menus: pixel frames, weapon/passive icons (sizes + end screen done in 1b).
-- [ ] (art) 7 Lighting: player light radius, vignette, moon tint over time.
+- [x] (art) 7 Lighting: 1/4-res light map (player light, jack-o'-lantern/crop/magic pools + coloured glow), night tint indigo -> blood moon at 9:00 -> dawn at 10:00 (2026-11-09).
 
 ### Blocked on Tony
 - Real 5+ minute human playtest for balance numbers (needs a person playing on a phone/desktop; bot results only approximate).

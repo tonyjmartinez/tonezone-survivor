@@ -363,6 +363,15 @@ try {
     return { early, late, titan: true, warned, hit: H.p.hp < hp0, cleared: !ti.slam };
   });
   if (cl.early || !cl.late || !cl.titan || !cl.warned || !cl.hit || !cl.cleared) { console.log('climax failed', JSON.stringify(cl)); errs.push('climax'); }
+  // night lighting: light map punches a hole per light; tint drifts indigo -> blood moon (9:00) -> dawn (10:00)
+  const lt = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.crops.length = 0;
+    t.render(); const base = t.lights;
+    G.seeds = 1; t.plant(); G.crops[0].age = G.crops[0].grow; t.render();
+    const [a, m, d] = [0, 540, 600].map(x => t.nightTint(x));
+    return { base, crop: t.lights - base, night: a[2] > a[0], blood: m[0] > m[2] * 2, dawn: d[3] < a[3] && d[3] < m[3] };
+  });
+  if (lt.base < 1 || lt.crop < 1 || !lt.night || !lt.blood || !lt.dawn) { console.log('lighting failed', JSON.stringify(lt)); errs.push('lighting'); }
   // sprite-sheet review page renders without errors
   const sheetErrs = [];
   const sp = await b.newPage({ viewport: { width: 390, height: 844 } });

@@ -72,6 +72,8 @@ Hostile projectiles and hazards use Ember or Blood, never cyan or gold.
 Pickups (distinct by shape first):
 - XP gem: small gold diamond. Gold coin: round gold disc with a shine. Heart: Blood heart. Chest: Stone box with a gold band. Bomb and ice pickups: a round Ink orb (bomb, Ember fuse) and a cyan crystal (freeze).
 
+- Night lighting (slice 7): darkness is a 1/4-res light map in the `NIGHT` tint with soft holes at each light; coloured lights add a faint glow. Darkness alpha stays <= 0.56 so unlit enemies keep their silhouette (readability rule).
+
 ## Readability rule
 
 At a glance, at 390 px wide and at desktop size, the player, enemies, pickups and projectiles must each be distinguishable by silhouette alone, with colour as a second cue:
