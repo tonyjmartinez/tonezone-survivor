@@ -924,7 +924,7 @@ function drawVignette() {
   if (!VIG || VIG.width !== W || VIG.height !== H) {
     VIG = document.createElement('canvas'); VIG.width = W; VIG.height = H;
     const g = VIG.getContext('2d'), R = Math.hypot(W, H) / 2, gr = g.createRadialGradient(W / 2, H / 2, R * 0.35, W / 2, H / 2, R);
-    gr.addColorStop(0, 'rgba(8,6,20,0)'); gr.addColorStop(1, 'rgba(8,6,20,0.62)');
+    gr.addColorStop(0, 'rgba(8,6,20,0)'); gr.addColorStop(1, 'rgba(8,6,20,0.45)');
     g.fillStyle = gr; g.fillRect(0, 0, W, H);
   }
   ctx.drawImage(VIG, 0, 0);
@@ -935,6 +935,50 @@ function drawMoon(x, y, r) {
   circle(x, y, r, '#e2e8f0'); circle(x - r * 0.3, y - r * 0.2, r * 0.22, '#cbd5e1'); circle(x + r * 0.35, y + r * 0.3, r * 0.15, '#cbd5e1');
 }
 let GLOW_MOON = null;
+// ---------- night lighting (ART.md slice 7) ----------
+// Darkness is a 1/4-res light map filled with the night tint, with soft holes punched at every light (player,
+// jack-o'-lanterns, ripe crops, magic), scaled up smooth. Coloured lights add a faint glow from a second 1/4-res map ('lighter').
+// The tint drifts over the run: indigo night -> blood moon at the 9:00 titan -> grey-pink dawn at the 10:00 win.
+const LM_S = 4, LIGHT_MAX = 96, LIGHTS = [];
+const NIGHT = [[0, 10, 8, 30, 0.44], [300, 12, 6, 34, 0.5], [CLIMAX_AT, 70, 6, 20, 0.56], [WIN_TIME - 20, 60, 8, 24, 0.54], [WIN_TIME, 96, 56, 70, 0.2]];
+let LM = null, GL = null, HOLE_IMG = null, LN = 0, litN = 0;
+const TINT_IMG = {};
+function nightTint(t) {
+  let i = 1;
+  while (i < NIGHT.length - 1 && t > NIGHT[i][0]) i++;
+  const a = NIGHT[i - 1], b = NIGHT[i], k = Math.max(0, Math.min(1, (t - a[0]) / (b[0] - a[0])));
+  return [a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k, a[3] + (b[3] - a[3]) * k, a[4] + (b[4] - a[4]) * k];
+}
+function light(x, y, r, col, a) {
+  if (LN >= LIGHT_MAX) return;
+  const L = LIGHTS[LN] || (LIGHTS[LN] = {});
+  LN++; L.x = x; L.y = y; L.r = r; L.col = col; L.a = a;
+}
+function drawLighting(tx, ty) {
+  litN = LN; LN = 0;
+  if (window.__tzsNoFog) return;
+  const w = Math.ceil(W / LM_S), h = Math.ceil(H / LM_S), z = ZOOM / LM_S, [r, g, b, a] = nightTint(G.t);
+  if (!LM || LM.width !== w || LM.height !== h) { LM = document.createElement('canvas'); LM.width = w; LM.height = h; }
+  HOLE_IMG = HOLE_IMG || softBlob(64, [[0, 'rgba(0,0,0,1)'], [0.45, 'rgba(0,0,0,0.8)'], [1, 'rgba(0,0,0,0)']]);
+  const lg = LM.getContext('2d');
+  lg.clearRect(0, 0, w, h); lg.fillStyle = `rgba(${r | 0},${g | 0},${b | 0},${a.toFixed(3)})`; lg.fillRect(0, 0, w, h);
+  lg.globalCompositeOperation = 'destination-out';
+  for (let i = 0; i < litN; i++) { const L = LIGHTS[i], R = L.r * z; lg.globalAlpha = L.a; lg.drawImage(HOLE_IMG, (L.x + tx) * z - R, (L.y + ty) * z - R, R * 2, R * 2); }
+  lg.globalAlpha = 1; lg.globalCompositeOperation = 'source-over';
+  if (!GL || GL.width !== w || GL.height !== h) { GL = document.createElement('canvas'); GL.width = w; GL.height = h; }
+  const gg = GL.getContext('2d');
+  gg.clearRect(0, 0, w, h); gg.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < litN; i++) {
+    const L = LIGHTS[i];
+    if (!L.col) continue;
+    const img = TINT_IMG[L.col] || (TINT_IMG[L.col] = softBlob(32, [[0, `rgba(${L.col},0.3)`], [0.5, `rgba(${L.col},0.1)`], [1, `rgba(${L.col},0)`]])), R = L.r * z * 0.75;
+    gg.globalAlpha = L.a; gg.drawImage(img, (L.x + tx) * z - R, (L.y + ty) * z - R, R * 2, R * 2);
+  }
+  gg.globalAlpha = 1; gg.globalCompositeOperation = 'source-over';
+  ctx.imageSmoothingEnabled = true; ctx.drawImage(LM, 0, 0, w * LM_S, h * LM_S);
+  ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(GL, 0, 0, w * LM_S, h * LM_S); ctx.imageSmoothingEnabled = false;
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+}
 function button(r, label, size, fg, bg, edge) {
   ctx.fillStyle = bg; ctx.fillRect(r.x, r.y, r.w, r.h);
   ctx.strokeStyle = edge; ctx.lineWidth = 2; ctx.strokeRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2);
@@ -1031,7 +1075,7 @@ function render() {
     if (kind === 'grass') { SPR.drawSprite(ctx, SPR.baked.grass, 'idle', 0, pr.x + wob, pr.y, 2); continue; }
     // spooky skin over the farming kinds: tree -> dead tree, mushroom -> jack-o'-lantern, rock -> headstone/cross
     const skin = kind === 'tree' ? 'deadtree' : kind === 'mush' ? 'pumpkin' : kind === 'rock' ? (pr.key & 1 ? 'cross' : 'grave') : kind;
-    if (skin === 'pumpkin') pumpkinGlow(pr.x, pr.y + 6, G.t * 7 + gx * 3.1 + gy);
+    if (skin === 'pumpkin') { const ph = G.t * 7 + gx * 3.1 + gy; pumpkinGlow(pr.x, pr.y + 6, ph); light(pr.x, pr.y + 4, 80 + Math.sin(ph) * 6, '249,115,22', 0.85); }
     groundShadow(pr.x, pr.y + 12, kind === 'tree' ? 14 : 10);
     SPR.drawSprite(ctx, SPR.baked[skin], 'idle', 0, pr.x + wob, pr.y, 2);
   }
@@ -1044,6 +1088,7 @@ function render() {
   for (const c of G.crops) {
     const f = Math.min(1, c.age / c.grow), ripe = f >= 1;
     if (ripe) {
+      light(c.x, c.y, c.golden ? 72 : 56, c.golden ? '253,224,71' : '253,186,116', 0.8);
       ctx.strokeStyle = c.golden ? '#fde047' : '#fdba74'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(c.x, c.y, 14 + Math.sin(G.t * 6) * 2, 0, 7); ctx.stroke();
       drawPickup('crop', c.golden ? '#fbbf24' : '#f97316', c.x, c.y - 2 + Math.sin(G.t * 4) * 1.5, 3);
     } else {
@@ -1062,19 +1107,21 @@ function render() {
   for (const b of G.bombs) drawPickup('bomb', '#374151', b.x, b.y + Math.sin(G.t * 5 + b.x) * 1.5, 2);
   for (const f of G.ices) drawPickup('ice', '#7dd3fc', f.x, f.y + Math.sin(G.t * 5 + f.x) * 1.5, 2);
   for (const v of G.vacs) drawPickup('vac', '#38bdf8', v.x, v.y + Math.sin(G.t * 5 + v.x) * 1.5, 2);
-  for (const c of G.chests) drawChest(c);
+  for (const c of G.chests) { drawChest(c); light(c.x, c.y, 54, '253,224,71', 0.6); }
   for (const e of G.enemies) {
     if (!e.boss && !(e.x > vx0 && e.x < vx1 && e.y > vy0 && e.y < vy1)) continue; // view cull (bosses keep drawing for the HP bar)
-    if (e.slam) { const f = 1 - Math.max(0, e.slam.t) / SLAM_WARN; ctx.fillStyle = 'rgba(239,68,68,' + (0.15 + 0.25 * f) + ')'; ctx.beginPath(); ctx.arc(e.slam.x, e.slam.y, SLAM_R, 0, 7); ctx.fill(); ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.slam.x, e.slam.y, SLAM_R * f, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(e.slam.x, e.slam.y, SLAM_R, 0, 7); ctx.stroke(); }
+    if (e.ally) light(e.x, e.y, 44, '165,243,252', 0.7);
+    if (e.slam) { light(e.slam.x, e.slam.y, SLAM_R * 1.1, '239,68,68', 0.6); const f = 1 - Math.max(0, e.slam.t) / SLAM_WARN; ctx.fillStyle = 'rgba(239,68,68,' + (0.15 + 0.25 * f) + ')'; ctx.beginPath(); ctx.arc(e.slam.x, e.slam.y, SLAM_R, 0, 7); ctx.fill(); ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.slam.x, e.slam.y, SLAM_R * f, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(e.slam.x, e.slam.y, SLAM_R, 0, 7); ctx.stroke(); }
     drawEnemy(e);
     if (e.boss) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 3, 0, 7); ctx.stroke();
       const bw = e.r * 2.4, f = Math.max(0, e.hp / e.maxHp); ctx.fillStyle = '#000a'; ctx.fillRect(e.x - bw / 2, e.y - e.r - 14, bw, 6); ctx.fillStyle = '#ef4444'; ctx.fillRect(e.x - bw / 2, e.y - e.r - 14, bw * f, 6); }
   }
   for (const q of G.parts) { if (q.wisp) { ctx.globalAlpha = Math.min(1, q.t * 1.6); const wx = Math.round(q.x + Math.sin(q.t * 9) * 3), wy = Math.round(q.y); ctx.fillStyle = '#0b1020'; ctx.fillRect(wx - 4, wy - 7, 8, 12); ctx.fillStyle = q.c; ctx.fillRect(wx - 3, wy - 6, 6, 6); ctx.fillRect(wx - 2, wy, 4, 3); ctx.fillRect(wx - 1, wy + 3, 2, 2); ctx.fillStyle = '#0b1020'; ctx.fillRect(wx - 2, wy - 4, 1, 2); ctx.fillRect(wx + 1, wy - 4, 1, 2); ctx.globalAlpha = 1; continue; } const z = q.t > 0.15 ? 4 : 2, px = Math.round(q.x / 2) * 2, py = Math.round(q.y / 2) * 2; ctx.fillStyle = '#0b1020'; ctx.fillRect(px - z / 2 - 1, py - z / 2 - 1, z + 2, z + 2); ctx.fillStyle = q.c; ctx.fillRect(px - z / 2, py - z / 2, z, z); }
-  for (const b of G.booms) drawBoom(b);
+  for (const b of G.booms) { drawBoom(b); light(b.x, b.y, 38, '253,186,116', 0.6); }
   for (const m of G.mines) { drawPickup('mine', m.age < 0.5 ? '#78350f' : '#f59e0b', m.x, m.y, 2); }
   for (const b of G.bolts) {
     ctx.globalAlpha = Math.min(1, b.t / 0.2 + 0.3);
+    light(b.x, b.y - 60, 150, '253,224,71', ctx.globalAlpha);
     let x = b.x + rnd(-10, 10), y = b.y - 260;
     for (let i = 1; i <= 6; i++) {
       const nx = i === 6 ? b.x : b.x + rnd(-14, 14), ny = b.y - 260 + i * 260 / 6, n = 6;
@@ -1083,18 +1130,21 @@ function render() {
     }
     ctx.globalAlpha = 1;
   }
-  for (const s of G.shots) drawBolt(s);
+  for (const s of G.shots) { drawBolt(s); light(s.x, s.y, 42, '253,224,71', 0.55); }
   if (G.slash) { const k = G.slash; ctx.fillStyle = 'rgba(253,230,138,' + (k.t / 0.15 * 0.6) + ')'; ctx.beginPath(); ctx.moveTo(k.x, k.y); ctx.arc(k.x, k.y, k.reach, k.a - k.half, k.a + k.half); ctx.closePath(); ctx.fill(); }
   for (const d of G.decoys) { // Phantom Step decoy: a flickering ghost of the player with its burst radius closing in
+    light(d.x, d.y, 70, '165,243,252', 0.75);
     const f = d.t / d.max; ctx.strokeStyle = 'rgba(165,243,252,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(d.x, d.y, d.r * (0.3 + 0.7 * f), 0, 7); ctx.stroke();
     ctx.globalAlpha = 0.45 + 0.2 * Math.sin(G.t * 20); SPR.drawSprite(ctx, SPR.variant(charSpr(CHARS[charIdx]), '#a5f3fc'), 'idle', 0, d.x, d.y - 4, 2); ctx.globalAlpha = 1;
   }
-  for (const s of G.souls) { const k = Math.min(1, s.t / 0.35), x = s.sx + (s.c.x - s.sx) * k, y = s.sy + (s.c.y - 6 - s.sy) * k - Math.sin(k * Math.PI) * 24; drawPickup('orb', '#a5f3fc', x, y, 1); }
-  for (const f of G.mineFx) { ctx.fillStyle = 'rgba(' + (f.col || '245,158,11') + ',' + (f.t / f.max * 0.6) + ')'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 - f.t / f.max * 0.4), 0, 7); ctx.fill(); }
+  for (const s of G.souls) { const k = Math.min(1, s.t / 0.35), x = s.sx + (s.c.x - s.sx) * k, y = s.sy + (s.c.y - 6 - s.sy) * k - Math.sin(k * Math.PI) * 24; drawPickup('orb', '#a5f3fc', x, y, 1); light(x, y, 26, '165,243,252', 0.8); }
+  for (const f of G.mineFx) { light(f.x, f.y, f.r * 1.2, f.col || '245,158,11', f.t / f.max); ctx.fillStyle = 'rgba(' + (f.col || '245,158,11') + ',' + (f.t / f.max * 0.6) + ')'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 - f.t / f.max * 0.4), 0, 7); ctx.fill(); }
   drawPlayer(p);
+  light(p.x, p.y, 165, null, 1); light(p.x, p.y - 4, 60, '196,181,253', 0.5);
   for (const t of G.texts) text(t.s, t.x, t.y, t.big ? 18 : 12, t.big ? '#fde047' : '#fff', 'center', VW);
   ctx.restore(); SPR.setView(1, 0, 0);
 
+  drawLighting(tx, ty);
   drawFog(cam.x, cam.y, G.t);
   drawVignette();
   if (G.freeze > 0) { ctx.fillStyle = 'rgba(125,211,252,' + Math.min(0.18, G.freeze * 0.1) + ')'; ctx.fillRect(0, 0, W, H); }
@@ -1116,7 +1166,7 @@ function render() {
   text((narrow ? 'K ' : 'Kills ') + G.kills, W - 16, 46, 14, '#fff', 'right', rw - 12);
   const dashTxt = p.dashCd > 0 ? 'Dash ' + p.dashCd.toFixed(1) : (narrow ? 'Dash OK' : 'Dash READY');
   text(dashTxt, W - 16, 70, 14, p.dashCd > 0 ? '#94a3b8' : '#6ee7b7', 'right', rw - 12);
-  if (G.hordeBanner > 0) text(G.bannerText, W / 2, narrow ? Math.round(H * 0.28) : 104, 22, '#f87171', 'center', W - 24);
+  if (G.hordeBanner > 0) wrapLines(G.bannerText, W - 24, 2).forEach((l, i) => text(l, W / 2, (narrow ? Math.round(H * 0.28) : 104) + i * 22, 22, '#f87171', 'center', W - 24)); // wrap, never shrink to 1x
   if (G.lane) drawLaneArrows(G.lane);
   { const pb = pauseBtn(); ctx.fillStyle = 'rgba(8,12,30,0.62)'; ctx.fillRect(pb.x, pb.y, pb.w, pb.h); ctx.strokeStyle = 'rgba(251,191,36,0.35)'; ctx.lineWidth = 1; ctx.strokeRect(pb.x + 0.5, pb.y + 0.5, pb.w - 1, pb.h - 1);
     ctx.fillStyle = '#e2e8f0'; ctx.fillRect(pb.x + 16, pb.y + 14, 6, 24); ctx.fillRect(pb.x + 30, pb.y + 14, 6, 24); }
@@ -1217,5 +1267,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, dashBtn, hitDash, set touchUi(v) { touchUi = v; }, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES, propAt, plant, plantBtn, hitPlant, feedCrops, possess, spawnDecoy, get zoom() { return ZOOM; }, get view() { return { w: VW, h: VH }; } , titleLayout, titleTap, choiceRects, pauseBtn, pauseRects, setTouch(v) { touch = v; }, get charIdx() { return charIdx; }, get hard() { return hard; } };
+window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, dashBtn, hitDash, set touchUi(v) { touchUi = v; }, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES, propAt, plant, plantBtn, hitPlant, feedCrops, possess, spawnDecoy, get zoom() { return ZOOM; }, nightTint, get lights() { return litN; }, get view() { return { w: VW, h: VH }; } , titleLayout, titleTap, choiceRects, pauseBtn, pauseRects, setTouch(v) { touch = v; }, get charIdx() { return charIdx; }, get hard() { return hard; } };
 })();
