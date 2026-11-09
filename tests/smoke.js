@@ -129,6 +129,45 @@ try {
   const fmGold = Math.round(fm.kills + Math.floor(fm.t / 10) + 200 + fm.wood);
   if (!fm.chopping || !fm.cut || fm.wood < 2 || fm.chopped !== 1 || fm.noSeed || !fm.planted || fm.tooClose || !fm.grew || !fm.trampled
     || fm.harvested.hp !== 90 || fm.harvested.n !== 1 || !fm.harvested.gem || !fm.harvested.fed || !fm.harvested.gone || fm.gold !== fmGold) { console.log('farming failed', JSON.stringify(fm)); errs.push('farm'); }
+  // Soul Garden: kills near a growing crop feed it, far kills don't; reaping a ripe crop bursts foes around it; dashing chops
+  const sg = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G; G.w = {}; G.enemies.length = 0; G.spawnAcc = -1e9; G.nextHorde = G.nextBoss = 1e9; G.p.hp = G.p.maxHp = 1e9;
+    const mk = (x, y, o) => Object.assign({ x, y, r: 10, hp: 1000, maxHp: 1000, speed: 0, dmg: 5, xp: 1, color: '#a78bfa', flash: 0, kind: 'bat' }, o);
+    G.p.x = 3000; G.p.y = 3000; G.seeds = 1; t.plant(); const c = G.crops[0], a0 = c.age;
+    G.enemies.push(mk(c.x + 60, c.y, { hp: 0 })); t.update(0.02); const fed = c.age - a0, souls = G.souls.length; t.render();
+    const a1 = c.age; G.enemies.push(mk(c.x + 400, c.y, { hp: 0 })); t.update(0.02); const far = c.age - a1;
+    c.age = c.grow; const foe = mk(c.x + 90, c.y), out = mk(c.x + 400, c.y); G.enemies.push(foe, out);
+    G.p.x = c.x; G.p.y = c.y; t.update(0.02); t.render(); const burst = { near: foe.hp < 1000, far: out.hp === 1000, n: G.harvests };
+    t.start(); const H = t.G; H.w = {}; H.enemies.length = 0; H.spawnAcc = -1e9;
+    let tree = null; for (let gx = 1; gx < 60 && !tree; gx++) for (let gy = -5; gy < 5 && !tree; gy++) { const pr = t.propAt(gx, gy); const left = t.propAt(gx - 1, gy); if (pr && pr.kind === 'tree' && !left) tree = pr; }
+    H.p.x = tree.x - 70; H.p.y = tree.y; H.p.face = { x: 1, y: 0 }; t.press('shift'); for (let i = 0; i < 12; i++) t.update(1 / 60);
+    return { fed, souls, far, burst, dashCut: H.cut.has(tree.key), dashChops: H.dashChops || 0 };
+  });
+  if (!(sg.fed > 2.5) || sg.souls < 1 || sg.far > 0.1 || !sg.burst.near || !sg.burst.far || sg.burst.n !== 1 || !sg.dashCut || sg.dashChops < 1) { console.log('soul garden failed', JSON.stringify(sg)); errs.push('soulgarden'); }
+  // new powers: Possession, Phantom Step, Thornseed; passives Rooted, Soul Eater, Green Thumb
+  const np = await pg.evaluate(() => {
+    const t = window.__tzs, o = {};
+    const mk = (G, x, y, extra) => Object.assign({ x, y, r: 10, hp: 100, maxHp: 100, speed: 0, dmg: 5, xp: 1, color: '#a78bfa', flash: 0, kind: 'bat' }, extra);
+    const fresh = (w) => { t.start(); const G = t.G; G.w = w; G.enemies.length = 0; G.spawnAcc = -1e9; G.nextHorde = G.nextBoss = 1e9; G.p.x = 3000; G.p.y = 3000; return G; };
+    let G = fresh({ possess: 1 }); G.timers.possess = 0;
+    const a = mk(G, G.p.x + 50, G.p.y, { dmg: 50 }), b = mk(G, G.p.x + 120, G.p.y); G.enemies.push(a, b); t.update(0.02);
+    o.ally = !!a.ally && !b.ally; a.x = G.p.x; a.y = G.p.y; G.p.hurt = 0; const hp0 = G.p.hp; t.update(0.02); o.safe = G.p.hp === hp0;
+    a.x = b.x - 18; a.y = b.y; for (let i = 0; i < 6; i++) t.update(0.05); o.allyHit = b.hp < 100; t.render();
+    t.damage(a, 999); o.immune = a.hp > 0; const k0 = G.kills; a.ally = 0.01; t.update(0.05); o.expired = !G.enemies.includes(a) && G.kills === k0 + 1;
+    G = fresh({ phantom: 1 }); G.timers.phantom = 99; t.press('shift'); o.decoy = G.decoys.length === 1 && G.p.dashCd < 2.5; const d = G.decoys[0];
+    G.p.x += 600; const lure = mk(G, d.x + 60, d.y, { speed: 60, hp: 1000, maxHp: 1000 }); G.enemies.push(lure); t.update(0.2); o.lured = lure.x < d.x + 60; t.render();
+    d.t = 0.01; t.update(0.02); o.decoyBurst = lure.hp < 1000 && G.decoys.length === 0;
+    G = fresh({ thorn: 1 }); G.timers.thorn = 0; G.p.hp = G.p.maxHp = 1e9; t.update(0.02); o.bramble = G.brambles.length === 1; const br = G.brambles[0];
+    const th = mk(G, br.x, br.y, { hp: 1000, maxHp: 1000 }); G.enemies.push(th); for (let i = 0; i < 10; i++) t.update(0.06); o.thorned = th.hp < 1000 && th.slow > 0; t.render();
+    G.enemies.length = 0; G.brambles.length = 0; G.p.x += 300; G.seeds = 1; t.plant(); const cr = G.crops[0]; G.p.x += 300; G.timers.thorn = 99;
+    const tr = mk(G, cr.x, cr.y, { hp: 1000, maxHp: 1000 }); G.enemies.push(tr); t.update(0.3); o.thornCrop = tr.hp < 1000;
+    const pick = (k) => { t.state = 'levelup'; t.G.choices = [{ kind: 'p', k, lvl: 1 }]; t.G.lvlT = 1; t.press('1'); };
+    G = fresh({}); pick('rooted'); G.p.hp = G.p.maxHp = 1000; G.p.hurt = 0; G.enemies.push(mk(G, G.p.x, G.p.y, { dmg: 50 })); t.update(0.02); o.rooted = 1000 - G.p.hp;
+    G = fresh({}); pick('soul'); G.p.hp = 50; G.enemies.push(mk(G, G.p.x + 200, G.p.y, { hp: 0 })); t.update(0.02); o.soulEat = G.p.hp > 50;
+    G = fresh({}); pick('green'); G.seeds = 1; t.plant(); t.update(1); o.green = G.crops[0].age;
+    return o;
+  });
+  if (!np.ally || !np.safe || !np.allyHit || !np.immune || !np.expired || !np.decoy || !np.lured || !np.decoyBurst || !np.bramble || !np.thorned || !np.thornCrop || np.rooted !== 44 || !np.soulEat || !(np.green > 1.25)) { console.log('new powers failed', JSON.stringify(np)); errs.push('powers'); }
   const pbtn = await pg.evaluate(() => { const t = window.__tzs; t.touchUi = true; t.start(); t.G.seeds = 1; t.render(); const b = t.plantBtn(), d = t.dashBtn(); const r = { d: b.r * 2, hit: t.hitPlant(b.x, b.y), apart: Math.hypot(b.x - d.x, b.y - d.y) > b.r + d.r }; t.touchUi = false; return r; });
   if (pbtn.d < 48 || !pbtn.hit || !pbtn.apart) { console.log('plant button failed', JSON.stringify(pbtn)); errs.push('plantbtn'); }
   const chs = await pg.evaluate(() => {
@@ -153,8 +192,8 @@ try {
     G.timers.frost = 0; t.update(0.02); const s2 = G.shots.find(s => s.frost);
     e2.x = s2.x + s2.vx * 0.02; e2.y = s2.y + s2.vy * 0.02; G.enemies.push(e2);
     const slowBefore = e2.slow; t.update(0.02); t.render();
-    // evolve path: maxed frost + maxed armor passive opened by a boss chest -> level 8 (EVO)
-    G.enemies.length = 0; G.shots.length = 0; G.w.frost = 6; G.pa.armor = 5; G.texts.length = 0;
+    // evolve path: maxed frost + maxed Rooted passive opened by a boss chest -> level 8 (EVO)
+    G.enemies.length = 0; G.shots.length = 0; G.w.frost = 6; G.pa.rooted = 5; G.texts.length = 0;
     G.chests.length = 0; G.chests.push({ x: G.p.x, y: G.p.y, dead: false }); t.update(0.02);
     return { n: shards.length, slow: e.slow, hp: e.hp, slowBefore, slowKept: e2.slow, e2hp: e2.hp, evoLvl: G.w.frost, evoText: G.texts.some(x => /EVOLVED/.test(x.s)) };
   });
