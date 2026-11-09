@@ -48,11 +48,11 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && sta
 // ---------- data ----------
 const WEAPONS = {
   bolt:  { name: 'Magic Bolt', desc: 'Fires at nearest enemy', max: 6 },
-  orbit: { name: 'Orbiting Orbs', desc: 'Orbs circle you', max: 6 },
-  nova:  { name: 'Pulse Nova', desc: 'Periodic shockwave', max: 6 },
+  possess: { name: 'Possession', desc: 'Turns the nearest foe into your ghost', max: 6 },
+  phantom: { name: 'Phantom Step', desc: 'Dashes leave a decoy that lures, then bursts', max: 6 },
   boomer: { name: 'Boomerang', desc: 'Flies out and returns, piercing', max: 6 },
   whip:  { name: 'Whip', desc: 'Wide arc slash at nearest foe', max: 6 },
-  garlic: { name: 'Garlic Aura', desc: 'Damages & slows nearby foes', max: 6 },
+  thorn: { name: 'Thornseed', desc: 'Brambles in your wake; crops grow thorns', max: 6 },
   zap:   { name: 'Lightning', desc: 'Strikes random foes on screen', max: 6 },
   mine:  { name: 'Mines', desc: 'Drops mines that blast foes', max: 6 },
   frost: { name: 'Frost Shards', desc: 'Ring of shards that slow foes', max: 6 },
@@ -63,13 +63,13 @@ const PASSIVES = {
   health: { name: 'Vitality', desc: '+25 max HP, heal', max: 5 },
   magnet: { name: 'Magnet', desc: '+40% pickup range', max: 5 },
   haste:  { name: 'Haste', desc: '-10% cooldowns', max: 5 },
-  regen:  { name: 'Recovery', desc: '+0.5 HP per second', max: 5 },
+  soul:   { name: 'Soul Eater', desc: 'Kills heal 0.25 HP', max: 5 },
   luck:   { name: 'Luck', desc: '+30% pickup drop chance', max: 5 },
-  armor:  { name: 'Armor', desc: '-1 damage taken per hit', max: 5 },
-  growth: { name: 'Growth', desc: '+15% XP from gems', max: 5 },
+  rooted: { name: 'Rooted', desc: 'Stand still: -12% dmg, chop +40%', max: 5 },
+  green:  { name: 'Green Thumb', desc: 'Crops grow 30% faster, +30% seeds', max: 5 },
 };
 // Evolution: a maxed weapon + its paired passive, opened via boss chest, jumps to level 8 (EVO).
-const EVOLVE = { bolt: 'haste', orbit: 'might', nova: 'magnet', boomer: 'speed', whip: 'health', garlic: 'haste', zap: 'regen', mine: 'luck', frost: 'armor' };
+const EVOLVE = { bolt: 'haste', possess: 'might', phantom: 'magnet', boomer: 'speed', whip: 'health', thorn: 'green', zap: 'soul', mine: 'luck', frost: 'rooted' };
 const EVO_LVL = 8;
 const ENEMY_TYPES = [
   { name: 'bat',   hp: 8,   speed: 70,  r: 9,  dmg: 6,  xp: 1, color: '#a78bfa', from: 0 },
@@ -115,7 +115,7 @@ function buyMeta(k) {
 const CHARS = [
   { name: 'Mage',   w: 'bolt',  desc: 'Magic Bolt. Balanced.',          hp: 0,  spd: 1,    dmg: 1,    color: '#f8fafc' },
   { name: 'Knight', w: 'whip',  desc: 'Whip. +30 HP, slower.',          hp: 30, spd: 0.92, dmg: 1,    color: '#93c5fd' },
-  { name: 'Druid',  w: 'garlic',  desc: 'Garlic Aura. +10% speed.',       hp: 0,  spd: 1.1,  dmg: 1,    color: '#86efac' },
+  { name: 'Druid',  w: 'thorn', desc: 'Thornseed. +10% speed.',           hp: 0,  spd: 1.1,  dmg: 1,    color: '#86efac' },
   { name: 'Rogue',  w: 'boomer', desc: 'Boomerang. +15% dmg, -20 HP.',   hp: -20, spd: 1.05, dmg: 1.15, color: '#fda4af' },
   { name: 'Pyro',   w: 'mine',  desc: 'Mines. -10% speed.',              hp: 0,  spd: 0.9,  dmg: 1,    color: '#fdba74' },
   { name: 'Storm',  w: 'zap',   desc: 'Lightning splash.',              hp: 0,  spd: 1,    dmg: 1,    color: '#7dd3fc', zapSplash: 40 },
@@ -134,7 +134,7 @@ function newGame() {
     p: { x: 0, y: 0, r: 10, hp: 120 + ch.hp + 10 * (mu.hp || 0), maxHp: 120 + ch.hp + 10 * (mu.hp || 0), speed: 140 * ch.spd * (1 + 0.03 * (mu.spd || 0)), dmgMul: ch.dmg * (1 + 0.05 * (mu.dmg || 0)), magnet: 60, cdMul: 1, hurt: 0, dashT: 0, dashCd: 0, face: { x: 1, y: 0 }, xp: 0, lvl: 1, need: 3, zapSplash: ch.zapSplash || 0 },
     w: { [ch.w]: 1 }, pa: {},
     enemies: [], shots: [], gems: [], booms: [], mines: [], bolts: [], hearts: [], vacs: [], bombs: [], ices: [], freeze: 0, chests: [], parts: [], shake: 0, fx: [], mineFx: [], texts: [],
-    timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
+    timers: { bolt: 0 }, brambles: [], decoys: [], souls: [],
     choices: [], gold: 0,
     rerolls: 1, // level-up rerolls left: one free per run, +1 per Luck level
     lvlT: 9, xpPulse: 0, // level-up moment: time since the card screen opened; XP bar glow
@@ -195,7 +195,7 @@ function titleTap(px, py) {
 
 function onKey(k, e) {
   if (k === 'm') { muted = !muted; return; }
-  if (state === 'play' && (k === 'shift' || k === ' ') && G.p.dashCd <= 0 && G.p.face) { const mv = moveInput(), mm = Math.hypot(mv.x, mv.y); G.p.dashDir = mm > 0.05 ? { x: mv.x / mm, y: mv.y / mm } : { x: G.p.face.x, y: G.p.face.y }; G.p.dashT = 0.16; G.p.dashCd = 2.5; G.p.hurt = Math.max(G.p.hurt, 0.2); sfx(300, 0.08, 'triangle', 0.05); return; }
+  if (state === 'play' && (k === 'shift' || k === ' ') && G.p.dashCd <= 0 && G.p.face) { const mv = moveInput(), mm = Math.hypot(mv.x, mv.y); G.p.dashDir = mm > 0.05 ? { x: mv.x / mm, y: mv.y / mm } : { x: G.p.face.x, y: G.p.face.y }; G.p.dashT = 0.16; G.p.dashCd = 2.5 - 0.12 * (G.w.phantom || 0); if (G.w.phantom) spawnDecoy(); G.p.hurt = Math.max(G.p.hurt, 0.2); sfx(300, 0.08, 'triangle', 0.05); return; }
   if (state === 'play' && (k === 'f' || k === 'e')) { plant(); return; }
   if ((k === 'p' || k === 'escape') && (state === 'play' || state === 'pause')) { state = state === 'play' ? 'pause' : 'play'; return; }
   if (state === 'title' && (k === 'arrowleft' || k === 'a')) { pickChar(-1); return; }
@@ -222,10 +222,16 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const dist2 = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
 function nearest(from, maxD) {
   let best = null, bd = maxD * maxD;
-  for (const e of G.enemies) { const d = dist2(from, e); if (d < bd) { bd = d; best = e; } }
+  for (const e of G.enemies) { if (e.ally) continue; const d = dist2(from, e); if (d < bd) { bd = d; best = e; } }
   return best;
 }
+// Player damage: Rooted cuts it by 12% per level (max 60%) while standing still.
+function hurtPlayer(d) {
+  const p = G.p; if (p.rooted && !walking) d *= 1 - Math.min(0.6, 0.12 * p.rooted);
+  d = Math.max(1, Math.round(d)); p.hp -= d; G.taken = (G.taken || 0) + d; return d;
+}
 function damage(e, amt, kx, ky) {
+  if (e.ally) return; // possessed ghosts fight for you
   amt *= G.p.dmgMul * (G.p.fed > 0 ? 1.25 : 1); e.hp -= amt; e.flash = 0.08; e.hitT = 1.5;
   if (kx !== undefined) { e.x += kx; e.y += ky; }
   else if (!e.boss) { const dx = e.x - G.p.x, dy = e.y - G.p.y, d = Math.hypot(dx, dy) || 1; e.x += dx / d * 5; e.y += dy / d * 5; } // default nudge away from the player so hits read
@@ -258,10 +264,10 @@ function applyChoice(c) {
     if (c.k === 'health') { p.maxHp += 25; p.hp = Math.min(p.maxHp, p.hp + 40); }
     if (c.k === 'magnet') p.magnet *= 1.4;
     if (c.k === 'haste') p.cdMul *= 0.9;
-    if (c.k === 'regen') p.regen = (p.regen || 0) + 0.5;
+    if (c.k === 'soul') p.soulHeal = (p.soulHeal || 0) + 0.25;
     if (c.k === 'luck') { p.luck = (p.luck || 1) * 1.3; G.rerolls++; }
-    if (c.k === 'armor') p.armor = (p.armor || 0) + 1;
-    if (c.k === 'growth') p.xpMul = (p.xpMul || 1) + 0.15;
+    if (c.k === 'rooted') p.rooted = (p.rooted || 0) + 1;
+    if (c.k === 'green') p.green = (p.green || 1) + 0.3;
   }
 }
 const cardW = () => Math.min(W - 24, 360);
@@ -331,6 +337,7 @@ function updateLane(dt) {
 }
 
 // ---------- farming ----------
+// Dashing through a workable prop chops it at once (see updateFarm).
 // The woodland props are workable: walk up to a tree, mushroom or grass tuft and you chop it
 // automatically (trees take a moment, grass is cut just by running through it). Chopping drops
 // wood (sold for gold at the end), seeds and sometimes a heart. F / PLANT sows a seed at your feet;
@@ -342,7 +349,10 @@ const FARM = {
   mush: { need: 0.6, reach: 20, col: '#f97316' }, // drawn as a jack-o'-lantern
   grass: { need: 0.35, reach: 18, col: '#3f7a4a', regrow: 45 },
 };
-const CROP_GROW = 20, CROP_HP = 2, CROP_MAX = 12, FED_TIME = 20;
+const CROP_GROW = 30, CROP_HP = 2, CROP_MAX = 12, FED_TIME = 20;
+// Soul Garden: a foe slain within SOUL_R of a growing crop feeds it SOUL_GROW s of growth, so you farm by fighting
+// on your field. A ripe crop is reaped with a burst (HARVEST_R, x1.4 for golden) that hits every foe around it.
+const SOUL_R = 140, SOUL_GROW = 3, HARVEST_R = 120;
 // Same hashed 112px grid the floor props have always used (r 0-1 = tree/rock/mush); r 2 adds grass.
 function propAt(gx, gy) {
   const h = (Math.imul(gx, 374761393) ^ Math.imul(gy, 668265263)) >>> 0, r = h % 5;
@@ -353,18 +363,18 @@ function propAt(gx, gy) {
 function isCut(pr) { const c = G.cut.get(pr.key); return c !== undefined && (pr.kind !== 'grass' || G.t - c < FARM.grass.regrow); }
 function burst(x, y, c, n, sp = 90) { if (G.parts.length < 200) for (let i = 0; i < n; i++) G.parts.push({ x, y, vx: rnd(-sp, sp), vy: rnd(-sp, sp), t: 0.35, c }); }
 function dropFarm(pr) {
-  const L = G.p.luck || 1, drop = k => G.loot.push({ kind: k, x: pr.x + rnd(-14, 14), y: pr.y + rnd(-10, 10) });
+  const L = G.p.luck || 1, S = L * (G.p.green || 1), drop = k => G.loot.push({ kind: k, x: pr.x + rnd(-14, 14), y: pr.y + rnd(-10, 10) });
   if (pr.kind === 'tree') {
     for (let i = 0, n = 2 + (Math.random() < 0.5); i < n; i++) drop('wood');
-    if (Math.random() < 0.4 * L) drop('seed');
+    if (Math.random() < 0.4 * S) drop('seed');
     if (Math.random() < 0.1 * L) G.hearts.push({ x: pr.x, y: pr.y, heal: 15 });
     G.shake = Math.max(G.shake, 0.12); sfx(130, 0.22, 'triangle', 0.06);
   } else if (pr.kind === 'mush') {
     if (Math.random() < 0.5 * L) G.hearts.push({ x: pr.x, y: pr.y, heal: 15 });
-    if (Math.random() < 0.3 * L) drop('seed');
+    if (Math.random() < 0.3 * S) drop('seed');
     sfx(380, 0.1, 'sine', 0.05);
   } else {
-    if (Math.random() < 0.25 * L) drop('seed');
+    if (Math.random() < 0.25 * S) drop('seed');
     if (Math.random() < 0.12 * L) G.hearts.push({ x: pr.x, y: pr.y, heal: 8 });
     sfx(600, 0.04, 'square', 0.025);
   }
@@ -375,6 +385,7 @@ function plant() {
   if (G.seeds <= 0 || G.crops.length >= CROP_MAX || G.crops.some(c => dist2(c, p) < 22 * 22)) { sfx(140, 0.08, 'square', 0.03); return false; }
   G.seeds--; G.crops.push({ x: Math.round(p.x), y: Math.round(p.y + 6), age: 0, grow: CROP_GROW, hp: CROP_HP, golden: Math.random() < 0.15 });
   sfx(480, 0.12, 'triangle', 0.05); burst(p.x, p.y + 6, '#7c4a2a', 4, 50);
+  if (!G.soulHint) { G.soulHint = true; G.hordeBanner = 3; G.bannerText = 'SLAY FOES NEAR CROPS TO GROW THEM'; }
   return true;
 }
 function harvest(c) {
@@ -384,15 +395,24 @@ function harvest(c) {
   if (Math.random() < 0.5) G.loot.push({ kind: 'seed', x: c.x + 10, y: c.y });
   if (c.golden) { p.fed = FED_TIME; G.texts.push({ x: p.x, y: p.y - 30, s: 'WELL FED! +25% DMG', t: 1.6, big: true }); }
   G.texts.push({ x: p.x, y: p.y - 16, s: 'HARVEST +' + heal, t: 1 });
+  const br = HARVEST_R * (c.golden ? 1.4 : 1), bd = (30 + G.t / 5) * (c.golden ? 2 : 1);
+  for (const e of G.enemies) if (dist2(c, e) < (br + e.r) ** 2) { const a = Math.atan2(e.y - c.y, e.x - c.x); damage(e, e.boss ? bd / 2 : bd, Math.cos(a) * 30, Math.sin(a) * 30); }
+  G.mineFx.push({ x: c.x, y: c.y, r: br, t: 0.35, max: 0.35, col: '190,242,100' }); G.shake = Math.max(G.shake, 0.25);
   sfx(c.golden ? 880 : 620, 0.2, 'triangle', 0.07); burst(c.x, c.y, c.golden ? '#fbbf24' : '#f97316', 8, 110);
 }
 function updateFarm(dt) {
   const p = G.p;
-  if (!G.farmHint && G.t >= 2) { G.farmHint = true; G.hordeBanner = 3; G.bannerText = 'CHOP TREES FOR SEEDS + WOOD'; }
+  if (!G.farmHint && G.t >= 2) { G.farmHint = true; G.hordeBanner = 3; G.bannerText = 'DASH THROUGH TREES FOR SEEDS'; }
   p.fed = Math.max(0, (p.fed || 0) - dt);
+  const cx = Math.floor(p.x / PROP_CELL), cy = Math.floor(p.y / PROP_CELL);
+  // dash-chop: everything workable the dash sweeps through is cut instantly
+  if (p.dashT > 0) for (let gx = cx - 1; gx <= cx + 1; gx++) for (let gy = cy - 1; gy <= cy + 1; gy++) {
+    const pr = propAt(gx, gy); if (!pr || !FARM[pr.kind] || isCut(pr)) continue;
+    const reach = p.r + FARM[pr.kind].reach + 8;
+    if (dist2(p, pr) < reach * reach) { G.cut.set(pr.key, G.t); if (G.chop && G.chop.key === pr.key) G.chop = null; G.dashChops = (G.dashChops || 0) + 1; dropFarm(pr); }
+  }
   // chop the nearest workable prop in reach; progress resets if you leave it
   let target = null, bd = Infinity;
-  const cx = Math.floor(p.x / PROP_CELL), cy = Math.floor(p.y / PROP_CELL);
   for (let gx = cx - 1; gx <= cx + 1; gx++) for (let gy = cy - 1; gy <= cy + 1; gy++) {
     const pr = propAt(gx, gy); if (!pr || !FARM[pr.kind] || isCut(pr)) continue;
     const d = dist2(p, pr), reach = p.r + FARM[pr.kind].reach;
@@ -401,7 +421,7 @@ function updateFarm(dt) {
   if (!target) G.chop = null;
   else {
     if (!G.chop || G.chop.key !== target.key) G.chop = { key: target.key, x: target.x, y: target.y, kind: target.kind, prog: 0, need: FARM[target.kind].need, tick: 0 };
-    const c = G.chop; c.prog += dt; c.tick -= dt;
+    const c = G.chop; c.prog += dt * (p.rooted && !walking ? 1 + 0.4 * p.rooted : 1); c.tick -= dt;
     if (c.tick <= 0) { c.tick = 0.22; sfx(target.kind === 'tree' ? 200 : 450, 0.04, 'square', 0.03); burst(target.x, target.y, FARM[target.kind].col, 2, 60); }
     if (c.prog >= c.need) { G.cut.set(target.key, G.t); G.chop = null; dropFarm(target); }
   }
@@ -420,12 +440,43 @@ function updateFarm(dt) {
   // crops grow; enemies standing on a growing crop trample it; walk over a ripe one to harvest
   for (const c of G.crops) {
     if (c.age < c.grow) {
-      c.age += dt; c.hurt = false;
-      for (const e of G.enemies) if (dist2(c, e) < (e.r + 6) ** 2) { c.hp -= dt; c.hurt = true; break; }
+      c.age += dt * (p.green || 1); c.hurt = false; c.thornT = (c.thornT || 0) - dt;
+      for (const e of G.enemies) if (!e.ally && dist2(c, e) < (e.r + 6) ** 2) {
+        c.hp -= dt; c.hurt = true;
+        if (G.w.thorn && c.thornT <= 0) { c.thornT = 0.5; damage(e, 6 + 3 * G.w.thorn); } // Thornseed: tramplers get pricked
+        break;
+      }
       if (c.hp <= 0) { c.dead = true; burst(c.x, c.y, '#3f7a4a', 6, 80); G.texts.push({ x: c.x, y: c.y - 12, s: 'TRAMPLED', t: 0.8 }); }
     } else if (dist2(p, c) < (p.r + 12) ** 2) { c.dead = true; harvest(c); }
   }
   G.crops = G.crops.filter(c => !c.dead);
+  for (const s of G.souls) s.t += dt;
+  G.souls = G.souls.filter(s => s.t < 0.4);
+}
+// A slain foe's soul flies into the nearest growing crop within SOUL_R and speeds it up.
+function feedCrops(e) {
+  let best = null, bd = SOUL_R * SOUL_R;
+  for (const c of G.crops) if (c.age < c.grow) { const d = dist2(c, e); if (d < bd) { bd = d; best = c; } }
+  if (!best) return false;
+  best.age = Math.min(best.grow, best.age + SOUL_GROW * (G.p.green || 1)); G.souled = (G.souled || 0) + 1;
+  if (G.souls.length < 60) G.souls.push({ sx: e.x, sy: e.y, c: best, t: 0 });
+  return true;
+}
+
+// ---------- new powers ----------
+// Possession: the nearest non-boss foe becomes a ghost ally for a few seconds. Allies hunt other foes, hit what they
+// touch, ignore the player and your weapons, and when the possession ends the body drops as a normal kill.
+function possess(e, l) {
+  e.ally = 4 + l * 0.8; e.allyDmg = 8 + l * 4; e.lane = null; e.prey = null; e.atk = 0;
+  if (G.parts.length < 200) G.parts.push({ x: e.x, y: e.y - 4, vx: 0, vy: -30, t: 0.6, c: '#a5f3fc', wisp: true });
+  sfx(240, 0.25, 'sine', 0.05);
+}
+// Phantom Step: a decoy of you that pulls nearby foes (DECOY_PULL) until it bursts.
+const DECOY_PULL = 220;
+function spawnDecoy() {
+  const l = G.w.phantom || 1, life = 1.6 + l * 0.15;
+  G.decoys.push({ x: G.p.x, y: G.p.y, t: life, max: life, r: 70 + l * 8, dmg: 20 + l * 8 });
+  G.timers.phantom = (5 - l * 0.4) * G.p.cdMul; sfx(520, 0.15, 'sine', 0.04);
 }
 
 // ---------- update ----------
@@ -449,7 +500,6 @@ function update(dt) {
   if (p.dashT > 0) { const dd = p.dashDir || p.face; p.dashT -= dt; p.x += dd.x * p.speed * 4 * dt; p.y += dd.y * p.speed * 4 * dt; }
   else { p.x += dx * p.speed * dt; p.y += dy * p.speed * dt; }
   p.hurt = Math.max(0, p.hurt - dt);
-  if (p.regen) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
   G.cam.x = p.x - VW / 2; G.cam.y = p.y - VH / 2;
   updateFarm(dt);
 
@@ -478,15 +528,13 @@ function update(dt) {
       }
     }
   }
-  const wo = G.w.orbit;
-  if (wo) {
-    G.orbAng += dt * (2.2 + wo * 0.2);
-    const n = 1 + wo, rad = 60 + wo * 4;
-    for (let i = 0; i < n; i++) {
-      const a = G.orbAng + (i / n) * Math.PI * 2, o = { x: p.x + Math.cos(a) * rad, y: p.y + Math.sin(a) * rad };
-      for (const e of G.enemies) {
-        if (dist2(o, e) < (e.r + 7) ** 2 && !(e.orbHit > G.t)) { e.orbHit = G.t + 0.4; damage(e, 6 + wo * 2.5, Math.cos(a + 1.57) * 4, Math.sin(a + 1.57) * 4); }
-      }
+  const wp = G.w.possess;
+  if (wp) {
+    G.timers.possess = (G.timers.possess || 0) - dt;
+    if (G.timers.possess <= 0) {
+      G.timers.possess = 0.3;
+      const free = G.enemies.filter(e => !e.boss && !e.ally && dist2(p, e) < 280 * 280).sort((a, b) => dist2(p, a) - dist2(p, b));
+      if (free.length) { G.timers.possess = (4.4 - wp * 0.35) * p.cdMul; for (const e of free.slice(0, wp >= 6 ? 2 : 1)) possess(e, wp); }
     }
   }
   const wbm = G.w.boomer;
@@ -535,7 +583,7 @@ function update(dt) {
     if (G.timers.zap <= 0 && G.enemies.length) {
       G.timers.zap = (2.0 - wz * 0.12) * p.cdMul;
       const n = 1 + Math.ceil(wz / 2), rx = VW / 2 + 40, ry = VH / 2 + 40;
-      const vis = G.enemies.filter(e => Math.abs(e.x - p.x) < rx && Math.abs(e.y - p.y) < ry);
+      const vis = G.enemies.filter(e => !e.ally && Math.abs(e.x - p.x) < rx && Math.abs(e.y - p.y) < ry);
       for (let i = 0; i < n && vis.length; i++) {
         const e = vis.splice((Math.random() * vis.length) | 0, 1)[0];
         damage(e, 18 + wz * 6);
@@ -564,7 +612,7 @@ function update(dt) {
   for (const m of G.mines) {
     m.age += dt;
     if (m.age < 0.5) continue;
-    if (G.enemies.some(e => dist2(m, e) < (e.r + 16) ** 2)) {
+    if (G.enemies.some(e => !e.ally && dist2(m, e) < (e.r + 16) ** 2)) {
       m.dead = true; const br = 60 + wm * 6;
       for (const e of G.enemies) if (dist2(m, e) < (br + e.r) ** 2) damage(e, 25 + wm * 8, (e.x - m.x) * 0.1, (e.y - m.y) * 0.1);
       G.mineFx.push({ x: m.x, y: m.y, r: br, t: 0.25, max: 0.25 });
@@ -576,30 +624,35 @@ function update(dt) {
   G.mineFx = G.mineFx.filter(f => f.t > 0);
   for (const b of G.bolts) b.t -= dt;
   G.bolts = G.bolts.filter(b => b.t > 0);
-  const wg = G.w.garlic;
-  if (wg) {
-    const gr = 50 + wg * 12;
-    G.timers.garlic = (G.timers.garlic || 0) - dt;
-    const tick = G.timers.garlic <= 0; if (tick) G.timers.garlic = 0.5 * p.cdMul;
-    for (const e of G.enemies) if (dist2(p, e) < (gr + e.r) ** 2) { e.slow = 0.1; if (tick) damage(e, 3 + wg * 1.5); }
-  }
-  const wn = G.w.nova;
-  if (wn) {
-    G.timers.nova -= dt;
-    if (G.timers.nova <= 0) {
-      G.timers.nova = (4.2 - wn * 0.35) * p.cdMul;
-      const r = 90 + wn * 18;
-      G.novaRing = { r: 0, max: r, t: 0.3 };
-      for (const e of G.enemies) if (dist2(p, e) < (r + e.r) ** 2) { const a = Math.atan2(e.y - p.y, e.x - p.x); damage(e, 14 + wn * 6, Math.cos(a) * 25, Math.sin(a) * 25); }
+  const wt = G.w.thorn;
+  if (wt) {
+    G.timers.thorn = (G.timers.thorn || 0) - dt;
+    if (G.timers.thorn <= 0) {
+      G.timers.thorn = (1.4 - wt * 0.08) * p.cdMul;
+      if (!G.brambles.some(b => dist2(b, p) < 24 * 24)) G.brambles.push({ x: p.x, y: p.y + 4, t: 4 + wt * 0.6, r: 18 + wt * 2, tick: 0 });
+      if (G.brambles.length > 8 + wt) G.brambles.shift();
     }
   }
-  if (G.novaRing) { G.novaRing.t -= dt; G.novaRing.r = G.novaRing.max * (1 - G.novaRing.t / 0.3); if (G.novaRing.t <= 0) G.novaRing = null; }
+  for (const b of G.brambles) {
+    b.t -= dt; b.tick -= dt; const hit = b.tick <= 0; if (hit) b.tick = 0.5;
+    for (const e of G.enemies) if (!e.ally && dist2(b, e) < (b.r + e.r) ** 2) { e.slow = Math.max(e.slow || 0, 0.3); if (hit) damage(e, 4 + (wt || 1) * 2); }
+  }
+  G.brambles = G.brambles.filter(b => b.t > 0);
+  if (G.w.phantom) { G.timers.phantom = (G.timers.phantom === undefined ? 3 : G.timers.phantom) - dt; if (G.timers.phantom <= 0) spawnDecoy(); }
+  for (const d of G.decoys) {
+    d.t -= dt;
+    if (d.t <= 0) {
+      for (const e of G.enemies) if (dist2(d, e) < (d.r + e.r) ** 2) { const a = Math.atan2(e.y - d.y, e.x - d.x); damage(e, d.dmg, Math.cos(a) * 20, Math.sin(a) * 20); }
+      G.mineFx.push({ x: d.x, y: d.y, r: d.r, t: 0.3, max: 0.3, col: '165,243,252' }); sfx(180, 0.2, 'triangle', 0.05);
+    }
+  }
+  G.decoys = G.decoys.filter(d => d.t > 0);
 
   // shots
   for (const s of G.shots) {
     s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt;
     for (const e of G.enemies) {
-      if (s.life > 0 && dist2(s, e) < (e.r + 5) ** 2) {
+      if (s.life > 0 && !e.ally && dist2(s, e) < (e.r + 5) ** 2) {
         damage(e, s.dmg); if (s.frost) e.slow = Math.max(e.slow || 0, 1.5); s.pierce--; if (s.pierce <= 0) s.life = 0;
         if (s.life <= 0) break;
       }
@@ -616,8 +669,12 @@ function update(dt) {
   }
   for (let i = 0; i < G.enemies.length; i++) {
     const e = G.enemies[i];
-    const a = Math.atan2(p.y - e.y, p.x - e.x);
-    const sp = G.freeze > 0 ? 0 : e.slow > 0 ? 0.6 : 1; e.slow = Math.max(0, (e.slow || 0) - dt);
+    // target: allies hunt the nearest foe; other foes chase a nearby phantom decoy, else the player
+    let tx = p.x, ty = p.y;
+    if (e.ally) { if (!e.prey || e.prey.hp <= 0 || e.prey.ally) e.prey = nearest(e, 400); if (e.prey) { tx = e.prey.x; ty = e.prey.y; } }
+    else if (G.decoys.length && !e.boss) for (const d of G.decoys) if (dist2(d, e) < DECOY_PULL * DECOY_PULL) { tx = d.x; ty = d.y; break; }
+    const a = Math.atan2(ty - e.y, tx - e.x);
+    const sp = (G.freeze > 0 ? 0 : e.slow > 0 ? 0.6 : 1) * (e.ally ? 1.4 : 1); e.slow = Math.max(0, (e.slow || 0) - dt);
     let lm = 1;
     if (e.kind === 'troll') { e.hitT = (e.hitT || 0) - dt; if (e.hitT <= 0 && e.hp < e.maxHp) e.hp = Math.min(e.maxHp, e.hp + e.maxHp * 0.08 * dt); }
     if (e.kind === 'dasher') { e.ct = (e.ct === undefined ? rnd(1, 3) : e.ct) - dt; if (e.ct <= 0) { e.ct = 3; e.lunge = 0.5; } if (e.lunge > 0) { e.lunge -= dt; lm = 3.5; } }
@@ -625,7 +682,7 @@ function update(dt) {
     if (e.titan) {
       e.st -= dt;
       if (e.st <= 0 && !e.slam) { e.slam = { x: p.x, y: p.y, t: SLAM_WARN }; e.st = SLAM_EVERY; }
-      if (e.slam) { e.slam.t -= dt; lm = 0.3; if (e.slam.t <= 0) { if (p.hurt <= 0 && dist2(p, e.slam) < (SLAM_R + p.r) ** 2) { p.hp -= Math.max(1, 35 - (p.armor || 0)); p.hurt = 0.6; } G.shake = Math.max(G.shake, 0.5); sfx(70, 0.3, 'sawtooth', 0.08); e.slam = null; } }
+      if (e.slam) { e.slam.t -= dt; lm = 0.3; if (e.slam.t <= 0) { if (p.hurt <= 0 && dist2(p, e.slam) < (SLAM_R + p.r) ** 2) { hurtPlayer(35); p.hurt = 0.6; } G.shake = Math.max(G.shake, 0.5); sfx(70, 0.3, 'sawtooth', 0.08); e.slam = null; } }
     }
     if (e.lane) { e.x += e.lane.x * e.speed * sp * dt; e.y += e.lane.y * e.speed * sp * dt; }
     else { e.x += Math.cos(a) * e.speed * sp * lm * dt; e.y += Math.sin(a) * e.speed * sp * lm * dt; }
@@ -640,10 +697,17 @@ function update(dt) {
         if (dx * dx + dy * dy < min * min) { const d = Math.hypot(dx, dy) || 1, k = (min - d) / 2 / d; e.x += dx * k; e.y += dy * k; o.x -= dx * k; o.y -= dy * k; }
       }
     }
-    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { { const d = Math.max(1, e.dmg - (p.armor || 0)); p.hp -= d; G.taken = (G.taken || 0) + d; } p.hurt = 0.6; G.shake = Math.min(0.5, 0.12 + e.dmg * 0.01); sfx(120, 0.15, 'sawtooth', 0.06); }
+    if (e.ally) {
+      e.ally -= dt; e.atk -= dt;
+      if (e.atk <= 0) { let hit = false; for (let gx = cx - 1; gx <= cx + 1; gx++) for (let gy = cy - 1; gy <= cy + 1; gy++) { const cell = grid.get(gx * 100003 + gy); if (cell) for (const o of cell) if (!o.ally && o.hp > 0 && dist2(e, o) < (e.r + o.r + 6) ** 2) { damage(o, e.allyDmg); hit = true; } } if (hit) e.atk = 0.4; }
+      if (e.ally <= 0) { e.hp = 0; e.ally = 0; }
+      continue;
+    }
+    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { hurtPlayer(e.dmg); p.hurt = 0.6; G.shake = Math.min(0.5, 0.12 + e.dmg * 0.01); sfx(120, 0.15, 'sawtooth', 0.06); }
   }
   for (const e of G.enemies) if (e.hp <= 0) {
     if (e.kind === 'bloat') for (let k = 0; k < 3; k++) G.enemies.push({ x: e.x + rnd(-14, 14), y: e.y + rnd(-14, 14), r: 7, hp: e.maxHp * 0.15, maxHp: e.maxHp * 0.15, speed: e.speed * 1.8, dmg: 4, xp: 1, color: e.color, flash: 0, kind: 'minibloat' });
+    feedCrops(e); if (p.soulHeal) p.hp = Math.min(p.maxHp, p.hp + p.soulHeal);
     G.kills++; if (e.boss) G.bosses = (G.bosses || 0) + 1; else if (e.elite) G.elites = (G.elites || 0) + 1; sfx(260 + Math.random() * 80, 0.06);
     G.gems.push({ x: e.x, y: e.y, v: e.xp, big: e.boss });
     if (e.boss || e.elite || Math.random() < 0.025 * (G.p.luck || 1)) G.hearts.push({ x: e.x + 8, y: e.y, heal: e.boss ? 60 : e.elite ? 30 : 20 });
@@ -775,11 +839,13 @@ const ENEMY_SPR = {};
 function drawEnemy(e) {
   const S = window.TZS_SPRITES, kk = e.spr || e.kind, base = S && S.baked[kk];
   if (!base) return;
-  const spr = ENEMY_SPR[kk + e.color] || (ENEMY_SPR[kk + e.color] = S.variant(kk, e.color));
+  const col = e.ally ? '#a5f3fc' : e.color, spr = ENEMY_SPR[kk + col] || (ENEMY_SPR[kk + col] = S.variant(kk, col));
   const f = Math.floor(G.t * (e.kind === 'bat' || e.kind === 'wisp' ? 12 : 7) + e.x * 0.07);
   const k = e.sc || (e.boss ? 2 : e.elite ? (e.r <= 19 ? 3 : 4) : e.r <= 15 ? 2 : 3);
   if (e.elite) { ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); ctx.lineDashOffset = -G.t * 20; ctx.beginPath(); ctx.arc(e.x, e.y, k * 8 + 4, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+  if (e.ally) { ctx.strokeStyle = 'rgba(165,243,252,0.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, k * 8 + 2, 0, 7); ctx.stroke(); ctx.globalAlpha = 0.8; }
   S.drawSprite(ctx, spr, 'walk', f, e.x, e.y, k, { flash: e.flash > 0 });
+  ctx.globalAlpha = 1;
 }
 // Pixel chevrons on the edge the swarm enters from, centred on the lane band; they blink during the warning.
 function drawLaneArrows(L) {
@@ -970,6 +1036,11 @@ function render() {
     SPR.drawSprite(ctx, SPR.baked[skin], 'idle', 0, pr.x + wob, pr.y, 2);
   }
   // crops: sprout (small, then bigger) until ripe; a ripe crop bobs inside a pulsing ring; growth bar under unripe ones
+  // brambles (Thornseed): dark thorny patch that fades out over its last second
+  for (const b of G.brambles) { ctx.globalAlpha = Math.min(1, b.t); ctx.fillStyle = 'rgba(88,28,135,0.28)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill(); SPR.drawSprite(ctx, SPR.baked.grass, 'idle', 0, b.x - 6, b.y, 2); SPR.drawSprite(ctx, SPR.baked.grass, 'idle', 0, b.x + 7, b.y - 3, 2); ctx.globalAlpha = 1; }
+  // soul range: kills inside the faint ring around a growing crop feed it
+  ctx.strokeStyle = 'rgba(165,243,252,0.16)'; ctx.lineWidth = 2;
+  for (const c of G.crops) if (c.age < c.grow) { ctx.beginPath(); ctx.arc(c.x, c.y, SOUL_R, 0, 7); ctx.stroke(); }
   for (const c of G.crops) {
     const f = Math.min(1, c.age / c.grow), ripe = f >= 1;
     if (ripe) {
@@ -1013,11 +1084,13 @@ function render() {
     ctx.globalAlpha = 1;
   }
   for (const s of G.shots) drawBolt(s);
-  if (G.w.orbit) { const n = 1 + G.w.orbit, rad = 60 + G.w.orbit * 4; for (let i = 0; i < n; i++) { const a = G.orbAng + (i / n) * Math.PI * 2; drawPickup('orb', '#a78bfa', p.x + Math.cos(a) * rad, p.y + Math.sin(a) * rad, 2); } }
-  if (G.w.garlic) { ctx.fillStyle = 'rgba(167,243,208,.12)'; ctx.beginPath(); ctx.arc(p.x, p.y, 50 + G.w.garlic * 12, 0, 7); ctx.fill(); }
   if (G.slash) { const k = G.slash; ctx.fillStyle = 'rgba(253,230,138,' + (k.t / 0.15 * 0.6) + ')'; ctx.beginPath(); ctx.moveTo(k.x, k.y); ctx.arc(k.x, k.y, k.reach, k.a - k.half, k.a + k.half); ctx.closePath(); ctx.fill(); }
-  for (const f of G.mineFx) { ctx.fillStyle = 'rgba(245,158,11,' + (f.t / f.max * 0.6) + ')'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 - f.t / f.max * 0.4), 0, 7); ctx.fill(); }
-  if (G.novaRing) { ctx.strokeStyle = 'rgba(125,211,252,' + (G.novaRing.t / 0.3) + ')'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(p.x, p.y, G.novaRing.r, 0, 7); ctx.stroke(); }
+  for (const d of G.decoys) { // Phantom Step decoy: a flickering ghost of the player with its burst radius closing in
+    const f = d.t / d.max; ctx.strokeStyle = 'rgba(165,243,252,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(d.x, d.y, d.r * (0.3 + 0.7 * f), 0, 7); ctx.stroke();
+    ctx.globalAlpha = 0.45 + 0.2 * Math.sin(G.t * 20); SPR.drawSprite(ctx, SPR.variant(charSpr(CHARS[charIdx]), '#a5f3fc'), 'idle', 0, d.x, d.y - 4, 2); ctx.globalAlpha = 1;
+  }
+  for (const s of G.souls) { const k = Math.min(1, s.t / 0.35), x = s.sx + (s.c.x - s.sx) * k, y = s.sy + (s.c.y - 6 - s.sy) * k - Math.sin(k * Math.PI) * 24; drawPickup('orb', '#a5f3fc', x, y, 1); }
+  for (const f of G.mineFx) { ctx.fillStyle = 'rgba(' + (f.col || '245,158,11') + ',' + (f.t / f.max * 0.6) + ')'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 - f.t / f.max * 0.4), 0, 7); ctx.fill(); }
   drawPlayer(p);
   for (const t of G.texts) text(t.s, t.x, t.y, t.big ? 18 : 12, t.big ? '#fde047' : '#fff', 'center', VW);
   ctx.restore(); SPR.setView(1, 0, 0);
@@ -1113,7 +1186,7 @@ function render() {
     add('Best ' + fmt(+(localStorage.getItem('tzs_best') || 0)) + '  Gold +' + G.gold, 16, '#cbd5e1');
     if (G.newBest) add('NEW BEST!', 20, '#fde047');
     add(`Bosses ${G.bosses || 0}  Elites ${G.elites || 0}  Hurt ${Math.round(G.taken || 0)}`, 14, '#e2e8f0');
-    add(`Farm: ${G.chopped} chopped  ${G.harvests} harvests  ${G.wood} wood`, 14, '#bef264');
+    add(`Farm: ${G.chopped} chopped  ${G.harvests} harvests  ${G.souled || 0} souls sown  ${G.wood} wood`, 14, '#bef264');
     if (wl) add('Weapons: ' + wl, 14, '#93c5fd', 4);
     if (pl) add('Passives: ' + pl, 14, '#a7f3d0', 4);
     if (bb && !G.newBest) add('Best run: ' + bb, 14, '#fcd34d', 4);
@@ -1144,5 +1217,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, dashBtn, hitDash, set touchUi(v) { touchUi = v; }, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES, propAt, plant, plantBtn, hitPlant, get zoom() { return ZOOM; }, get view() { return { w: VW, h: VH }; } , titleLayout, titleTap, choiceRects, pauseBtn, pauseRects, setTouch(v) { touch = v; }, get charIdx() { return charIdx; }, get hard() { return hard; } };
+window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, dashBtn, hitDash, set touchUi(v) { touchUi = v; }, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES, propAt, plant, plantBtn, hitPlant, feedCrops, possess, spawnDecoy, get zoom() { return ZOOM; }, get view() { return { w: VW, h: VH }; } , titleLayout, titleTap, choiceRects, pauseBtn, pauseRects, setTouch(v) { touch = v; }, get charIdx() { return charIdx; }, get hard() { return hard; } };
 })();

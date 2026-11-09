@@ -15,7 +15,7 @@ const path = require('path');
       const t = window.__tzs, out = {};
       for (const n of [100, 300, 600]) {
         t.start(); const G = t.G; G.p.hp = G.p.maxHp = 1e9;
-        for (const k of ['orbit', 'garlic', 'boomer', 'zap', 'mine', 'frost', 'whip', 'nova']) G.w[k] = 3;
+        for (const k of ['possess', 'thorn', 'boomer', 'zap', 'mine', 'frost', 'whip', 'phantom']) G.w[k] = 3;
         for (let i = 0; i < 120; i++) { t.update(1 / 60); if (t.state === 'levelup') t.press('1'); }
         const kinds = ['bat', 'ghoul', 'imp', 'brute', 'golem', 'wisp'];
         while (G.enemies.length < n) {

@@ -71,6 +71,9 @@ Vision: a stranger plays on a phone for ten minutes and wants to replay. Game fe
 ## Milestone: Farm while you survive
 Vision: survivors-genre pressure with a farming loop in the middle of the run: you work the land between fights, and the land pays you back. v1 is in; each next item is one small PR with a smoke assertion.
 - [x] (farm v1) Choppable woodland: trees (1.6s, wood + seed + rare heart), mushrooms (heart/seed), new grass tufts (cut by running through, regrow after 45s). Seeds: F / PLANT button sows a crop at your feet; it ripens in 20s; enemies standing on it trample it; walking over a ripe crop heals 20 HP + XP gem; 15% golden crops heal 40 + WELL FED (+25% dmg, 20s). Wood sells for 1 gold at run end; end screen shows a Farm line.
+- [x] (farm) Soul Garden: kills near a growing crop feed it, reaping bursts nearby foes, dash-chop (2026-11-08).
+- [x] (powers) Replace VS-copy powers: Possession, Thornseed, Phantom Step; Soul Eater, Rooted, Green Thumb (2026-11-08).
+- [ ] (farm) Real playtest of Soul Garden numbers: SOUL_R/SOUL_GROW/HARVEST_R, is the 30s base growth too slow without kills?
 - [ ] (farm) Spend wood mid-run: build a scarecrow/fence that slows enemies around your crops (makes the field worth defending).
 - [ ] (farm) Crop variety: seed types from different props (pumpkin = heal, berry = XP, thorn = turret-like damage plant).
 - [ ] (farm) Harvest Moon event (e.g. at 4:00): all crops ripen instantly and grass bursts with seeds, then a horde arrives.
