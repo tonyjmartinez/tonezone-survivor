@@ -4,9 +4,12 @@
 const cv = document.getElementById('c');
 const ctx = cv.getContext('2d');
 let W, H;
+// World zoom: the arena is drawn ZOOM x bigger so units read on a phone. 1.5 (phones/laptops) or 2 (big screens) keeps
+// 2x sprites on whole device pixels (3 or 4 per art pixel). VW/VH = world units visible on screen; gameplay 'on screen' uses them.
+let ZOOM = 1.5, VW, VH;
 // Size to the visible viewport (visualViewport excludes the mobile URL bar; innerHeight can lag behind it).
 function viewSize() { const v = window.visualViewport; return v ? { w: Math.round(v.width), h: Math.round(v.height) } : { w: innerWidth, h: innerHeight }; }
-function resize() { const s = viewSize(); if (s.w === W && s.h === H) return; W = cv.width = s.w; H = cv.height = s.h; }
+function resize() { const s = viewSize(); if (s.w === W && s.h === H) return; W = cv.width = s.w; H = cv.height = s.h; ZOOM = Math.min(W, H) >= 900 ? 2 : 1.5; VW = W / ZOOM; VH = H / ZOOM; }
 addEventListener('resize', resize); addEventListener('orientationchange', resize);
 if (window.visualViewport) visualViewport.addEventListener('resize', resize);
 resize();
@@ -18,13 +21,13 @@ addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 let touch = null; // {sx,sy,x,y}
 // On-screen dash button (touch has no Shift/Space): 64px circle bottom-right, 48px+ hit target.
 let touchUi = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
-function dashBtn() { return { x: W - 52, y: H - 60, r: 32 }; }
+function dashBtn() { return { x: W - 58, y: H - 66, r: 40 }; }
 function hitDash(px, py) { const b = dashBtn(); return Math.hypot(px - b.x, py - b.y) <= b.r + 8; }
 // PLANT button sits above DASH (touch has no F key).
-function plantBtn() { return { x: W - 52, y: H - 140, r: 28 }; }
+function plantBtn() { return { x: W - 58, y: H - 162, r: 36 }; }
 function hitPlant(px, py) { const b = plantBtn(); return Math.hypot(px - b.x, py - b.y) <= b.r + 8; }
 // Pause button: 44px square under the kills plate (top-right, away from both thumbs).
-function pauseBtn() { return { x: W - 54, y: 74, w: 44, h: 44 }; }
+function pauseBtn() { return { x: W - 62, y: 88, w: 52, h: 52 }; }
 // The joystick follows ONE finger (by pointerId). A second finger on DASH or PAUSE must not move it
 // or end it; before this, the dash finger hijacked the stick and the dash aimed at the button.
 cv.addEventListener('pointerdown', e => {
@@ -45,11 +48,11 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && sta
 // ---------- data ----------
 const WEAPONS = {
   bolt:  { name: 'Magic Bolt', desc: 'Fires at nearest enemy', max: 6 },
-  orbit: { name: 'Orbiting Orbs', desc: 'Orbs circle you', max: 6 },
-  nova:  { name: 'Pulse Nova', desc: 'Periodic shockwave', max: 6 },
+  possess: { name: 'Possession', desc: 'Turns the nearest foe into your ghost', max: 6 },
+  phantom: { name: 'Phantom Step', desc: 'Dashes leave a decoy that lures, then bursts', max: 6 },
   boomer: { name: 'Boomerang', desc: 'Flies out and returns, piercing', max: 6 },
   whip:  { name: 'Whip', desc: 'Wide arc slash at nearest foe', max: 6 },
-  garlic: { name: 'Garlic Aura', desc: 'Damages & slows nearby foes', max: 6 },
+  thorn: { name: 'Thornseed', desc: 'Brambles in your wake; crops grow thorns', max: 6 },
   zap:   { name: 'Lightning', desc: 'Strikes random foes on screen', max: 6 },
   mine:  { name: 'Mines', desc: 'Drops mines that blast foes', max: 6 },
   frost: { name: 'Frost Shards', desc: 'Ring of shards that slow foes', max: 6 },
@@ -60,13 +63,13 @@ const PASSIVES = {
   health: { name: 'Vitality', desc: '+25 max HP, heal', max: 5 },
   magnet: { name: 'Magnet', desc: '+40% pickup range', max: 5 },
   haste:  { name: 'Haste', desc: '-10% cooldowns', max: 5 },
-  regen:  { name: 'Recovery', desc: '+0.5 HP per second', max: 5 },
+  soul:   { name: 'Soul Eater', desc: 'Kills heal 0.25 HP', max: 5 },
   luck:   { name: 'Luck', desc: '+30% pickup drop chance', max: 5 },
-  armor:  { name: 'Armor', desc: '-1 damage taken per hit', max: 5 },
-  growth: { name: 'Growth', desc: '+15% XP from gems', max: 5 },
+  rooted: { name: 'Rooted', desc: 'Stand still: -12% dmg, chop +40%', max: 5 },
+  green:  { name: 'Green Thumb', desc: 'Crops grow 30% faster, +30% seeds', max: 5 },
 };
 // Evolution: a maxed weapon + its paired passive, opened via boss chest, jumps to level 8 (EVO).
-const EVOLVE = { bolt: 'haste', orbit: 'might', nova: 'magnet', boomer: 'speed', whip: 'health', garlic: 'haste', zap: 'regen', mine: 'luck', frost: 'armor' };
+const EVOLVE = { bolt: 'haste', possess: 'might', phantom: 'magnet', boomer: 'speed', whip: 'health', thorn: 'green', zap: 'soul', mine: 'luck', frost: 'rooted' };
 const EVO_LVL = 8;
 const ENEMY_TYPES = [
   { name: 'bat',   hp: 8,   speed: 70,  r: 9,  dmg: 6,  xp: 1, color: '#a78bfa', from: 0 },
@@ -112,11 +115,12 @@ function buyMeta(k) {
 const CHARS = [
   { name: 'Mage',   w: 'bolt',  desc: 'Magic Bolt. Balanced.',          hp: 0,  spd: 1,    dmg: 1,    color: '#f8fafc' },
   { name: 'Knight', w: 'whip',  desc: 'Whip. +30 HP, slower.',          hp: 30, spd: 0.92, dmg: 1,    color: '#93c5fd' },
-  { name: 'Druid',  w: 'garlic',  desc: 'Garlic Aura. +10% speed.',       hp: 0,  spd: 1.1,  dmg: 1,    color: '#86efac' },
+  { name: 'Druid',  w: 'thorn', desc: 'Thornseed. +10% speed.',           hp: 0,  spd: 1.1,  dmg: 1,    color: '#86efac' },
   { name: 'Rogue',  w: 'boomer', desc: 'Boomerang. +15% dmg, -20 HP.',   hp: -20, spd: 1.05, dmg: 1.15, color: '#fda4af' },
   { name: 'Pyro',   w: 'mine',  desc: 'Mines. -10% speed.',              hp: 0,  spd: 0.9,  dmg: 1,    color: '#fdba74' },
   { name: 'Storm',  w: 'zap',   desc: 'Lightning splash.',              hp: 0,  spd: 1,    dmg: 1,    color: '#7dd3fc', zapSplash: 40 },
 ];
+function charSpr(ch) { return 'player_' + ch.name.toLowerCase(); }
 let charIdx = Math.min(CHARS.length - 1, +(localStorage.getItem('tzs_char') || 0));
 let hard = localStorage.getItem('tzs_hard') === '1'; // Hard: +40% spawns, +50% gold
 function toggleHard() { hard = !hard; try { localStorage.setItem('tzs_hard', hard ? '1' : '0'); } catch (err) {} }
@@ -130,7 +134,7 @@ function newGame() {
     p: { x: 0, y: 0, r: 10, hp: 120 + ch.hp + 10 * (mu.hp || 0), maxHp: 120 + ch.hp + 10 * (mu.hp || 0), speed: 140 * ch.spd * (1 + 0.03 * (mu.spd || 0)), dmgMul: ch.dmg * (1 + 0.05 * (mu.dmg || 0)), magnet: 60, cdMul: 1, hurt: 0, dashT: 0, dashCd: 0, face: { x: 1, y: 0 }, xp: 0, lvl: 1, need: 3, zapSplash: ch.zapSplash || 0 },
     w: { [ch.w]: 1 }, pa: {},
     enemies: [], shots: [], gems: [], booms: [], mines: [], bolts: [], hearts: [], vacs: [], bombs: [], ices: [], freeze: 0, chests: [], parts: [], shake: 0, fx: [], mineFx: [], texts: [],
-    timers: { bolt: 0, nova: 0 }, orbAng: 0, novaRing: null,
+    timers: { bolt: 0 }, brambles: [], decoys: [], souls: [],
     choices: [], gold: 0,
     rerolls: 1, // level-up rerolls left: one free per run, +1 per Luck level
     lvlT: 9, xpPulse: 0, // level-up moment: time since the card screen opened; XP bar glow
@@ -191,7 +195,7 @@ function titleTap(px, py) {
 
 function onKey(k, e) {
   if (k === 'm') { muted = !muted; return; }
-  if (state === 'play' && (k === 'shift' || k === ' ') && G.p.dashCd <= 0 && G.p.face) { const mv = moveInput(), mm = Math.hypot(mv.x, mv.y); G.p.dashDir = mm > 0.05 ? { x: mv.x / mm, y: mv.y / mm } : { x: G.p.face.x, y: G.p.face.y }; G.p.dashT = 0.16; G.p.dashCd = 2.5; G.p.hurt = Math.max(G.p.hurt, 0.2); sfx(300, 0.08, 'triangle', 0.05); return; }
+  if (state === 'play' && (k === 'shift' || k === ' ') && G.p.dashCd <= 0 && G.p.face) { const mv = moveInput(), mm = Math.hypot(mv.x, mv.y); G.p.dashDir = mm > 0.05 ? { x: mv.x / mm, y: mv.y / mm } : { x: G.p.face.x, y: G.p.face.y }; G.p.dashT = 0.16; G.p.dashCd = 2.5 - 0.12 * (G.w.phantom || 0); if (G.w.phantom) spawnDecoy(); G.p.hurt = Math.max(G.p.hurt, 0.2); sfx(300, 0.08, 'triangle', 0.05); return; }
   if (state === 'play' && (k === 'f' || k === 'e')) { plant(); return; }
   if ((k === 'p' || k === 'escape') && (state === 'play' || state === 'pause')) { state = state === 'play' ? 'pause' : 'play'; return; }
   if (state === 'title' && (k === 'arrowleft' || k === 'a')) { pickChar(-1); return; }
@@ -218,10 +222,16 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const dist2 = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
 function nearest(from, maxD) {
   let best = null, bd = maxD * maxD;
-  for (const e of G.enemies) { const d = dist2(from, e); if (d < bd) { bd = d; best = e; } }
+  for (const e of G.enemies) { if (e.ally) continue; const d = dist2(from, e); if (d < bd) { bd = d; best = e; } }
   return best;
 }
+// Player damage: Rooted cuts it by 12% per level (max 60%) while standing still.
+function hurtPlayer(d) {
+  const p = G.p; if (p.rooted && !walking) d *= 1 - Math.min(0.6, 0.12 * p.rooted);
+  d = Math.max(1, Math.round(d)); p.hp -= d; G.taken = (G.taken || 0) + d; return d;
+}
 function damage(e, amt, kx, ky) {
+  if (e.ally) return; // possessed ghosts fight for you
   amt *= G.p.dmgMul * (G.p.fed > 0 ? 1.25 : 1); e.hp -= amt; e.flash = 0.08; e.hitT = 1.5;
   if (kx !== undefined) { e.x += kx; e.y += ky; }
   else if (!e.boss) { const dx = e.x - G.p.x, dy = e.y - G.p.y, d = Math.hypot(dx, dy) || 1; e.x += dx / d * 5; e.y += dy / d * 5; } // default nudge away from the player so hits read
@@ -230,6 +240,7 @@ function damage(e, amt, kx, ky) {
   if (e.hp <= 0 && (e.elite || e.boss)) G.hitstop = 0.06; // tiny freeze when a big enemy dies
   if (G.parts.length < 200) for (let i = 0; i < 2; i++) G.parts.push({ x: e.x, y: e.y, vx: rnd(-80, 80), vy: rnd(-80, 80), t: 0.3, c: e.color });
   if (e.hp <= 0 && G.parts.length < 200) for (let i = 0; i < 6; i++) G.parts.push({ x: e.x, y: e.y, vx: rnd(-140, 140), vy: rnd(-140, 140), t: 0.4, c: e.color }); // kill pop
+  if (e.hp <= 0 && !e.boss && ['bat', 'ghoul', 'wraith'].includes(e.kind) && G.parts.length < 200) G.parts.push({ x: e.x, y: e.y - 4, vx: rnd(-8, 8), vy: -48, t: 0.9, c: '#a5f3fc', wisp: true }); // ghost wisp rises from slain undead
 }
 
 // ---------- level up ----------
@@ -253,14 +264,15 @@ function applyChoice(c) {
     if (c.k === 'health') { p.maxHp += 25; p.hp = Math.min(p.maxHp, p.hp + 40); }
     if (c.k === 'magnet') p.magnet *= 1.4;
     if (c.k === 'haste') p.cdMul *= 0.9;
-    if (c.k === 'regen') p.regen = (p.regen || 0) + 0.5;
+    if (c.k === 'soul') p.soulHeal = (p.soulHeal || 0) + 0.25;
     if (c.k === 'luck') { p.luck = (p.luck || 1) * 1.3; G.rerolls++; }
-    if (c.k === 'armor') p.armor = (p.armor || 0) + 1;
-    if (c.k === 'growth') p.xpMul = (p.xpMul || 1) + 0.15;
+    if (c.k === 'rooted') p.rooted = (p.rooted || 0) + 1;
+    if (c.k === 'green') p.green = (p.green || 1) + 0.3;
   }
 }
-const choiceRects = () => [0, 1, 2].map(i => ({ x: W / 2 - 150, y: H / 2 - 120 + i * 90, w: 300, h: 76 }));
-const rerollRect = () => ({ x: W / 2 - 150, y: H / 2 - 120 + 3 * 90, w: 300, h: 40 });
+const cardW = () => Math.min(W - 24, 360);
+const choiceRects = () => [0, 1, 2].map(i => ({ x: W / 2 - cardW() / 2, y: H / 2 - 130 + i * 98, w: cardW(), h: 86 }));
+const rerollRect = () => ({ x: W / 2 - cardW() / 2, y: H / 2 - 130 + 3 * 98, w: cardW(), h: 56 });
 const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 // Swap the three level-up cards for a fresh draw, spending one reroll.
 function reroll() {
@@ -274,10 +286,12 @@ function pickAt(x, y) { return choiceRects().findIndex(r => x >= r.x && x <= r.x
 const SURGE_AT = 300, SURGE_LEN = 30, RELIEF_LEN = 60;
 function pacing(t) { return t < SURGE_AT ? 1 : t < SURGE_AT + SURGE_LEN ? 1.6 : t < SURGE_AT + SURGE_LEN + RELIEF_LEN ? 0.6 : 1; }
 function spawnRate() { return (0.8 + G.t / 30 + (G.t / 130) ** 2) * pacing(G.t); } // enemies per second, ramps up
+// Spawn ring: kept at the pre-zoom screen distance (always outside the smaller zoomed view) so arrival pacing is unchanged.
+function spawnDist(extra) { return Math.hypot(W, H) / 2 + extra; }
 function spawnEnemy(boss) {
   const types = ENEMY_TYPES.filter(t => G.t >= t.from);
   const base = boss ? { name: 'boss', hp: 600, speed: 60, r: 34, dmg: 25, xp: 40, color: '#fde047' } : types[(Math.random() * types.length) | 0];
-  const a = rnd(0, Math.PI * 2), d = Math.hypot(W, H) / 2 + 40;
+  const a = rnd(0, Math.PI * 2), d = spawnDist(40);
   const hpScale = 1 + G.t / 90;
   const n = base.pack || 1;
   for (let i = 0; i < n; i++) G.enemies.push({ x: G.p.x + Math.cos(a) * d + (i ? rnd(-30, 30) : 0), y: G.p.y + Math.sin(a) * d + (i ? rnd(-30, 30) : 0), r: base.r, hp: base.hp * hpScale * (boss ? 1 + G.t / 240 : 1), speed: base.speed * (1 + Math.min(G.t / 600, 0.6)), dmg: base.dmg, xp: base.xp, color: base.color, flash: 0, boss, kind: base.name, spr: base.spr, maxHp: base.hp * hpScale * (boss ? 1 + G.t / 240 : 1) });
@@ -285,7 +299,7 @@ function spawnEnemy(boss) {
 }
 // Climax: a huge titan boss that periodically telegraphs a ground slam (ring fills for SLAM_WARN s, then hits anything inside).
 function spawnTitan() {
-  const a = rnd(0, Math.PI * 2), d = Math.hypot(W, H) / 2 + 80, hp = 2500 + G.t * 4;
+  const a = rnd(0, Math.PI * 2), d = spawnDist(80), hp = 2500 + G.t * 4;
   G.enemies.push({ x: G.p.x + Math.cos(a) * d, y: G.p.y + Math.sin(a) * d, r: 52, hp, maxHp: hp, speed: 38, dmg: 30, xp: 120, color: '#f97316', flash: 0, boss: true, titan: true, kind: 'boss', sc: 3, st: SLAM_EVERY });
   G.hordeBanner = 3; G.bannerText = 'THE TITAN AWAKENS!'; G.shake = Math.max(G.shake, 0.5); sfx(80, 0.5, 'sawtooth', 0.08);
 }
@@ -294,7 +308,7 @@ function makeElite(e) { e.elite = true; e.hp *= 2.5; e.maxHp *= 2.5; e.r = Math.
 
 function spawnHorde() {
   const types = ENEMY_TYPES.filter(t => G.t >= t.from && !t.pack), base = types[types.length - 1 - ((Math.random() * Math.min(2, types.length)) | 0)];
-  const n = Math.min(40, 20 + Math.floor(G.t / 20)), d = Math.hypot(W, H) / 2 + 60, hpScale = 1 + G.t / 90;
+  const n = Math.min(40, 20 + Math.floor(G.t / 20)), d = spawnDist(60), hpScale = 1 + G.t / 90;
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2;
     G.enemies.push({ x: G.p.x + Math.cos(a) * d, y: G.p.y + Math.sin(a) * d, r: base.r, hp: base.hp * hpScale, speed: base.speed * (1 + Math.min(G.t / 600, 0.6)), dmg: base.dmg, xp: base.xp, color: base.color, flash: 0, kind: base.name });
@@ -312,7 +326,7 @@ function updateLane(dt) {
   const L = G.lane; if (!L) return;
   if (L.warn > 0) { L.warn -= dt; return; }
   L.time -= dt; L.acc += LANE_RATE * dt;
-  const base = ENEMY_TYPES.find(t => t.name === 'wisp'), hpScale = 1 + G.t / 90, ext = (L.d.x ? W : H) / 2 + 40;
+  const base = ENEMY_TYPES.find(t => t.name === 'wisp'), hpScale = 1 + G.t / 90, ext = (L.d.x ? VW : VH) / 2 + 40;
   while (L.acc >= 1) {
     L.acc--;
     const off = rnd(-LANE_HALF, LANE_HALF);
@@ -323,6 +337,7 @@ function updateLane(dt) {
 }
 
 // ---------- farming ----------
+// Dashing through a workable prop chops it at once (see updateFarm).
 // The woodland props are workable: walk up to a tree, mushroom or grass tuft and you chop it
 // automatically (trees take a moment, grass is cut just by running through it). Chopping drops
 // wood (sold for gold at the end), seeds and sometimes a heart. F / PLANT sows a seed at your feet;
@@ -334,7 +349,10 @@ const FARM = {
   mush: { need: 0.6, reach: 20, col: '#f97316' }, // drawn as a jack-o'-lantern
   grass: { need: 0.35, reach: 18, col: '#3f7a4a', regrow: 45 },
 };
-const CROP_GROW = 20, CROP_HP = 2, CROP_MAX = 12, FED_TIME = 20;
+const CROP_GROW = 30, CROP_HP = 2, CROP_MAX = 12, FED_TIME = 20;
+// Soul Garden: a foe slain within SOUL_R of a growing crop feeds it SOUL_GROW s of growth, so you farm by fighting
+// on your field. A ripe crop is reaped with a burst (HARVEST_R, x1.4 for golden) that hits every foe around it.
+const SOUL_R = 140, SOUL_GROW = 3, HARVEST_R = 120;
 // Same hashed 112px grid the floor props have always used (r 0-1 = tree/rock/mush); r 2 adds grass.
 function propAt(gx, gy) {
   const h = (Math.imul(gx, 374761393) ^ Math.imul(gy, 668265263)) >>> 0, r = h % 5;
@@ -345,18 +363,18 @@ function propAt(gx, gy) {
 function isCut(pr) { const c = G.cut.get(pr.key); return c !== undefined && (pr.kind !== 'grass' || G.t - c < FARM.grass.regrow); }
 function burst(x, y, c, n, sp = 90) { if (G.parts.length < 200) for (let i = 0; i < n; i++) G.parts.push({ x, y, vx: rnd(-sp, sp), vy: rnd(-sp, sp), t: 0.35, c }); }
 function dropFarm(pr) {
-  const L = G.p.luck || 1, drop = k => G.loot.push({ kind: k, x: pr.x + rnd(-14, 14), y: pr.y + rnd(-10, 10) });
+  const L = G.p.luck || 1, S = L * (G.p.green || 1), drop = k => G.loot.push({ kind: k, x: pr.x + rnd(-14, 14), y: pr.y + rnd(-10, 10) });
   if (pr.kind === 'tree') {
     for (let i = 0, n = 2 + (Math.random() < 0.5); i < n; i++) drop('wood');
-    if (Math.random() < 0.4 * L) drop('seed');
+    if (Math.random() < 0.4 * S) drop('seed');
     if (Math.random() < 0.1 * L) G.hearts.push({ x: pr.x, y: pr.y, heal: 15 });
     G.shake = Math.max(G.shake, 0.12); sfx(130, 0.22, 'triangle', 0.06);
   } else if (pr.kind === 'mush') {
     if (Math.random() < 0.5 * L) G.hearts.push({ x: pr.x, y: pr.y, heal: 15 });
-    if (Math.random() < 0.3 * L) drop('seed');
+    if (Math.random() < 0.3 * S) drop('seed');
     sfx(380, 0.1, 'sine', 0.05);
   } else {
-    if (Math.random() < 0.25 * L) drop('seed');
+    if (Math.random() < 0.25 * S) drop('seed');
     if (Math.random() < 0.12 * L) G.hearts.push({ x: pr.x, y: pr.y, heal: 8 });
     sfx(600, 0.04, 'square', 0.025);
   }
@@ -367,6 +385,7 @@ function plant() {
   if (G.seeds <= 0 || G.crops.length >= CROP_MAX || G.crops.some(c => dist2(c, p) < 22 * 22)) { sfx(140, 0.08, 'square', 0.03); return false; }
   G.seeds--; G.crops.push({ x: Math.round(p.x), y: Math.round(p.y + 6), age: 0, grow: CROP_GROW, hp: CROP_HP, golden: Math.random() < 0.15 });
   sfx(480, 0.12, 'triangle', 0.05); burst(p.x, p.y + 6, '#7c4a2a', 4, 50);
+  if (!G.soulHint) { G.soulHint = true; G.hordeBanner = 3; G.bannerText = 'SLAY FOES NEAR CROPS TO GROW THEM'; }
   return true;
 }
 function harvest(c) {
@@ -374,17 +393,26 @@ function harvest(c) {
   p.hp = Math.min(p.maxHp, p.hp + heal); G.harvests++;
   G.gems.push({ x: c.x, y: c.y - 8, v: c.golden ? 8 : 3, big: c.golden });
   if (Math.random() < 0.5) G.loot.push({ kind: 'seed', x: c.x + 10, y: c.y });
-  if (c.golden) { p.fed = FED_TIME; G.texts.push({ x: p.x, y: p.y - 30, s: 'WELL FED! +25% DMG', t: 1.6, big: true }); }
   G.texts.push({ x: p.x, y: p.y - 16, s: 'HARVEST +' + heal, t: 1 });
+  const br = HARVEST_R * (c.golden ? 1.4 : 1), bd = (30 + G.t / 5) * (c.golden ? 2 : 1);
+  for (const e of G.enemies) if (dist2(c, e) < (br + e.r) ** 2) { const a = Math.atan2(e.y - c.y, e.x - c.x); damage(e, e.boss ? bd / 2 : bd, Math.cos(a) * 30, Math.sin(a) * 30); }
+  if (c.golden) { p.fed = FED_TIME; G.texts.push({ x: p.x, y: p.y - 30, s: 'WELL FED! +25% DMG', t: 1.6, big: true }); } // after the burst, so golden = exactly 2x
+  G.mineFx.push({ x: c.x, y: c.y, r: br, t: 0.35, max: 0.35, col: '190,242,100' }); G.shake = Math.max(G.shake, 0.25);
   sfx(c.golden ? 880 : 620, 0.2, 'triangle', 0.07); burst(c.x, c.y, c.golden ? '#fbbf24' : '#f97316', 8, 110);
 }
 function updateFarm(dt) {
   const p = G.p;
-  if (!G.farmHint && G.t >= 2) { G.farmHint = true; G.hordeBanner = 3; G.bannerText = 'CHOP TREES FOR SEEDS + WOOD'; }
+  if (!G.farmHint && G.t >= 2) { G.farmHint = true; G.hordeBanner = 3; G.bannerText = 'DASH THROUGH TREES FOR SEEDS'; }
   p.fed = Math.max(0, (p.fed || 0) - dt);
+  const cx = Math.floor(p.x / PROP_CELL), cy = Math.floor(p.y / PROP_CELL);
+  // dash-chop: everything workable the dash sweeps through is cut instantly
+  if (p.dashT > 0) for (let gx = cx - 1; gx <= cx + 1; gx++) for (let gy = cy - 1; gy <= cy + 1; gy++) {
+    const pr = propAt(gx, gy); if (!pr || !FARM[pr.kind] || isCut(pr)) continue;
+    const reach = p.r + FARM[pr.kind].reach + 8;
+    if (dist2(p, pr) < reach * reach) { G.cut.set(pr.key, G.t); if (G.chop && G.chop.key === pr.key) G.chop = null; G.dashChops = (G.dashChops || 0) + 1; dropFarm(pr); }
+  }
   // chop the nearest workable prop in reach; progress resets if you leave it
   let target = null, bd = Infinity;
-  const cx = Math.floor(p.x / PROP_CELL), cy = Math.floor(p.y / PROP_CELL);
   for (let gx = cx - 1; gx <= cx + 1; gx++) for (let gy = cy - 1; gy <= cy + 1; gy++) {
     const pr = propAt(gx, gy); if (!pr || !FARM[pr.kind] || isCut(pr)) continue;
     const d = dist2(p, pr), reach = p.r + FARM[pr.kind].reach;
@@ -393,7 +421,7 @@ function updateFarm(dt) {
   if (!target) G.chop = null;
   else {
     if (!G.chop || G.chop.key !== target.key) G.chop = { key: target.key, x: target.x, y: target.y, kind: target.kind, prog: 0, need: FARM[target.kind].need, tick: 0 };
-    const c = G.chop; c.prog += dt; c.tick -= dt;
+    const c = G.chop; c.prog += dt * (p.rooted && !walking ? 1 + 0.4 * p.rooted : 1); c.tick -= dt;
     if (c.tick <= 0) { c.tick = 0.22; sfx(target.kind === 'tree' ? 200 : 450, 0.04, 'square', 0.03); burst(target.x, target.y, FARM[target.kind].col, 2, 60); }
     if (c.prog >= c.need) { G.cut.set(target.key, G.t); G.chop = null; dropFarm(target); }
   }
@@ -412,12 +440,43 @@ function updateFarm(dt) {
   // crops grow; enemies standing on a growing crop trample it; walk over a ripe one to harvest
   for (const c of G.crops) {
     if (c.age < c.grow) {
-      c.age += dt; c.hurt = false;
-      for (const e of G.enemies) if (dist2(c, e) < (e.r + 6) ** 2) { c.hp -= dt; c.hurt = true; break; }
+      c.age += dt * (p.green || 1); c.hurt = false; c.thornT = (c.thornT || 0) - dt;
+      for (const e of G.enemies) if (!e.ally && dist2(c, e) < (e.r + 6) ** 2) {
+        c.hp -= dt; c.hurt = true;
+        if (G.w.thorn && c.thornT <= 0) { c.thornT = 0.5; damage(e, 6 + 3 * G.w.thorn); } // Thornseed: tramplers get pricked
+        break;
+      }
       if (c.hp <= 0) { c.dead = true; burst(c.x, c.y, '#3f7a4a', 6, 80); G.texts.push({ x: c.x, y: c.y - 12, s: 'TRAMPLED', t: 0.8 }); }
     } else if (dist2(p, c) < (p.r + 12) ** 2) { c.dead = true; harvest(c); }
   }
   G.crops = G.crops.filter(c => !c.dead);
+  for (const s of G.souls) s.t += dt;
+  G.souls = G.souls.filter(s => s.t < 0.4);
+}
+// A slain foe's soul flies into the nearest growing crop within SOUL_R and speeds it up.
+function feedCrops(e) {
+  let best = null, bd = SOUL_R * SOUL_R;
+  for (const c of G.crops) if (c.age < c.grow) { const d = dist2(c, e); if (d < bd) { bd = d; best = c; } }
+  if (!best) return false;
+  best.age = Math.min(best.grow, best.age + SOUL_GROW * (G.p.green || 1)); G.souled = (G.souled || 0) + 1;
+  if (G.souls.length < 60) G.souls.push({ sx: e.x, sy: e.y, c: best, t: 0 });
+  return true;
+}
+
+// ---------- new powers ----------
+// Possession: the nearest non-boss foe becomes a ghost ally for a few seconds. Allies hunt other foes, hit what they
+// touch, ignore the player and your weapons, and when the possession ends the body drops as a normal kill.
+function possess(e, l) {
+  e.ally = 4 + l * 0.8; e.allyDmg = 8 + l * 4; e.lane = null; e.prey = null; e.atk = 0;
+  if (G.parts.length < 200) G.parts.push({ x: e.x, y: e.y - 4, vx: 0, vy: -30, t: 0.6, c: '#a5f3fc', wisp: true });
+  sfx(240, 0.25, 'sine', 0.05);
+}
+// Phantom Step: a decoy of you that pulls nearby foes (DECOY_PULL) until it bursts.
+const DECOY_PULL = 220;
+function spawnDecoy() {
+  const l = G.w.phantom || 1, life = 1.6 + l * 0.15;
+  G.decoys.push({ x: G.p.x, y: G.p.y, t: life, max: life, r: 70 + l * 8, dmg: 20 + l * 8 });
+  G.timers.phantom = (5 - l * 0.4) * G.p.cdMul; sfx(520, 0.15, 'sine', 0.04);
 }
 
 // ---------- update ----------
@@ -441,8 +500,7 @@ function update(dt) {
   if (p.dashT > 0) { const dd = p.dashDir || p.face; p.dashT -= dt; p.x += dd.x * p.speed * 4 * dt; p.y += dd.y * p.speed * 4 * dt; }
   else { p.x += dx * p.speed * dt; p.y += dy * p.speed * dt; }
   p.hurt = Math.max(0, p.hurt - dt);
-  if (p.regen) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
-  G.cam.x = p.x - W / 2; G.cam.y = p.y - H / 2;
+  G.cam.x = p.x - VW / 2; G.cam.y = p.y - VH / 2;
   updateFarm(dt);
 
   // spawn
@@ -470,15 +528,13 @@ function update(dt) {
       }
     }
   }
-  const wo = G.w.orbit;
-  if (wo) {
-    G.orbAng += dt * (2.2 + wo * 0.2);
-    const n = 1 + wo, rad = 60 + wo * 4;
-    for (let i = 0; i < n; i++) {
-      const a = G.orbAng + (i / n) * Math.PI * 2, o = { x: p.x + Math.cos(a) * rad, y: p.y + Math.sin(a) * rad };
-      for (const e of G.enemies) {
-        if (dist2(o, e) < (e.r + 7) ** 2 && !(e.orbHit > G.t)) { e.orbHit = G.t + 0.4; damage(e, 6 + wo * 2.5, Math.cos(a + 1.57) * 4, Math.sin(a + 1.57) * 4); }
-      }
+  const wp = G.w.possess;
+  if (wp) {
+    G.timers.possess = (G.timers.possess || 0) - dt;
+    if (G.timers.possess <= 0) {
+      G.timers.possess = 0.3;
+      const free = G.enemies.filter(e => !e.boss && !e.ally && dist2(p, e) < 280 * 280).sort((a, b) => dist2(p, a) - dist2(p, b));
+      if (free.length) { G.timers.possess = (4.4 - wp * 0.35) * p.cdMul; for (const e of free.slice(0, wp >= 6 ? 2 : 1)) possess(e, wp); }
     }
   }
   const wbm = G.w.boomer;
@@ -526,8 +582,8 @@ function update(dt) {
     G.timers.zap = (G.timers.zap || 0) - dt;
     if (G.timers.zap <= 0 && G.enemies.length) {
       G.timers.zap = (2.0 - wz * 0.12) * p.cdMul;
-      const n = 1 + Math.ceil(wz / 2), rx = W / 2 + 40, ry = H / 2 + 40;
-      const vis = G.enemies.filter(e => Math.abs(e.x - p.x) < rx && Math.abs(e.y - p.y) < ry);
+      const n = 1 + Math.ceil(wz / 2), rx = VW / 2 + 40, ry = VH / 2 + 40;
+      const vis = G.enemies.filter(e => !e.ally && Math.abs(e.x - p.x) < rx && Math.abs(e.y - p.y) < ry);
       for (let i = 0; i < n && vis.length; i++) {
         const e = vis.splice((Math.random() * vis.length) | 0, 1)[0];
         damage(e, 18 + wz * 6);
@@ -556,7 +612,7 @@ function update(dt) {
   for (const m of G.mines) {
     m.age += dt;
     if (m.age < 0.5) continue;
-    if (G.enemies.some(e => dist2(m, e) < (e.r + 16) ** 2)) {
+    if (G.enemies.some(e => !e.ally && dist2(m, e) < (e.r + 16) ** 2)) {
       m.dead = true; const br = 60 + wm * 6;
       for (const e of G.enemies) if (dist2(m, e) < (br + e.r) ** 2) damage(e, 25 + wm * 8, (e.x - m.x) * 0.1, (e.y - m.y) * 0.1);
       G.mineFx.push({ x: m.x, y: m.y, r: br, t: 0.25, max: 0.25 });
@@ -568,30 +624,35 @@ function update(dt) {
   G.mineFx = G.mineFx.filter(f => f.t > 0);
   for (const b of G.bolts) b.t -= dt;
   G.bolts = G.bolts.filter(b => b.t > 0);
-  const wg = G.w.garlic;
-  if (wg) {
-    const gr = 50 + wg * 12;
-    G.timers.garlic = (G.timers.garlic || 0) - dt;
-    const tick = G.timers.garlic <= 0; if (tick) G.timers.garlic = 0.5 * p.cdMul;
-    for (const e of G.enemies) if (dist2(p, e) < (gr + e.r) ** 2) { e.slow = 0.1; if (tick) damage(e, 3 + wg * 1.5); }
-  }
-  const wn = G.w.nova;
-  if (wn) {
-    G.timers.nova -= dt;
-    if (G.timers.nova <= 0) {
-      G.timers.nova = (4.2 - wn * 0.35) * p.cdMul;
-      const r = 90 + wn * 18;
-      G.novaRing = { r: 0, max: r, t: 0.3 };
-      for (const e of G.enemies) if (dist2(p, e) < (r + e.r) ** 2) { const a = Math.atan2(e.y - p.y, e.x - p.x); damage(e, 14 + wn * 6, Math.cos(a) * 25, Math.sin(a) * 25); }
+  const wt = G.w.thorn;
+  if (wt) {
+    G.timers.thorn = (G.timers.thorn || 0) - dt;
+    if (G.timers.thorn <= 0) {
+      G.timers.thorn = (1.4 - wt * 0.08) * p.cdMul;
+      if (!G.brambles.some(b => dist2(b, p) < 24 * 24)) G.brambles.push({ x: p.x, y: p.y + 4, t: 4 + wt * 0.6, r: 18 + wt * 2, tick: 0 });
+      if (G.brambles.length > 8 + wt) G.brambles.shift();
     }
   }
-  if (G.novaRing) { G.novaRing.t -= dt; G.novaRing.r = G.novaRing.max * (1 - G.novaRing.t / 0.3); if (G.novaRing.t <= 0) G.novaRing = null; }
+  for (const b of G.brambles) {
+    b.t -= dt; b.tick -= dt; const hit = b.tick <= 0; if (hit) b.tick = 0.5;
+    for (const e of G.enemies) if (!e.ally && dist2(b, e) < (b.r + e.r) ** 2) { e.slow = Math.max(e.slow || 0, 0.3); if (hit) damage(e, 4 + (wt || 1) * 2); }
+  }
+  G.brambles = G.brambles.filter(b => b.t > 0);
+  if (G.w.phantom) { G.timers.phantom = (G.timers.phantom === undefined ? 3 : G.timers.phantom) - dt; if (G.timers.phantom <= 0) spawnDecoy(); }
+  for (const d of G.decoys) {
+    d.t -= dt;
+    if (d.t <= 0) {
+      for (const e of G.enemies) if (dist2(d, e) < (d.r + e.r) ** 2) { const a = Math.atan2(e.y - d.y, e.x - d.x); damage(e, d.dmg, Math.cos(a) * 20, Math.sin(a) * 20); }
+      G.mineFx.push({ x: d.x, y: d.y, r: d.r, t: 0.3, max: 0.3, col: '165,243,252' }); sfx(180, 0.2, 'triangle', 0.05);
+    }
+  }
+  G.decoys = G.decoys.filter(d => d.t > 0);
 
   // shots
   for (const s of G.shots) {
     s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt;
     for (const e of G.enemies) {
-      if (s.life > 0 && dist2(s, e) < (e.r + 5) ** 2) {
+      if (s.life > 0 && !e.ally && dist2(s, e) < (e.r + 5) ** 2) {
         damage(e, s.dmg); if (s.frost) e.slow = Math.max(e.slow || 0, 1.5); s.pierce--; if (s.pierce <= 0) s.life = 0;
         if (s.life <= 0) break;
       }
@@ -608,8 +669,12 @@ function update(dt) {
   }
   for (let i = 0; i < G.enemies.length; i++) {
     const e = G.enemies[i];
-    const a = Math.atan2(p.y - e.y, p.x - e.x);
-    const sp = G.freeze > 0 ? 0 : e.slow > 0 ? 0.6 : 1; e.slow = Math.max(0, (e.slow || 0) - dt);
+    // target: allies hunt the nearest foe; other foes chase a nearby phantom decoy, else the player
+    let tx = p.x, ty = p.y;
+    if (e.ally) { if (!e.prey || e.prey.hp <= 0 || e.prey.ally) e.prey = nearest(e, 400); if (e.prey) { tx = e.prey.x; ty = e.prey.y; } }
+    else if (G.decoys.length && !e.boss) for (const d of G.decoys) if (dist2(d, e) < DECOY_PULL * DECOY_PULL) { tx = d.x; ty = d.y; break; }
+    const a = Math.atan2(ty - e.y, tx - e.x);
+    const sp = (G.freeze > 0 ? 0 : e.slow > 0 ? 0.6 : 1) * (e.ally ? 1.4 : 1); e.slow = Math.max(0, (e.slow || 0) - dt);
     let lm = 1;
     if (e.kind === 'troll') { e.hitT = (e.hitT || 0) - dt; if (e.hitT <= 0 && e.hp < e.maxHp) e.hp = Math.min(e.maxHp, e.hp + e.maxHp * 0.08 * dt); }
     if (e.kind === 'dasher') { e.ct = (e.ct === undefined ? rnd(1, 3) : e.ct) - dt; if (e.ct <= 0) { e.ct = 3; e.lunge = 0.5; } if (e.lunge > 0) { e.lunge -= dt; lm = 3.5; } }
@@ -617,7 +682,7 @@ function update(dt) {
     if (e.titan) {
       e.st -= dt;
       if (e.st <= 0 && !e.slam) { e.slam = { x: p.x, y: p.y, t: SLAM_WARN }; e.st = SLAM_EVERY; }
-      if (e.slam) { e.slam.t -= dt; lm = 0.3; if (e.slam.t <= 0) { if (p.hurt <= 0 && dist2(p, e.slam) < (SLAM_R + p.r) ** 2) { p.hp -= Math.max(1, 35 - (p.armor || 0)); p.hurt = 0.6; } G.shake = Math.max(G.shake, 0.5); sfx(70, 0.3, 'sawtooth', 0.08); e.slam = null; } }
+      if (e.slam) { e.slam.t -= dt; lm = 0.3; if (e.slam.t <= 0) { if (p.hurt <= 0 && dist2(p, e.slam) < (SLAM_R + p.r) ** 2) { hurtPlayer(35); p.hurt = 0.6; } G.shake = Math.max(G.shake, 0.5); sfx(70, 0.3, 'sawtooth', 0.08); e.slam = null; } }
     }
     if (e.lane) { e.x += e.lane.x * e.speed * sp * dt; e.y += e.lane.y * e.speed * sp * dt; }
     else { e.x += Math.cos(a) * e.speed * sp * lm * dt; e.y += Math.sin(a) * e.speed * sp * lm * dt; }
@@ -632,10 +697,17 @@ function update(dt) {
         if (dx * dx + dy * dy < min * min) { const d = Math.hypot(dx, dy) || 1, k = (min - d) / 2 / d; e.x += dx * k; e.y += dy * k; o.x -= dx * k; o.y -= dy * k; }
       }
     }
-    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { { const d = Math.max(1, e.dmg - (p.armor || 0)); p.hp -= d; G.taken = (G.taken || 0) + d; } p.hurt = 0.6; G.shake = Math.min(0.5, 0.12 + e.dmg * 0.01); sfx(120, 0.15, 'sawtooth', 0.06); }
+    if (e.ally) {
+      e.ally -= dt; e.atk -= dt;
+      if (e.atk <= 0) { let hit = false; for (let gx = cx - 1; gx <= cx + 1; gx++) for (let gy = cy - 1; gy <= cy + 1; gy++) { const cell = grid.get(gx * 100003 + gy); if (cell) for (const o of cell) if (!o.ally && o.hp > 0 && dist2(e, o) < (e.r + o.r + 6) ** 2) { damage(o, e.allyDmg); hit = true; } } if (hit) e.atk = 0.4; }
+      if (e.ally <= 0) { e.hp = 0; e.ally = 0; }
+      continue;
+    }
+    if (p.hurt <= 0 && dist2(p, e) < (e.r + p.r) ** 2) { hurtPlayer(e.dmg); p.hurt = 0.6; G.shake = Math.min(0.5, 0.12 + e.dmg * 0.01); sfx(120, 0.15, 'sawtooth', 0.06); }
   }
   for (const e of G.enemies) if (e.hp <= 0) {
     if (e.kind === 'bloat') for (let k = 0; k < 3; k++) G.enemies.push({ x: e.x + rnd(-14, 14), y: e.y + rnd(-14, 14), r: 7, hp: e.maxHp * 0.15, maxHp: e.maxHp * 0.15, speed: e.speed * 1.8, dmg: 4, xp: 1, color: e.color, flash: 0, kind: 'minibloat' });
+    feedCrops(e); if (p.soulHeal) p.hp = Math.min(p.maxHp, p.hp + p.soulHeal);
     G.kills++; if (e.boss) G.bosses = (G.bosses || 0) + 1; else if (e.elite) G.elites = (G.elites || 0) + 1; sfx(260 + Math.random() * 80, 0.06);
     G.gems.push({ x: e.x, y: e.y, v: e.xp, big: e.boss });
     if (e.boss || e.elite || Math.random() < 0.025 * (G.p.luck || 1)) G.hearts.push({ x: e.x + 8, y: e.y, heal: e.boss ? 60 : e.elite ? 30 : 20 });
@@ -680,7 +752,7 @@ function update(dt) {
   G.vacs = G.vacs.filter(v => !v.dead);
   for (const b of G.bombs) if (dist2(p, b) < (p.r + 12) ** 2) {
     b.dead = true; sfx(90, 0.4, 'sawtooth', 0.09); G.shake = 0.5; G.texts.push({ x: p.x, y: p.y - 16, s: 'BOMB!', t: 1 });
-    for (const e of G.enemies) if (Math.abs(e.x - p.x) < W / 2 + 40 && Math.abs(e.y - p.y) < H / 2 + 40) damage(e, e.boss ? 120 : 9999);
+    for (const e of G.enemies) if (Math.abs(e.x - p.x) < VW / 2 + 40 && Math.abs(e.y - p.y) < VH / 2 + 40) damage(e, e.boss ? 120 : 9999);
   }
   G.bombs = G.bombs.filter(b => !b.dead);
   for (const f of G.ices) if (dist2(p, f) < (p.r + 12) ** 2) { f.dead = true; G.freeze = 4; sfx(900, 0.2, 'sine', 0.06); G.texts.push({ x: p.x, y: p.y - 16, s: 'FREEZE!', t: 1 }); }
@@ -756,7 +828,7 @@ let walking = false; // set in update() from movement input; render only reads i
 // Player: baked pixel sprite (src/sprites.js), body tinted per character, drawn at 2x.
 function drawPlayer(p) {
   const moved = walking;
-  const spr = SPR.variant('player', CHARS[charIdx].color);
+  const spr = SPR.variant(charSpr(CHARS[charIdx]), CHARS[charIdx].color);
   const flash = p.hurt > 0 && ((p.hurt * 20) | 0) % 2;
   const flip = p.face && p.face.x < 0;
   ctx.fillStyle = 'rgba(11,16,32,.4)'; ctx.beginPath(); ctx.ellipse(p.x, p.y + p.r + 2, p.r, 4, 0, 0, 7); ctx.fill();
@@ -767,18 +839,20 @@ const ENEMY_SPR = {};
 function drawEnemy(e) {
   const S = window.TZS_SPRITES, kk = e.spr || e.kind, base = S && S.baked[kk];
   if (!base) return;
-  const spr = ENEMY_SPR[kk + e.color] || (ENEMY_SPR[kk + e.color] = S.variant(kk, e.color));
+  const col = e.ally ? '#a5f3fc' : e.color, spr = ENEMY_SPR[kk + col] || (ENEMY_SPR[kk + col] = S.variant(kk, col));
   const f = Math.floor(G.t * (e.kind === 'bat' || e.kind === 'wisp' ? 12 : 7) + e.x * 0.07);
   const k = e.sc || (e.boss ? 2 : e.elite ? (e.r <= 19 ? 3 : 4) : e.r <= 15 ? 2 : 3);
   if (e.elite) { ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); ctx.lineDashOffset = -G.t * 20; ctx.beginPath(); ctx.arc(e.x, e.y, k * 8 + 4, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+  if (e.ally) { ctx.strokeStyle = 'rgba(165,243,252,0.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, k * 8 + 2, 0, 7); ctx.stroke(); ctx.globalAlpha = 0.8; }
   S.drawSprite(ctx, spr, 'walk', f, e.x, e.y, k, { flash: e.flash > 0 });
+  ctx.globalAlpha = 1;
 }
 // Pixel chevrons on the edge the swarm enters from, centred on the lane band; they blink during the warning.
 function drawLaneArrows(L) {
   if (L.warn > 0 && ((L.warn * 6) | 0) % 2) return;
-  const z = 3, horiz = !!L.d.x;
-  const bx = horiz ? (L.d.x > 0 ? 16 : W - 16) : Math.round(L.cx - G.cam.x), by = horiz ? Math.round(L.cy - G.cam.y) : (L.d.y > 0 ? 96 : H - 16);
-  for (const o of [-LANE_HALF * 0.7, 0, LANE_HALF * 0.7]) for (let c = 0; c < 2; c++) for (let i = 0; i < 4; i++) for (const sg of [-1, 1]) {
+  const z = 4, horiz = !!L.d.x;
+  const bx = horiz ? (L.d.x > 0 ? 16 : W - 16) : Math.round((L.cx - G.cam.x) * ZOOM), by = horiz ? Math.round((L.cy - G.cam.y) * ZOOM) : (L.d.y > 0 ? 96 : H - 16);
+  for (const o of [-LANE_HALF * 0.7 * ZOOM, 0, LANE_HALF * 0.7 * ZOOM]) for (let c = 0; c < 2; c++) for (let i = 0; i < 4; i++) for (const sg of [-1, 1]) {
     const along = (c * 5 + i) * z, perp = o + sg * (3 - i) * z;
     const x = bx + L.d.x * along + (horiz ? 0 : perp), y = by + L.d.y * along + (horiz ? perp : 0);
     ctx.fillStyle = '#0b1020'; ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, z + 2, z + 2);
@@ -850,7 +924,7 @@ function drawVignette() {
   if (!VIG || VIG.width !== W || VIG.height !== H) {
     VIG = document.createElement('canvas'); VIG.width = W; VIG.height = H;
     const g = VIG.getContext('2d'), R = Math.hypot(W, H) / 2, gr = g.createRadialGradient(W / 2, H / 2, R * 0.35, W / 2, H / 2, R);
-    gr.addColorStop(0, 'rgba(8,6,20,0)'); gr.addColorStop(1, 'rgba(8,6,20,0.62)');
+    gr.addColorStop(0, 'rgba(8,6,20,0)'); gr.addColorStop(1, 'rgba(8,6,20,0.45)');
     g.fillStyle = gr; g.fillRect(0, 0, W, H);
   }
   ctx.drawImage(VIG, 0, 0);
@@ -861,6 +935,50 @@ function drawMoon(x, y, r) {
   circle(x, y, r, '#e2e8f0'); circle(x - r * 0.3, y - r * 0.2, r * 0.22, '#cbd5e1'); circle(x + r * 0.35, y + r * 0.3, r * 0.15, '#cbd5e1');
 }
 let GLOW_MOON = null;
+// ---------- night lighting (ART.md slice 7) ----------
+// Darkness is a 1/4-res light map filled with the night tint, with soft holes punched at every light (player,
+// jack-o'-lanterns, ripe crops, magic), scaled up smooth. Coloured lights add a faint glow from a second 1/4-res map ('lighter').
+// The tint drifts over the run: indigo night -> blood moon at the 9:00 titan -> grey-pink dawn at the 10:00 win.
+const LM_S = 4, LIGHT_MAX = 96, LIGHTS = [];
+const NIGHT = [[0, 10, 8, 30, 0.44], [300, 12, 6, 34, 0.5], [CLIMAX_AT, 70, 6, 20, 0.56], [WIN_TIME - 20, 60, 8, 24, 0.54], [WIN_TIME, 96, 56, 70, 0.2]];
+let LM = null, GL = null, HOLE_IMG = null, LN = 0, litN = 0;
+const TINT_IMG = {};
+function nightTint(t) {
+  let i = 1;
+  while (i < NIGHT.length - 1 && t > NIGHT[i][0]) i++;
+  const a = NIGHT[i - 1], b = NIGHT[i], k = Math.max(0, Math.min(1, (t - a[0]) / (b[0] - a[0])));
+  return [a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k, a[3] + (b[3] - a[3]) * k, a[4] + (b[4] - a[4]) * k];
+}
+function light(x, y, r, col, a) {
+  if (LN >= LIGHT_MAX) return;
+  const L = LIGHTS[LN] || (LIGHTS[LN] = {});
+  LN++; L.x = x; L.y = y; L.r = r; L.col = col; L.a = a;
+}
+function drawLighting(tx, ty) {
+  litN = LN; LN = 0;
+  if (window.__tzsNoFog) return;
+  const w = Math.ceil(W / LM_S), h = Math.ceil(H / LM_S), z = ZOOM / LM_S, [r, g, b, a] = nightTint(G.t);
+  if (!LM || LM.width !== w || LM.height !== h) { LM = document.createElement('canvas'); LM.width = w; LM.height = h; }
+  HOLE_IMG = HOLE_IMG || softBlob(64, [[0, 'rgba(0,0,0,1)'], [0.45, 'rgba(0,0,0,0.8)'], [1, 'rgba(0,0,0,0)']]);
+  const lg = LM.getContext('2d');
+  lg.clearRect(0, 0, w, h); lg.fillStyle = `rgba(${r | 0},${g | 0},${b | 0},${a.toFixed(3)})`; lg.fillRect(0, 0, w, h);
+  lg.globalCompositeOperation = 'destination-out';
+  for (let i = 0; i < litN; i++) { const L = LIGHTS[i], R = L.r * z; lg.globalAlpha = L.a; lg.drawImage(HOLE_IMG, (L.x + tx) * z - R, (L.y + ty) * z - R, R * 2, R * 2); }
+  lg.globalAlpha = 1; lg.globalCompositeOperation = 'source-over';
+  if (!GL || GL.width !== w || GL.height !== h) { GL = document.createElement('canvas'); GL.width = w; GL.height = h; }
+  const gg = GL.getContext('2d');
+  gg.clearRect(0, 0, w, h); gg.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < litN; i++) {
+    const L = LIGHTS[i];
+    if (!L.col) continue;
+    const img = TINT_IMG[L.col] || (TINT_IMG[L.col] = softBlob(32, [[0, `rgba(${L.col},0.3)`], [0.5, `rgba(${L.col},0.1)`], [1, `rgba(${L.col},0)`]])), R = L.r * z * 0.75;
+    gg.globalAlpha = L.a; gg.drawImage(img, (L.x + tx) * z - R, (L.y + ty) * z - R, R * 2, R * 2);
+  }
+  gg.globalAlpha = 1; gg.globalCompositeOperation = 'source-over';
+  ctx.imageSmoothingEnabled = true; ctx.drawImage(LM, 0, 0, w * LM_S, h * LM_S);
+  ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(GL, 0, 0, w * LM_S, h * LM_S); ctx.imageSmoothingEnabled = false;
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+}
 function button(r, label, size, fg, bg, edge) {
   ctx.fillStyle = bg; ctx.fillRect(r.x, r.y, r.w, r.h);
   ctx.strokeStyle = edge; ctx.lineWidth = 2; ctx.strokeRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2);
@@ -880,7 +998,7 @@ function renderTitle(now) {
   // character portrait (tap to start) with arrows to cycle
   const P = L.portrait;
   ctx.fillStyle = 'rgba(8,12,30,0.6)'; ctx.fillRect(P.x, P.y, P.w, P.h); ctx.strokeStyle = ch.color; ctx.lineWidth = 2; ctx.strokeRect(P.x + 1, P.y + 1, P.w - 2, P.h - 2);
-  SPR.drawSprite(ctx, SPR.variant('player', ch.color), 'idle', (tsec * 2) | 0, P.x + P.w / 2, P.y + P.h / 2 - 2, 5);
+  SPR.drawSprite(ctx, SPR.variant(charSpr(ch), ch.color), 'idle', (tsec * 2) | 0, P.x + P.w / 2, P.y + P.h / 2 - 2, 5);
   button(L.left, '<', 24, '#fde047', 'rgba(8,12,30,0.6)', 'rgba(251,191,36,0.5)');
   button(L.right, '>', 24, '#fde047', 'rgba(8,12,30,0.6)', 'rgba(251,191,36,0.5)');
   text(ch.name, W / 2, L.nameY, 20, ch.color);
@@ -902,13 +1020,29 @@ function renderTitle(now) {
 }
 function woodlandFloor() {
   if (FLOOR_PAT) return FLOOR_PAT;
-  // 8x8 baked 16x16 pixel tiles drawn at 2x = 256px pattern (see sprites.js tiles)
-  const N = 8, c = document.createElement('canvas'), T = SPR.tiles;
+  // 16x16 baked pixel tiles drawn at 2x = 512px seamless pattern (see sprites.js tiles):
+  // coarse periodic noise picks grass/night/dirt patches, a wavy path ribbon winds down the middle.
+  const N = 16, c = document.createElement('canvas'), T = SPR.tiles;
   c.width = c.height = N * 32;
   const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  const hash = (i, j) => (Math.imul(((i % 4) + 4) % 4 + 1, 73856093) ^ Math.imul(((j % 4) + 4) % 4 + 7, 19349663)) >>> 0;
+  const lat = (i, j) => (hash(i, j) % 1000) / 1000;
+  const noise = (i, j) => { // bilinear value noise over a 4-cell lattice, periodic in 16
+    const x = i / 4, y = j / 4, xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi;
+    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    const a = lat(xi, yi), b = lat(xi + 1, yi), cc = lat(xi, yi + 1), d = lat(xi + 1, yi + 1);
+    return (a + (b - a) * sx) * (1 - sy) + (cc + (d - cc) * sx) * sy;
+  };
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-    const h = (Math.imul(i, 73856093) ^ Math.imul(j, 19349663)) >>> 0, v = h % 9;
-    g.drawImage(T[v < 3 ? 0 : v - 2 > 5 ? 5 : v - 2 < 1 ? 1 : v - 2], i * 32, j * 32, 32, 32);
+    const h = (Math.imul(i, 73856093) ^ Math.imul(j, 19349663)) >>> 0, v = h % 9, n = noise(i, j);
+    const dx = Math.abs(i - (8 + Math.round(2.5 * Math.sin(j * Math.PI / 8))));
+    let t;
+    if (dx <= 1) t = 10 + (h >> 5) % 2; // path
+    else if (dx === 2 && (h >> 3) % 3) t = 8 + (h >> 7) % 2; // dirt verge
+    else if (n > 0.58) t = 6 + (h >> 5) % 2; // grass patch
+    else if (n < 0.3) t = 8 + (h >> 5) % 2; // bare dirt patch
+    else t = v < 3 ? 0 : v - 2 > 5 ? 5 : v - 2 < 1 ? 1 : v - 2;
+    g.drawImage(T[t], i * 32, j * 32, 32, 32);
   }
   FLOOR_PAT = ctx.createPattern(c, 'repeat');
   return FLOOR_PAT;
@@ -928,26 +1062,33 @@ function render() {
   ctx.fillStyle = '#1b1b26'; ctx.fillRect(0, 0, W, H);
   if (state === 'title') { renderTitle(performance.now()); return; }
   const { cam, p } = G;
-  const sh = G.shake * 20;
-  ctx.save(); ctx.translate(-cam.x + rnd(-sh, sh), -cam.y + rnd(-sh, sh));
+  const sh = G.shake * 14;
+  const tx = -cam.x + rnd(-sh, sh), ty = -cam.y + rnd(-sh, sh);
+  ctx.save(); ctx.scale(ZOOM, ZOOM); ctx.translate(tx, ty); SPR.setView(ZOOM, tx, ty);
   // themed floor: one cached 4x4-tile pattern (see woodlandFloor), filled over the visible area
-  ctx.fillStyle = woodlandFloor(); ctx.fillRect(cam.x - 64, cam.y - 64, W + 128, H + 128);
+  ctx.fillStyle = woodlandFloor(); ctx.fillRect(cam.x - 64, cam.y - 64, VW + 128, VH + 128);
   // props: sparse trees/rocks/mushrooms on a hashed 112px grid, view-culled, drawn under all units
-  if (!window.__tzsNoProps) for (let gy = Math.floor((cam.y - 40) / 112), ey = Math.floor((cam.y + H + 40) / 112); gy <= ey; gy++) for (let gx = Math.floor((cam.x - 40) / 112), ex = Math.floor((cam.x + W + 40) / 112); gx <= ex; gx++) {
+  if (!window.__tzsNoProps) for (let gy = Math.floor((cam.y - 40) / 112), ey = Math.floor((cam.y + VH + 40) / 112); gy <= ey; gy++) for (let gx = Math.floor((cam.x - 40) / 112), ex = Math.floor((cam.x + VW + 40) / 112); gx <= ex; gx++) {
     const pr = propAt(gx, gy);
     if (!pr || isCut(pr)) continue;
     const { kind } = pr, wob = G.chop && G.chop.key === pr.key ? Math.round(Math.sin(G.t * 50) * 1.5) : 0; // shudders while being chopped
     if (kind === 'grass') { SPR.drawSprite(ctx, SPR.baked.grass, 'idle', 0, pr.x + wob, pr.y, 2); continue; }
     // spooky skin over the farming kinds: tree -> dead tree, mushroom -> jack-o'-lantern, rock -> headstone/cross
     const skin = kind === 'tree' ? 'deadtree' : kind === 'mush' ? 'pumpkin' : kind === 'rock' ? (pr.key & 1 ? 'cross' : 'grave') : kind;
-    if (skin === 'pumpkin') pumpkinGlow(pr.x, pr.y + 6, G.t * 7 + gx * 3.1 + gy);
+    if (skin === 'pumpkin') { const ph = G.t * 7 + gx * 3.1 + gy; pumpkinGlow(pr.x, pr.y + 6, ph); light(pr.x, pr.y + 4, 80 + Math.sin(ph) * 6, '249,115,22', 0.85); }
     groundShadow(pr.x, pr.y + 12, kind === 'tree' ? 14 : 10);
     SPR.drawSprite(ctx, SPR.baked[skin], 'idle', 0, pr.x + wob, pr.y, 2);
   }
   // crops: sprout (small, then bigger) until ripe; a ripe crop bobs inside a pulsing ring; growth bar under unripe ones
+  // brambles (Thornseed): dark thorny patch that fades out over its last second
+  for (const b of G.brambles) { ctx.globalAlpha = Math.min(1, b.t); ctx.fillStyle = 'rgba(88,28,135,0.28)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill(); SPR.drawSprite(ctx, SPR.baked.grass, 'idle', 0, b.x - 6, b.y, 2); SPR.drawSprite(ctx, SPR.baked.grass, 'idle', 0, b.x + 7, b.y - 3, 2); ctx.globalAlpha = 1; }
+  // soul range: kills inside the faint ring around a growing crop feed it
+  ctx.strokeStyle = 'rgba(165,243,252,0.16)'; ctx.lineWidth = 2;
+  for (const c of G.crops) if (c.age < c.grow) { ctx.beginPath(); ctx.arc(c.x, c.y, SOUL_R, 0, 7); ctx.stroke(); }
   for (const c of G.crops) {
     const f = Math.min(1, c.age / c.grow), ripe = f >= 1;
     if (ripe) {
+      light(c.x, c.y, c.golden ? 72 : 56, c.golden ? '253,224,71' : '253,186,116', 0.8);
       ctx.strokeStyle = c.golden ? '#fde047' : '#fdba74'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(c.x, c.y, 14 + Math.sin(G.t * 6) * 2, 0, 7); ctx.stroke();
       drawPickup('crop', c.golden ? '#fbbf24' : '#f97316', c.x, c.y - 2 + Math.sin(G.t * 4) * 1.5, 3);
     } else {
@@ -959,26 +1100,28 @@ function render() {
   if (G.chop) pixBar(G.chop.x - 16, G.chop.y - 30, 32, 6, G.chop.prog / G.chop.need, '#bef264');
   // soft ground shadows for enemies go under every sprite (player shadow is drawn in drawPlayer)
   // (shadows outside the visible area are culled; crowded scenes can hold hundreds of enemies)
-  const vx0 = cam.x - 160, vy0 = cam.y - 160, vx1 = cam.x + W + 160, vy1 = cam.y + H + 160; // margin > largest shadow (boss r*1.1)
+  const vx0 = cam.x - 160, vy0 = cam.y - 160, vx1 = cam.x + VW + 160, vy1 = cam.y + VH + 160; // margin > largest shadow (boss r*1.1)
   for (const e of G.enemies) if (e.x > vx0 && e.x < vx1 && e.y > vy0 && e.y < vy1) groundShadow(e.x, e.y + e.r * 0.6, e.r);
   for (const g of G.gems) drawGem(g);
   for (const h of G.hearts) drawHeart(h.x, h.y + Math.sin(G.t * 5 + h.x) * 1.5);
   for (const b of G.bombs) drawPickup('bomb', '#374151', b.x, b.y + Math.sin(G.t * 5 + b.x) * 1.5, 2);
   for (const f of G.ices) drawPickup('ice', '#7dd3fc', f.x, f.y + Math.sin(G.t * 5 + f.x) * 1.5, 2);
   for (const v of G.vacs) drawPickup('vac', '#38bdf8', v.x, v.y + Math.sin(G.t * 5 + v.x) * 1.5, 2);
-  for (const c of G.chests) drawChest(c);
+  for (const c of G.chests) { drawChest(c); light(c.x, c.y, 54, '253,224,71', 0.6); }
   for (const e of G.enemies) {
     if (!e.boss && !(e.x > vx0 && e.x < vx1 && e.y > vy0 && e.y < vy1)) continue; // view cull (bosses keep drawing for the HP bar)
-    if (e.slam) { const f = 1 - Math.max(0, e.slam.t) / SLAM_WARN; ctx.fillStyle = 'rgba(239,68,68,' + (0.15 + 0.25 * f) + ')'; ctx.beginPath(); ctx.arc(e.slam.x, e.slam.y, SLAM_R, 0, 7); ctx.fill(); ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.slam.x, e.slam.y, SLAM_R * f, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(e.slam.x, e.slam.y, SLAM_R, 0, 7); ctx.stroke(); }
+    if (e.ally) light(e.x, e.y, 44, '165,243,252', 0.7);
+    if (e.slam) { light(e.slam.x, e.slam.y, SLAM_R * 1.1, '239,68,68', 0.6); const f = 1 - Math.max(0, e.slam.t) / SLAM_WARN; ctx.fillStyle = 'rgba(239,68,68,' + (0.15 + 0.25 * f) + ')'; ctx.beginPath(); ctx.arc(e.slam.x, e.slam.y, SLAM_R, 0, 7); ctx.fill(); ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.slam.x, e.slam.y, SLAM_R * f, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(e.slam.x, e.slam.y, SLAM_R, 0, 7); ctx.stroke(); }
     drawEnemy(e);
     if (e.boss) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 3, 0, 7); ctx.stroke();
       const bw = e.r * 2.4, f = Math.max(0, e.hp / e.maxHp); ctx.fillStyle = '#000a'; ctx.fillRect(e.x - bw / 2, e.y - e.r - 14, bw, 6); ctx.fillStyle = '#ef4444'; ctx.fillRect(e.x - bw / 2, e.y - e.r - 14, bw * f, 6); }
   }
-  for (const q of G.parts) { const z = q.t > 0.15 ? 4 : 2, px = Math.round(q.x / 2) * 2, py = Math.round(q.y / 2) * 2; ctx.fillStyle = '#0b1020'; ctx.fillRect(px - z / 2 - 1, py - z / 2 - 1, z + 2, z + 2); ctx.fillStyle = q.c; ctx.fillRect(px - z / 2, py - z / 2, z, z); }
-  for (const b of G.booms) drawBoom(b);
+  for (const q of G.parts) { if (q.wisp) { ctx.globalAlpha = Math.min(1, q.t * 1.6); const wx = Math.round(q.x + Math.sin(q.t * 9) * 3), wy = Math.round(q.y); ctx.fillStyle = '#0b1020'; ctx.fillRect(wx - 4, wy - 7, 8, 12); ctx.fillStyle = q.c; ctx.fillRect(wx - 3, wy - 6, 6, 6); ctx.fillRect(wx - 2, wy, 4, 3); ctx.fillRect(wx - 1, wy + 3, 2, 2); ctx.fillStyle = '#0b1020'; ctx.fillRect(wx - 2, wy - 4, 1, 2); ctx.fillRect(wx + 1, wy - 4, 1, 2); ctx.globalAlpha = 1; continue; } const z = q.t > 0.15 ? 4 : 2, px = Math.round(q.x / 2) * 2, py = Math.round(q.y / 2) * 2; ctx.fillStyle = '#0b1020'; ctx.fillRect(px - z / 2 - 1, py - z / 2 - 1, z + 2, z + 2); ctx.fillStyle = q.c; ctx.fillRect(px - z / 2, py - z / 2, z, z); }
+  for (const b of G.booms) { drawBoom(b); light(b.x, b.y, 38, '253,186,116', 0.6); }
   for (const m of G.mines) { drawPickup('mine', m.age < 0.5 ? '#78350f' : '#f59e0b', m.x, m.y, 2); }
   for (const b of G.bolts) {
     ctx.globalAlpha = Math.min(1, b.t / 0.2 + 0.3);
+    light(b.x, b.y - 60, 150, '253,224,71', ctx.globalAlpha);
     let x = b.x + rnd(-10, 10), y = b.y - 260;
     for (let i = 1; i <= 6; i++) {
       const nx = i === 6 ? b.x : b.x + rnd(-14, 14), ny = b.y - 260 + i * 260 / 6, n = 6;
@@ -987,58 +1130,65 @@ function render() {
     }
     ctx.globalAlpha = 1;
   }
-  for (const s of G.shots) drawBolt(s);
-  if (G.w.orbit) { const n = 1 + G.w.orbit, rad = 60 + G.w.orbit * 4; for (let i = 0; i < n; i++) { const a = G.orbAng + (i / n) * Math.PI * 2; drawPickup('orb', '#a78bfa', p.x + Math.cos(a) * rad, p.y + Math.sin(a) * rad, 2); } }
-  if (G.w.garlic) { ctx.fillStyle = 'rgba(167,243,208,.12)'; ctx.beginPath(); ctx.arc(p.x, p.y, 50 + G.w.garlic * 12, 0, 7); ctx.fill(); }
+  for (const s of G.shots) { drawBolt(s); light(s.x, s.y, 42, '253,224,71', 0.55); }
   if (G.slash) { const k = G.slash; ctx.fillStyle = 'rgba(253,230,138,' + (k.t / 0.15 * 0.6) + ')'; ctx.beginPath(); ctx.moveTo(k.x, k.y); ctx.arc(k.x, k.y, k.reach, k.a - k.half, k.a + k.half); ctx.closePath(); ctx.fill(); }
-  for (const f of G.mineFx) { ctx.fillStyle = 'rgba(245,158,11,' + (f.t / f.max * 0.6) + ')'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 - f.t / f.max * 0.4), 0, 7); ctx.fill(); }
-  if (G.novaRing) { ctx.strokeStyle = 'rgba(125,211,252,' + (G.novaRing.t / 0.3) + ')'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(p.x, p.y, G.novaRing.r, 0, 7); ctx.stroke(); }
+  for (const d of G.decoys) { // Phantom Step decoy: a flickering ghost of the player with its burst radius closing in
+    light(d.x, d.y, 70, '165,243,252', 0.75);
+    const f = d.t / d.max; ctx.strokeStyle = 'rgba(165,243,252,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(d.x, d.y, d.r * (0.3 + 0.7 * f), 0, 7); ctx.stroke();
+    ctx.globalAlpha = 0.45 + 0.2 * Math.sin(G.t * 20); SPR.drawSprite(ctx, SPR.variant(charSpr(CHARS[charIdx]), '#a5f3fc'), 'idle', 0, d.x, d.y - 4, 2); ctx.globalAlpha = 1;
+  }
+  for (const s of G.souls) { const k = Math.min(1, s.t / 0.35), x = s.sx + (s.c.x - s.sx) * k, y = s.sy + (s.c.y - 6 - s.sy) * k - Math.sin(k * Math.PI) * 24; drawPickup('orb', '#a5f3fc', x, y, 1); light(x, y, 26, '165,243,252', 0.8); }
+  for (const f of G.mineFx) { light(f.x, f.y, f.r * 1.2, f.col || '245,158,11', f.t / f.max); ctx.fillStyle = 'rgba(' + (f.col || '245,158,11') + ',' + (f.t / f.max * 0.6) + ')'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 - f.t / f.max * 0.4), 0, 7); ctx.fill(); }
   drawPlayer(p);
-  for (const t of G.texts) text(t.s, t.x, t.y, t.big ? 18 : 12, t.big ? '#fde047' : '#fff');
-  ctx.restore();
+  light(p.x, p.y, 165, null, 1); light(p.x, p.y - 4, 60, '196,181,253', 0.5);
+  for (const t of G.texts) text(t.s, t.x, t.y, t.big ? 18 : 12, t.big ? '#fde047' : '#fff', 'center', VW);
+  ctx.restore(); SPR.setView(1, 0, 0);
 
+  drawLighting(tx, ty);
   drawFog(cam.x, cam.y, G.t);
   drawVignette();
   if (G.freeze > 0) { ctx.fillStyle = 'rgba(125,211,252,' + Math.min(0.18, G.freeze * 0.1) + ')'; ctx.fillRect(0, 0, W, H); }
-  // HUD
-  pixBar(0, 0, W, 14, Math.min(1, p.xp / p.need), '#38bdf8');
-  if (G.xpPulse > 0) { ctx.fillStyle = 'rgba(253,224,71,' + (G.xpPulse / 0.6 * 0.7).toFixed(3) + ')'; ctx.fillRect(0, 0, W, 14 + Math.round(G.xpPulse * 10)); }
-  text('LV ' + p.lvl, W / 2, 11, 12);
-  pixBar(16, 24, W < 480 ? 108 : 160, 12, Math.max(0, p.hp / p.maxHp), '#ef4444');
-  // Readout plates keep text legible over busy floor art; narrow screens drop the key hint so the
-  // timer block (center) and dash/kills block (right) never overlap at 390px.
+  // HUD (screen space). Everything is 2x pixel font or bigger; bars are 18px. Narrow screens (phones) stack the
+  // seeds/weapon list under the top plates so nothing overlaps at 390px.
   const narrow = W < 480;
-  hudPlate(W / 2 - 62, 22, 124, 46);
-  hudPlate(W - (narrow ? 130 : 196), 22, narrow ? 122 : 188, 44);
-  text(fmt(G.t), W / 2, 40, 22);
-  text('goal ' + fmt(WIN_TIME), W / 2, 54, 11, '#94a3b8');
-  // Narrow screens move the banner off the top-left weapon list (it would overlap at 390px).
-  if (G.hordeBanner > 0) narrow ? text(G.bannerText, W / 2, Math.round(H * 0.3), 16, '#f87171') : text(G.bannerText, W / 2, 70, 20, '#f87171');
+  pixBar(0, 0, W, 18, Math.min(1, p.xp / p.need), '#38bdf8');
+  if (G.xpPulse > 0) { ctx.fillStyle = 'rgba(253,224,71,' + (G.xpPulse / 0.6 * 0.7).toFixed(3) + ')'; ctx.fillRect(0, 0, W, 18 + Math.round(G.xpPulse * 10)); }
+  text('LV ' + p.lvl, W / 2, 16, 14);
+  const hpW = narrow ? Math.min(112, W / 2 - 82) : 220;
+  pixBar(10, 26, hpW, 18, Math.max(0, p.hp / p.maxHp), '#ef4444');
+  if (!narrow) text(Math.ceil(Math.max(0, p.hp)) + '/' + p.maxHp, 10 + hpW + 8, 42, 14, '#fca5a5', 'left');
+  const cw = 140;
+  hudPlate(W / 2 - cw / 2, 24, cw, 54);
+  text(fmt(G.t), W / 2, 54, 28);
+  text('/ ' + fmt(WIN_TIME), W / 2, 73, 14, '#94a3b8');
+  const rw = narrow ? Math.min(124, W / 2 - cw / 2 - 12) : 210;
+  hudPlate(W - rw - 8, 24, rw, 54);
+  text((narrow ? 'K ' : 'Kills ') + G.kills, W - 16, 46, 14, '#fff', 'right', rw - 12);
+  const dashTxt = p.dashCd > 0 ? 'Dash ' + p.dashCd.toFixed(1) : (narrow ? 'Dash OK' : 'Dash READY');
+  text(dashTxt, W - 16, 70, 14, p.dashCd > 0 ? '#94a3b8' : '#6ee7b7', 'right', rw - 12);
+  if (G.hordeBanner > 0) wrapLines(G.bannerText, W - 24, 2).forEach((l, i) => text(l, W / 2, (narrow ? Math.round(H * 0.28) : 104) + i * 22, 22, '#f87171', 'center', W - 24)); // wrap, never shrink to 1x
   if (G.lane) drawLaneArrows(G.lane);
-  text('Kills ' + G.kills, W - 16, 40, 16, '#fff', 'right');
-  const dashTxt = p.dashCd > 0 ? 'Dash ' + p.dashCd.toFixed(1) : (narrow ? 'Dash READY' : 'Dash READY (Shift/Space)');
-  text(dashTxt, W - 16, 58, 12, p.dashCd > 0 ? '#94a3b8' : '#6ee7b7', 'right');
   { const pb = pauseBtn(); ctx.fillStyle = 'rgba(8,12,30,0.62)'; ctx.fillRect(pb.x, pb.y, pb.w, pb.h); ctx.strokeStyle = 'rgba(251,191,36,0.35)'; ctx.lineWidth = 1; ctx.strokeRect(pb.x + 0.5, pb.y + 0.5, pb.w - 1, pb.h - 1);
-    ctx.fillStyle = '#e2e8f0'; ctx.fillRect(pb.x + 14, pb.y + 12, 5, 20); ctx.fillRect(pb.x + 25, pb.y + 12, 5, 20); }
+    ctx.fillStyle = '#e2e8f0'; ctx.fillRect(pb.x + 16, pb.y + 14, 6, 24); ctx.fillRect(pb.x + 30, pb.y + 14, 6, 24); }
   if (touch && state === 'play') { // faint stick ring so the player sees where their thumb anchored
     const tx = touch.x - touch.sx, ty = touch.y - touch.sy, tm = Math.hypot(tx, ty), k = tm > 60 ? 60 / tm : 1;
-    ctx.strokeStyle = 'rgba(226,232,240,0.25)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(touch.sx, touch.sy, 60, 0, 7); ctx.stroke();
-    circle(touch.sx + tx * k, touch.sy + ty * k, 18, 'rgba(226,232,240,0.3)');
+    ctx.strokeStyle = 'rgba(226,232,240,0.3)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(touch.sx, touch.sy, 60, 0, 7); ctx.stroke();
+    circle(touch.sx + tx * k, touch.sy + ty * k, 22, 'rgba(226,232,240,0.35)');
   }
   if (touchUi) {
     const b = dashBtn(), rdy = p.dashCd <= 0;
-    ctx.fillStyle = rdy ? 'rgba(16,185,129,0.55)' : 'rgba(30,41,59,0.6)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
-    ctx.strokeStyle = rdy ? '#6ee7b7' : '#64748b'; ctx.lineWidth = 2; ctx.stroke();
-    text(rdy ? 'DASH' : p.dashCd.toFixed(1), b.x, b.y + 4, 12, '#fff', 'center');
+    ctx.fillStyle = rdy ? 'rgba(16,185,129,0.6)' : 'rgba(30,41,59,0.65)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
+    ctx.strokeStyle = rdy ? '#6ee7b7' : '#64748b'; ctx.lineWidth = 3; ctx.stroke();
+    text(rdy ? 'DASH' : p.dashCd.toFixed(1), b.x, b.y + 7, 14, '#fff', 'center');
     const pb = plantBtn(), has = G.seeds > 0;
-    ctx.fillStyle = has ? 'rgba(101,163,13,0.55)' : 'rgba(30,41,59,0.5)'; ctx.beginPath(); ctx.arc(pb.x, pb.y, pb.r, 0, 7); ctx.fill();
-    ctx.strokeStyle = has ? '#bef264' : '#64748b'; ctx.lineWidth = 2; ctx.stroke();
-    text('PLANT', pb.x, pb.y, 12, has ? '#fff' : '#94a3b8', 'center'); text('x' + G.seeds, pb.x, pb.y + 14, 12, has ? '#bef264' : '#64748b', 'center');
+    ctx.fillStyle = has ? 'rgba(101,163,13,0.6)' : 'rgba(30,41,59,0.55)'; ctx.beginPath(); ctx.arc(pb.x, pb.y, pb.r, 0, 7); ctx.fill();
+    ctx.strokeStyle = has ? '#bef264' : '#64748b'; ctx.lineWidth = 3; ctx.stroke();
+    text('PLANT', pb.x, pb.y + 2, 14, has ? '#fff' : '#94a3b8', 'center'); text('x' + G.seeds, pb.x, pb.y + 20, 14, has ? '#bef264' : '#64748b', 'center');
   }
-  text(`Seeds ${G.seeds}  Wood ${G.wood}` + (p.fed > 0 ? `  FED ${Math.ceil(p.fed)}` : ''), 16, 56, 12, p.fed > 0 ? '#fde047' : '#bef264', 'left');
-  let y = 70; ctx.textAlign = 'left';
-  for (const k in G.w) { text(`${WEAPONS[k].name} ${G.w[k] >= EVO_LVL ? 'EVO' : G.w[k]}`, 16, y, 12, '#fde047', 'left'); y += 14; }
-  for (const k in G.pa) { text(`${PASSIVES[k].name} ${G.pa[k]}`, 16, y, 12, '#a7f3d0', 'left'); y += 14; }
+  let y = narrow ? 104 : 70; const lw = narrow ? W - 90 : W / 2 - cw / 2 - 20;
+  text(`Seed ${G.seeds} Wood ${G.wood}` + (p.fed > 0 ? ` Fed ${Math.ceil(p.fed)}` : ''), 10, y, 14, p.fed > 0 ? '#fde047' : '#bef264', 'left', lw); y += 20;
+  for (const k in G.w) { text(`${WEAPONS[k].name} ${G.w[k] >= EVO_LVL ? 'EVO' : G.w[k]}`, 10, y, 14, '#fde047', 'left', lw); y += 18; }
+  for (const k in G.pa) { text(`${PASSIVES[k].name} ${G.pa[k]}`, 10, y, 14, '#a7f3d0', 'left', lw); y += 18; }
 
   if (state === 'levelup') {
     const lt = G.lvlT || 0;
@@ -1053,17 +1203,17 @@ function render() {
       const d = c.kind === 'w' ? WEAPONS[c.k] : PASSIVES[c.k];
       ctx.fillStyle = '#2d2d44'; ctx.fillRect(r.x, r.y, r.w, r.h);
       ctx.strokeStyle = c.kind === 'w' ? '#fde047' : '#6ee7b7'; ctx.lineWidth = 2; ctx.strokeRect(r.x, r.y, r.w, r.h);
-      text(`${i + 1}. ${d.name} (Lv ${c.lvl})`, r.x + 12, r.y + 30, 18, '#fff', 'left', r.w - 20);
+      text(`${i + 1}. ${d.name} (Lv ${c.lvl})`, r.x + 12, r.y + 32, 20, '#fff', 'left', r.w - 20);
       // Long descriptions wrap to two lines at the card's 2x scale rather than shrinking to the tiny 1x font.
       const lines = wrapLines(d.desc, r.w - 20, 2);
-      if (lines.length === 1) text(lines[0], r.x + 12, r.y + 56, 14, '#bbb', 'left', r.w - 20);
-      else if (lines.length === 2) lines.forEach((l, j) => text(l, r.x + 12, r.y + 50 + j * 17, 14, '#bbb', 'left', r.w - 20));
-      else text(d.desc, r.x + 12, r.y + 56, 14, '#bbb', 'left', r.w - 20);
+      if (lines.length === 1) text(lines[0], r.x + 12, r.y + 62, 14, '#bbb', 'left', r.w - 20);
+      else if (lines.length === 2) lines.forEach((l, j) => text(l, r.x + 12, r.y + 56 + j * 18, 14, '#bbb', 'left', r.w - 20));
+      else text(d.desc, r.x + 12, r.y + 62, 14, '#bbb', 'left', r.w - 20);
     });
     const rr = rerollRect(), has = G.rerolls > 0;
     ctx.fillStyle = has ? '#2d2d44' : '#1e1e2e'; ctx.fillRect(rr.x, rr.y, rr.w, rr.h);
     ctx.strokeStyle = has ? '#93c5fd' : '#475569'; ctx.lineWidth = 2; ctx.strokeRect(rr.x, rr.y, rr.w, rr.h);
-    text(has ? `R. Reroll (${G.rerolls} left)` : 'No rerolls left', W / 2, rr.y + 27, 16, has ? '#93c5fd' : '#64748b');
+    text(has ? `R. Reroll (${G.rerolls} left)` : 'No rerolls left', W / 2, rr.y + 36, 18, has ? '#93c5fd' : '#64748b');
   }
   if (state === 'pause') {
     ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, H);
@@ -1075,27 +1225,30 @@ function render() {
   }
   if (state === 'dead') {
     ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, W, H);
-    // Navy panel behind the summary block gives contrast over the arena; every line is fitted to the panel width.
-    const pw = Math.min(W - 16, 520), px = (W - pw) / 2;
-    hudPlate(px, H / 2 - 84, pw, 276);
-    const fit = (str, max) => Math.max(9, Math.min(max, Math.floor((pw - 24) / (str.length * 0.62))));
-    if (G.won) text('DAWN BREAKS!', W / 2, H / 2 - 30, 40, '#fde047'); else text('YOU DIED', W / 2, H / 2 - 30, 40, '#ef4444');
-    const survived = `Survived ${fmt(G.t)} - Kills ${G.kills} - Level ${p.lvl}`;
-    text(survived, W / 2, H / 2 + 10, Math.max(12, fit(survived, 18)));
-    const best = 'Best ' + fmt(+(localStorage.getItem('tzs_best') || 0)) + ' - Gold +' + G.gold;
-    text(best, W / 2, H / 2 + 40, fit(best, 16), '#cbd5e1');
-    const ex = `Bosses ${G.bosses || 0} - Elites ${G.elites || 0} - Hurt ${Math.round(G.taken || 0)}`;
-    text(ex, W / 2, H / 2 + 112, fit(ex, 13), '#e2e8f0');
-    if (G.newBest) text('NEW BEST!', W / 2, H / 2 + 66, 16, '#fde047');
-    const { wl, pl } = buildSummary();
-    if (wl) { const t = 'Weapons: ' + wl; text(t, W / 2, H / 2 + 126, fit(t, 13), '#93c5fd'); }
-    if (pl) { const t = 'Passives: ' + pl; text(t, W / 2, H / 2 + 144, fit(t, 13), '#a7f3d0'); }
-    const bb = localStorage.getItem('tzs_bestbuild');
-    if (bb && !G.newBest) { const t = 'Best run: ' + bb; text(t, W / 2, H / 2 + 164, fit(t, 13), '#fcd34d'); }
-    const fm = `Farm: ${G.chopped} chopped - ${G.harvests} harvests - ${G.wood} wood`;
-    text(fm, W / 2, H / 2 + 182, fit(fm, 13), '#bef264');
-    text('SPACE or tap to retry', W / 2, H / 2 + 98, Math.min(18, fit('SPACE or tap to retry', 18)), '#6ee7b7');
-    text('Esc / tap bottom: menu', W / 2, H - 14, 12, '#94a3b8');
+    // Lines stack top-down with a running y (no fixed offsets that collide). Long lines wrap at 2x; text() only drops
+    // to 1x if a single word cannot fit.
+    const pw = Math.min(W - 16, 560), px = (W - pw) / 2, iw = pw - 28;
+    const { wl, pl } = buildSummary(), bb = localStorage.getItem('tzs_bestbuild');
+    const rows = [];
+    const add = (str, size, col, gap = 8) => { const k = size < 27 ? 2 : size < 40 ? 3 : 4; for (const l of wrapLines(str, iw, k)) rows.push({ l, size, col, h: 8 * k + 4 }); rows[rows.length - 1].h += gap; };
+    add(G.won ? 'DAWN BREAKS!' : 'YOU DIED', 40, G.won ? '#fde047' : '#ef4444', 14);
+    add(`${fmt(G.t)}  ${G.kills} kills  LV ${p.lvl}`, 18, '#fff');
+    add('Best ' + fmt(+(localStorage.getItem('tzs_best') || 0)) + '  Gold +' + G.gold, 16, '#cbd5e1');
+    if (G.newBest) add('NEW BEST!', 20, '#fde047');
+    add(`Bosses ${G.bosses || 0}  Elites ${G.elites || 0}  Hurt ${Math.round(G.taken || 0)}`, 14, '#e2e8f0');
+    add(`Farm: ${G.chopped} chopped  ${G.harvests} harvests  ${G.souled || 0} souls sown  ${G.wood} wood`, 14, '#bef264');
+    if (wl) add('Weapons: ' + wl, 14, '#93c5fd', 4);
+    if (pl) add('Passives: ' + pl, 14, '#a7f3d0', 4);
+    if (bb && !G.newBest) add('Best run: ' + bb, 14, '#fcd34d', 4);
+    add(touchUi ? 'TAP TO RETRY' : 'SPACE OR TAP TO RETRY', 20, '#6ee7b7', 0);
+    let tot = 24; for (const r of rows) tot += r.h;
+    // If it would not fit, shrink the middle detail lines to 1x rather than overflow.
+    if (tot > H - 60) { tot = 24; for (const r of rows) { if (r.size === 14) { r.size = 12; r.h = Math.round(r.h / 2) + 2; } tot += r.h; } }
+    let y = Math.max(8, Math.round((H - 40 - tot) / 2));
+    hudPlate(px, y, pw, tot);
+    y += 12;
+    for (const r of rows) { const k = r.size < 13 ? 1 : r.size < 27 ? 2 : r.size < 40 ? 3 : 4; text(r.l, W / 2, y + 7 * k + 2, r.size, r.col, 'center', iw); y += r.h; }
+    text('Esc / tap bottom: menu', W / 2, H - 14, 14, '#94a3b8');
   }
 }
 
@@ -1114,5 +1267,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, dashBtn, hitDash, set touchUi(v) { touchUi = v; }, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES, propAt, plant, plantBtn, hitPlant , titleLayout, titleTap, choiceRects, pauseBtn, pauseRects, setTouch(v) { touch = v; }, get charIdx() { return charIdx; }, get hard() { return hard; } };
+window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, dashBtn, hitDash, set touchUi(v) { touchUi = v; }, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES, propAt, plant, plantBtn, hitPlant, feedCrops, possess, spawnDecoy, get zoom() { return ZOOM; }, nightTint, get lights() { return litN; }, get view() { return { w: VW, h: VH }; } , titleLayout, titleTap, choiceRects, pauseBtn, pauseRects, setTouch(v) { touch = v; }, get charIdx() { return charIdx; }, get hard() { return hard; } };
 })();

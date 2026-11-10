@@ -47,9 +47,40 @@ const P_BODY = [
 ];
 const E = '................';
 // legs: [rowBelowBody, extraRowWhenBobbed]
-function pf(legs, bob) {
+function pf(legs, bob, body) {
   // bob=1 lifts the body one pixel; legs then show two rows tall.
-  return (bob ? [E, ...P_BODY, legs, legs, E, E] : [E, E, ...P_BODY, legs, E, E]).slice(0, 16);
+  const B = body || P_BODY;
+  return (bob ? [E, ...B, legs, legs, E, E] : [E, E, ...B, legs, E, E]).slice(0, 16);
+}
+// Playable characters: each swaps the 7 head rows of P_BODY and holds one item at the back (col 0-2),
+// so the six read apart by silhouette, not only by cloak tint. Item pixels are [x, bodyRow, key].
+const HEADS = {
+  mage: ['..........hB....', '.........hbbB...', '........hbbbB...', '.......hbbbbbB..', '...oyyyyyyyyyyo.', '....hbwwwwkwB...', '....lbbwwwwbB...'],
+  knight: ['.......r........', '......rrr.......', '.....WWWWWs.....', '....WWWWWWWs....', '....WWsskkkks...', '....WWWWWWWs....', '....lbbsssbbB...'],
+  druid: ['...t.....t......', '...tt...tt.m....', '....tthhbbmm....', '....hhbbbbbbB...', '....hbwwwwkwB...', '....hbwwwwkwB...', '....lbbwwwwbB...'],
+  rogue: ['................', '................', '.....hhbbbb.....', '...hhbbbbbbbB...', '.rrhkkkkkwkB....', '..r.hbwwwwwwB...', '....lbbwwwwbB...'],
+  pyro: ['........e.......', '.......eye......', '......eyyre.....', '....hhbebbbB....', '....hbwwwwkwB...', '....hbwwwwkwB...', '....lbbwwwwbB...'],
+  storm: ['.....c...c......', '.....cc.cc.c....', '....cccccccc....', '....hhbbbbbbB...', '....hbwwwwkwB...', '....hbwwwwkwB...', '....lbbwwwwbB...'],
+};
+const vline = (x, y0, y1, k) => Array.from({ length: y1 - y0 + 1 }, (_, i) => [x, y0 + i, k]);
+const ITEMS = {
+  mage: [...vline(1, 2, 11, 't'), [1, 0, 'c'], [1, 1, 'c'], [0, 1, 'c'], [2, 1, 'c']],
+  knight: [...vline(1, 0, 7, 'W'), [0, 8, 'y'], [1, 8, 'y'], [2, 8, 'y'], [1, 9, 't'], [1, 10, 't']],
+  druid: [...vline(1, 2, 11, 't'), [1, 0, 'm'], [0, 1, 'm'], [1, 1, 'g'], [2, 1, 'm']],
+  rogue: [[0, 6, 'y'], [1, 6, 'y'], [2, 6, 'o'], [0, 7, 'y'], [0, 8, 'o']],
+  pyro: [...vline(1, 4, 11, 't'), [1, 1, 'r'], [0, 2, 'e'], [1, 2, 'y'], [2, 2, 'e'], [1, 3, 'e']],
+  storm: [...vline(1, 3, 11, 's'), [2, 0, 'c'], [1, 1, 'c'], [0, 2, 'c'], [1, 2, 'c']],
+};
+function charBody(key) {
+  const r = HEADS[key].concat(P_BODY.slice(7)).map(row => row.split(''));
+  for (const [x, y, k] of ITEMS[key]) r[y][x] = k;
+  return r.map(a => a.join(''));
+}
+function charDef(body) {
+  return { size: 16, anims: {
+    idle: [pf('.....uu..uu.....', 0, body), pf('.....uu..uu.....', 1, body)],
+    walk: [pf('....uu....uu....', 0, body), pf('.....uu.uu......', 1, body), pf('...uu....uu.....', 0, body), pf('......uu.uu.....', 1, body)],
+  } };
 }
 const DEFS = {
   // Props (16x16, outlined, drawn under units): tree, rock, mushroom.
@@ -238,6 +269,7 @@ const ENEMY = {
   ['....g.g..g......', '...ggbbbbbgg....', '...hbbbbbbbB....', '...bwkbbbkwB....', '...bbbbhbbbB....', '....bbwwwbB.....',
     '..hhhbbbbbbBB...', '.hbbhbbbbbbBBo..', '.hbbbbbbbbbBBo..', '.BbbBbbbbbbBooo.', '..BB.bbbbbbB.oo.', '....bbbbbbbB....', '...bbb....bbB...', '..bbbb....bbbB..']].map(r => fit(r, 1)),
 };
+for (const k in HEADS) DEFS['player_' + k] = charDef(charBody(k));
 for (const k in ENEMY) DEFS[k] = { size: 16, anims: { walk: ENEMY[k] } };
 
 // Boss (32x32): horned, crowned brute. Authored as the left half (16 cols) of each row and mirrored
@@ -328,9 +360,20 @@ const TILE_DEFS = [
   [[6, 6, 's'], [7, 6, 'W'], [6, 7, 'd'], [7, 7, 'd'], [12, 12, 'u']],
   [[3, 12, 'T'], [4, 12, 'T'], [5, 12, 'T'], [4, 11, 'g'], [11, 5, 'u'], [13, 3, 'd']],
 ];
-const tiles = TILE_DEFS.map(list => {
+// Terrain variants (indices 6-11): grass (2), dirt (2), path (2). Own base colours, still palette-derived.
+const GRASS_BASE = mix(TILE_BASE, BASE.mossD, 0.55), DIRT_BASE = '#2a2030', PATH_BASE = '#3a2d3a';
+TILE_DEFS.push(
+  [[2, 12, 'g'], [9, 6, 'g'], [13, 13, 'g']],
+  [[3, 5, 'm'], [3, 4, 'g'], [4, 5, 'g'], [11, 10, 'm'], [11, 9, 'g'], [12, 10, 'g'], [7, 14, 'g']],
+  [[4, 3, 'T'], [12, 8, 'T'], [8, 13, 'd']],
+  [[2, 9, 's'], [3, 9, 'd'], [10, 4, 'T'], [11, 4, 'T'], [13, 12, 'd'], [6, 7, 'T']],
+  [[3, 3, 'd'], [9, 8, 'd'], [12, 13, 'd'], [5, 12, 's']],
+  [[2, 5, 's'], [3, 5, 'W'], [10, 11, 's'], [11, 11, 'd'], [7, 2, 'd'], [14, 8, 'd']],
+);
+const TILE_BASES = [TILE_BASE, TILE_BASE, TILE_BASE, TILE_BASE, TILE_BASE, TILE_BASE, GRASS_BASE, GRASS_BASE, DIRT_BASE, DIRT_BASE, PATH_BASE, PATH_BASE];
+const tiles = TILE_DEFS.map((list, n) => {
   const c = document.createElement('canvas'); c.width = c.height = 16;
-  const g = c.getContext('2d'); g.fillStyle = TILE_BASE; g.fillRect(0, 0, 16, 16);
+  const g = c.getContext('2d'); g.fillStyle = TILE_BASES[n]; g.fillRect(0, 0, 16, 16);
   for (const [x, y, k] of list) { g.fillStyle = k === 'y' ? '#a07c1c' : PAL[k]; g.fillRect(x, y, 1, 1); }
   return c;
 });
@@ -428,10 +471,15 @@ function variant(name, color) {
   const key = name + color;
   return variants[key] || (variants[key] = bake(name, bodySlots(color)));
 }
+// Camera snap: while the world is drawn under ctx.scale(z) + translate(ox,oy), sprite corners are rounded to
+// whole screen pixels so every art pixel stays the same size (no shimmer at ZOOM 1.5). setView(1,0,0) = off.
+const view = { z: 1, ox: 0, oy: 0 };
+function setView(z, ox, oy) { view.z = z; view.ox = ox; view.oy = oy; }
 function drawSprite(ctx, spr, anim, i, x, y, scale, opt) {
   const a = spr.anims[anim], n = a.frames.length, k = ((i % n) + n) % n;
   const img = opt && opt.flash ? a.flash[k] : opt && opt.flip ? a.flip[k] : a.frames[k];
   const s = spr.size * scale;
+  if (view.z !== 1) { const z = view.z; ctx.drawImage(img, Math.round((x - s / 2 + view.ox) * z) / z - view.ox, Math.round((y - s / 2 + view.oy) * z) / z - view.oy, s, s); return; }
   ctx.drawImage(img, Math.round(x - s / 2), Math.round(y - s / 2), s, s);
 }
 // Sprite sheet for screenshot review (?sprites=1): every sprite, anim and frame on a grid,
@@ -472,5 +520,5 @@ function drawSheet(ctx, W, H, t) {
     }
   }
 }
-window.TZS_SPRITES = { FONT, glyphImg, fontWidth, drawText, tiles, PAL, BASE, DEFS, baked, variant, drawSprite, drawSheet, mix };
+window.TZS_SPRITES = { FONT, glyphImg, fontWidth, drawText, tiles, PAL, BASE, DEFS, baked, variant, drawSprite, setView, drawSheet, mix };
 })();

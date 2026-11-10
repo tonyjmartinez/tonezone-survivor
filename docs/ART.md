@@ -72,6 +72,8 @@ Hostile projectiles and hazards use Ember or Blood, never cyan or gold.
 Pickups (distinct by shape first):
 - XP gem: small gold diamond. Gold coin: round gold disc with a shine. Heart: Blood heart. Chest: Stone box with a gold band. Bomb and ice pickups: a round Ink orb (bomb, Ember fuse) and a cyan crystal (freeze).
 
+- Night lighting (slice 7): darkness is a 1/4-res light map in the `NIGHT` tint with soft holes at each light; coloured lights add a faint glow. Darkness alpha stays <= 0.56 so unlit enemies keep their silhouette (readability rule).
+
 ## Readability rule
 
 At a glance, at 390 px wide and at desktop size, the player, enemies, pickups and projectiles must each be distinguishable by silhouette alone, with colour as a second cue:
@@ -113,3 +115,13 @@ Headless Chromium (software rendering), 390 px viewport, all weapons at level 3,
 300+ enemies fit the 16.7 ms budget at 4x throttle with room to spare; 600 is near the limit. Single frames spike to about 30-38 ms at 600 enemies (likely garbage collection from per-frame allocations); worth a look if a real phone stutters in late-game hordes. Not yet checked on a real device.
 
 Each slice: one PR, before and after screenshots at 390 px and desktop (sprite sheet and gameplay), smoke test passing, no mechanics, balance or control changes.
+
+## Art overhaul plan (2026-11-01, owner request)
+Goal: a polished, cohesive pixel-art night-graveyard look. Rules: 12-colour palette, hand-authored grids in `src/sprites.js` only, no external art/deps, collision radii unchanged, new sprites added to the smoke EXPECT table, `tests/perf.js` (300 enemies) within the budget above, 390px + desktop screenshots in every PR body, one PR per slice under ~500 lines. Slices are tracked in ROADMAP 'Graphic overhaul'.
+1. Ground: tiled dirt/grass/path variation plus soft fog layer, no flat navy.
+2. Player + 6 characters: 3-4 frame walk, idle breathe, distinct silhouette per class.
+3. Enemies: silhouette rules, 3-frame walk, death frames.
+4. Weapon/projectile VFX: bolt trail, orb glow, nova ring, whip arc, lightning via stacked low-alpha shapes.
+5. Pickups as souls/coffins; farming sprites (trees, crops, seeds, wood) in theme.
+6. HUD/menus: pixel frames, weapon/passive icons, consistent font, end screen fixed at 390px (no overlapping lines).
+7. Lighting: player light radius, vignette, moon tint over time.

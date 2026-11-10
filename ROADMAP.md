@@ -71,6 +71,9 @@ Vision: a stranger plays on a phone for ten minutes and wants to replay. Game fe
 ## Milestone: Farm while you survive
 Vision: survivors-genre pressure with a farming loop in the middle of the run: you work the land between fights, and the land pays you back. v1 is in; each next item is one small PR with a smoke assertion.
 - [x] (farm v1) Choppable woodland: trees (1.6s, wood + seed + rare heart), mushrooms (heart/seed), new grass tufts (cut by running through, regrow after 45s). Seeds: F / PLANT button sows a crop at your feet; it ripens in 20s; enemies standing on it trample it; walking over a ripe crop heals 20 HP + XP gem; 15% golden crops heal 40 + WELL FED (+25% dmg, 20s). Wood sells for 1 gold at run end; end screen shows a Farm line.
+- [x] (farm) Soul Garden: kills near a growing crop feed it, reaping bursts nearby foes, dash-chop (2026-11-08).
+- [x] (powers) Replace VS-copy powers: Possession, Thornseed, Phantom Step; Soul Eater, Rooted, Green Thumb (2026-11-08).
+- [ ] (farm) Real playtest of Soul Garden numbers: SOUL_R/SOUL_GROW/HARVEST_R, is the 30s base growth too slow without kills?
 - [ ] (farm) Spend wood mid-run: build a scarecrow/fence that slows enemies around your crops (makes the field worth defending).
 - [ ] (farm) Crop variety: seed types from different props (pumpkin = heal, berry = XP, thorn = turret-like damage plant).
 - [ ] (farm) Harvest Moon event (e.g. at 4:00): all crops ripen instantly and grass bursts with seeds, then a horde arrives.
@@ -78,10 +81,21 @@ Vision: survivors-genre pressure with a farming loop in the middle of the run: y
 
 ## Milestone: Spooky graveyard identity (2026-11-01, owner request)
 Owner: "make the game a bit more unique with a more consistent and interesting spooky theme". First pass done (PR: graveyard props, fog, vignette, spooky event names, themed title). Next ideas, one per loop iteration:
-- [ ] (design) Kill fx: a small ghost wisp rises from slain undead (bats/ghouls/wraiths) instead of generic pixels.
+- [x] (design) Kill fx: a small ghost wisp rises from slain undead (bats/ghouls/wraiths) instead of generic pixels.
 - [ ] (design) Rename/reskin the remaining non-spooky bits so names match the night: gems read as souls (cyan wisp gem sprite), chests as coffins.
 - [ ] (feel) Low drone + occasional distant bell (WebAudio only, no assets), off with M.
-- [ ] (design) Moon phase: the night slowly reddens toward 9:00 (titan), dawn light at 10:00 win.
+- [x] (design) Moon phase: the night slowly reddens toward 9:00 (titan), dawn light at 10:00 win (done with art slice 7, `NIGHT` keyframes).
+
+## Milestone: Graphic overhaul (2026-11-01, owner request; plan in docs/ART.md)
+One small PR per slice, 390px + desktop screenshots, perf check, smoke EXPECT entries.
+- [x] (art) 1 Ground: tiled dirt/grass/path variation + soft fog layer, no flat navy.
+- [x] (art) 1b Bigger and easier to see (owner): world zoom (`ZOOM` 1.5, or 2 when min(W,H) >= 900; `VW/VH` = visible world), HUD at 2x font minimum, 18px bars, bigger DASH/PLANT/pause buttons, taller level-up cards, end screen stacks lines with wrap (390px overlap fixed). All later slices keep this scale.
+- [x] (art) 2 Player + 6 characters: 4-frame walk, 2-frame idle bob, distinct silhouettes (per-character head + held item: mage hat+staff, knight helm+sword, druid antlers+staff, rogue mask+scarf+boomerang, pyro flame+torch, storm spikes+rod).
+- [ ] (art) 3 Enemies: silhouette rules, 3-frame walk, death frames.
+- [ ] (art) 4 Weapon/projectile VFX pass (trail, glow, ring, arc, lightning).
+- [ ] (art) 5 Pickups as souls/coffins + farming sprites matching the theme.
+- [ ] (art) 6 HUD/menus: pixel frames, weapon/passive icons (sizes + end screen done in 1b).
+- [x] (art) 7 Lighting: 1/4-res light map (player light, jack-o'-lantern/crop/magic pools + coloured glow), night tint indigo -> blood moon at 9:00 -> dawn at 10:00 (2026-11-09).
 
 ### Blocked on Tony
 - Real 5+ minute human playtest for balance numbers (needs a person playing on a phone/desktop; bot results only approximate).
