@@ -2,6 +2,15 @@
   "name": "tonezone-survivor",
   "private": true,
   "scripts": {
-    "build": "rm -rf dist && mkdir -p dist && cp -r index.html src dist/"
+    "build": "node tools/package-game.cjs web",
+    "mobile:prepare": "node tools/package-game.cjs mobile",
+    "mobile:check": "node tools/package-game.cjs check",
+    "mobile:run": "node tools/flutter.cjs run",
+    "mobile:android": "node tools/flutter.cjs apk",
+    "mobile:bundle": "node tools/flutter.cjs appbundle",
+    "mobile:test": "node tools/flutter.cjs test",
+    "mobile:integration": "node tools/flutter.cjs integration",
+    "test:packaging": "node --test tests/packaging.test.cjs",
+    "test:mobile": "node tests/mobile-smoke.js"
   }
 }

@@ -7,6 +7,8 @@ Smoke test: `NODE_PATH=$(npm root -g) node tests/smoke.js`
 
 See `CLAUDE.md` (agent rules), `ROADMAP.md` (plan) and `MEMORY.md` (living log).
 
+Flutter Android/iOS packaging port: see [mobile/README.md](mobile/README.md).
+
 ## Deploy
 
 Cloudflare deploys every push to `main` through its GitHub connection: `npm run build` copies the game into `dist/`, then `npx wrangler deploy` (config in `wrangler.jsonc`). Live at https://tonezone-survivor.ajosephmartinez.workers.dev.
