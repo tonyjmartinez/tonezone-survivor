@@ -129,6 +129,19 @@ try {
   const fmGold = Math.round(fm.kills + Math.floor(fm.t / 10) + 200 + fm.wood);
   if (!fm.chopping || !fm.cut || fm.wood < 2 || fm.chopped !== 1 || fm.noSeed || !fm.planted || fm.tooClose || !fm.grew || !fm.trampled
     || fm.harvested.hp !== 90 || fm.harvested.n !== 1 || !fm.harvested.gem || !fm.harvested.fed || !fm.harvested.gone || fm.gold !== fmGold) { console.log('farming failed', JSON.stringify(fm)); errs.push('farm'); }
+  // Spend wood on scarecrow wards: affordable placement slows nearby foes, blocks stacking, and has a touch control.
+  const wd = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.spawnAcc = -1e9; G.nextHorde = G.nextBoss = 1e9;
+    G.p.x = 0; G.p.y = 0; G.wood = 2; const short = t.buildWard(); G.wood = 6; t.press('b');
+    const spent = G.wood, built = G.wards.length, stacked = t.buildWard();
+    const mk = x => ({ x, y: 0, r: 8, hp: 1000, maxHp: 1000, speed: 100, dmg: 0, xp: 1, color: '#a78bfa', flash: 0, kind: 'bat' });
+    const near = mk(80), far = mk(240); G.enemies.push(near, far); t.update(0.05); t.render();
+    G.p.x = 200; G.wood = 3; t.touchUi = true; const b = t.wardBtn(), size = b.r * 2, hit = t.hitWard(b.x, b.y);
+    document.getElementById('c').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 99, pointerType: 'touch', clientX: b.x, clientY: b.y }));
+    const mobile = G.wards.length; t.touchUi = false;
+    return { short, spent, built, stacked, nearMove: 80 - near.x, farMove: 240 - far.x, size, hit, mobile, wood: G.wood };
+  });
+  if (wd.short || wd.spent !== 3 || wd.built !== 1 || wd.stacked || !(wd.nearMove < wd.farMove) || wd.size < 48 || !wd.hit || wd.mobile !== 2 || wd.wood !== 0) { console.log('ward failed', JSON.stringify(wd)); errs.push('ward'); }
   // Soul Garden: kills near a growing crop feed it, far kills don't; reaping a ripe crop bursts foes around it; dashing chops
   const sg = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.w = {}; G.enemies.length = 0; G.spawnAcc = -1e9; G.nextHorde = G.nextBoss = 1e9; G.p.hp = G.p.maxHp = 1e9;
