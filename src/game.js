@@ -26,6 +26,9 @@ function hitDash(px, py) { const b = dashBtn(); return Math.hypot(px - b.x, py -
 // PLANT button sits above DASH (touch has no F key).
 function plantBtn() { return { x: W - 58, y: H - 162, r: 36 }; }
 function hitPlant(px, py) { const b = plantBtn(); return Math.hypot(px - b.x, py - b.y) <= b.r + 8; }
+// WARD button sits above PLANT (touch has no B key).
+function wardBtn() { return { x: W - 58, y: H - 258, r: 32 }; }
+function hitWard(px, py) { const b = wardBtn(); return Math.hypot(px - b.x, py - b.y) <= b.r + 8; }
 // Pause button: 44px square under the kills plate (top-right, away from both thumbs).
 function pauseBtn() { return { x: W - 62, y: 88, w: 52, h: 52 }; }
 // The joystick follows ONE finger (by pointerId). A second finger on DASH or PAUSE must not move it
@@ -34,6 +37,7 @@ cv.addEventListener('pointerdown', e => {
   if (e.pointerType === 'touch') touchUi = true;
   if (state === 'play' && inRect(pauseBtn(), e.clientX, e.clientY)) { state = 'pause'; return; }
   if (state === 'play' && touchUi && hitDash(e.clientX, e.clientY)) { onKey('shift'); return; }
+  if (state === 'play' && touchUi && hitWard(e.clientX, e.clientY)) { onKey('b'); return; }
   if (state === 'play' && touchUi && hitPlant(e.clientX, e.clientY)) { onKey('f'); return; }
   if (state === 'play' && touch) return; // stick already held by another finger
   touch = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY };
@@ -138,7 +142,7 @@ function newGame() {
     choices: [], gold: 0,
     rerolls: 1, // level-up rerolls left: one free per run, +1 per Luck level
     lvlT: 9, xpPulse: 0, // level-up moment: time since the card screen opened; XP bar glow
-    cut: new Map(), chop: null, loot: [], crops: [], seeds: 0, wood: 0, harvests: 0, chopped: 0, // farming (see updateFarm)
+    cut: new Map(), chop: null, loot: [], crops: [], wards: [], seeds: 0, wood: 0, harvests: 0, chopped: 0, // farming (see updateFarm)
   };
 }
 
@@ -197,6 +201,7 @@ function onKey(k, e) {
   if (k === 'm') { muted = !muted; return; }
   if (state === 'play' && (k === 'shift' || k === ' ') && G.p.dashCd <= 0 && G.p.face) { const mv = moveInput(), mm = Math.hypot(mv.x, mv.y); G.p.dashDir = mm > 0.05 ? { x: mv.x / mm, y: mv.y / mm } : { x: G.p.face.x, y: G.p.face.y }; G.p.dashT = 0.16; G.p.dashCd = 2.5 - 0.12 * (G.w.phantom || 0); if (G.w.phantom) spawnDecoy(); G.p.hurt = Math.max(G.p.hurt, 0.2); sfx(300, 0.08, 'triangle', 0.05); return; }
   if (state === 'play' && (k === 'f' || k === 'e')) { plant(); return; }
+  if (state === 'play' && k === 'b') { buildWard(); return; }
   if ((k === 'p' || k === 'escape') && (state === 'play' || state === 'pause')) { state = state === 'play' ? 'pause' : 'play'; return; }
   if (state === 'title' && (k === 'arrowleft' || k === 'a')) { pickChar(-1); return; }
   if (state === 'title' && (k === 'arrowright' || k === 'd')) { pickChar(1); return; }
@@ -353,6 +358,7 @@ const CROP_GROW = 30, CROP_HP = 2, CROP_MAX = 12, FED_TIME = 20;
 // Soul Garden: a foe slain within SOUL_R of a growing crop feeds it SOUL_GROW s of growth, so you farm by fighting
 // on your field. A ripe crop is reaped with a burst (HARVEST_R, x1.4 for golden) that hits every foe around it.
 const SOUL_R = 140, SOUL_GROW = 3, HARVEST_R = 120;
+const WARD_COST = 3, WARD_MAX = 3, WARD_R = 126, WARD_SLOW = 0.65;
 // Same hashed 112px grid the floor props have always used (r 0-1 = tree/rock/mush); r 2 adds grass.
 function propAt(gx, gy) {
   const h = (Math.imul(gx, 374761393) ^ Math.imul(gy, 668265263)) >>> 0, r = h % 5;
@@ -386,6 +392,13 @@ function plant() {
   G.seeds--; G.crops.push({ x: Math.round(p.x), y: Math.round(p.y + 6), age: 0, grow: CROP_GROW, hp: CROP_HP, golden: Math.random() < 0.15 });
   sfx(480, 0.12, 'triangle', 0.05); burst(p.x, p.y + 6, '#7c4a2a', 4, 50);
   if (!G.soulHint) { G.soulHint = true; G.hordeBanner = 3; G.bannerText = 'SLAY FOES NEAR CROPS TO GROW THEM'; }
+  return true;
+}
+function buildWard() {
+  const p = G.p;
+  if (G.wood < WARD_COST || G.wards.length >= WARD_MAX || G.wards.some(w => dist2(w, p) < 72 * 72)) { sfx(140, 0.08, 'square', 0.03); return false; }
+  G.wood -= WARD_COST; G.wards.push({ x: Math.round(p.x), y: Math.round(p.y + 8) });
+  burst(p.x, p.y, '#fbbf24', 8, 70); sfx(260, 0.16, 'triangle', 0.05);
   return true;
 }
 function harvest(c) {
@@ -674,7 +687,8 @@ function update(dt) {
     if (e.ally) { if (!e.prey || e.prey.hp <= 0 || e.prey.ally) e.prey = nearest(e, 400); if (e.prey) { tx = e.prey.x; ty = e.prey.y; } }
     else if (G.decoys.length && !e.boss) for (const d of G.decoys) if (dist2(d, e) < DECOY_PULL * DECOY_PULL) { tx = d.x; ty = d.y; break; }
     const a = Math.atan2(ty - e.y, tx - e.x);
-    const sp = (G.freeze > 0 ? 0 : e.slow > 0 ? 0.6 : 1) * (e.ally ? 1.4 : 1); e.slow = Math.max(0, (e.slow || 0) - dt);
+    const warded = !e.ally && G.wards.some(w => dist2(w, e) < WARD_R * WARD_R);
+    const sp = (G.freeze > 0 ? 0 : e.slow > 0 ? 0.6 : 1) * (warded ? WARD_SLOW : 1) * (e.ally ? 1.4 : 1); e.slow = Math.max(0, (e.slow || 0) - dt);
     let lm = 1;
     if (e.kind === 'troll') { e.hitT = (e.hitT || 0) - dt; if (e.hitT <= 0 && e.hp < e.maxHp) e.hp = Math.min(e.maxHp, e.hp + e.maxHp * 0.08 * dt); }
     if (e.kind === 'dasher') { e.ct = (e.ct === undefined ? rnd(1, 3) : e.ct) - dt; if (e.ct <= 0) { e.ct = 3; e.lunge = 0.5; } if (e.lunge > 0) { e.lunge -= dt; lm = 3.5; } }
@@ -1079,6 +1093,15 @@ function render() {
     groundShadow(pr.x, pr.y + 12, kind === 'tree' ? 14 : 10);
     SPR.drawSprite(ctx, SPR.baked[skin], 'idle', 0, pr.x + wob, pr.y, 2);
   }
+  for (const w of G.wards) {
+    ctx.strokeStyle = 'rgba(251,191,36,0.18)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(w.x, w.y, WARD_R, 0, 7); ctx.stroke();
+    groundShadow(w.x, w.y + 14, 10);
+    ctx.fillStyle = '#78350f'; ctx.fillRect(w.x - 2, w.y - 5, 4, 24);
+    ctx.fillStyle = '#a16207'; ctx.fillRect(w.x - 11, w.y - 8, 22, 4); ctx.fillRect(w.x - 7, w.y - 18, 14, 12);
+    ctx.fillStyle = '#451a03'; ctx.fillRect(w.x - 9, w.y - 16, 18, 3);
+    ctx.fillStyle = '#fde047'; ctx.fillRect(w.x - 4, w.y - 13, 2, 2); ctx.fillRect(w.x + 2, w.y - 13, 2, 2);
+    light(w.x, w.y - 12, 34, '251,191,36', 0.55);
+  }
   // crops: sprout (small, then bigger) until ripe; a ripe crop bobs inside a pulsing ring; growth bar under unripe ones
   // brambles (Thornseed): dark thorny patch that fades out over its last second
   for (const b of G.brambles) { ctx.globalAlpha = Math.min(1, b.t); ctx.fillStyle = 'rgba(88,28,135,0.28)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill(); SPR.drawSprite(ctx, SPR.baked.grass, 'idle', 0, b.x - 6, b.y, 2); SPR.drawSprite(ctx, SPR.baked.grass, 'idle', 0, b.x + 7, b.y - 3, 2); ctx.globalAlpha = 1; }
@@ -1184,9 +1207,13 @@ function render() {
     ctx.fillStyle = has ? 'rgba(101,163,13,0.6)' : 'rgba(30,41,59,0.55)'; ctx.beginPath(); ctx.arc(pb.x, pb.y, pb.r, 0, 7); ctx.fill();
     ctx.strokeStyle = has ? '#bef264' : '#64748b'; ctx.lineWidth = 3; ctx.stroke();
     text('PLANT', pb.x, pb.y + 2, 14, has ? '#fff' : '#94a3b8', 'center'); text('x' + G.seeds, pb.x, pb.y + 20, 14, has ? '#bef264' : '#64748b', 'center');
+    const wb = wardBtn(), canBuild = G.wood >= WARD_COST && G.wards.length < WARD_MAX;
+    ctx.fillStyle = canBuild ? 'rgba(161,98,7,0.72)' : 'rgba(30,41,59,0.55)'; ctx.beginPath(); ctx.arc(wb.x, wb.y, wb.r, 0, 7); ctx.fill();
+    ctx.strokeStyle = canBuild ? '#fbbf24' : '#64748b'; ctx.lineWidth = 3; ctx.stroke();
+    text('WARD', wb.x, wb.y + 1, 13, canBuild ? '#fff' : '#94a3b8', 'center'); text(WARD_COST + ' WOOD', wb.x, wb.y + 18, 10, canBuild ? '#fde68a' : '#64748b', 'center');
   }
   let y = narrow ? 104 : 70; const lw = narrow ? W - 90 : W / 2 - cw / 2 - 20;
-  text(`Seed ${G.seeds} Wood ${G.wood}` + (p.fed > 0 ? ` Fed ${Math.ceil(p.fed)}` : ''), 10, y, 14, p.fed > 0 ? '#fde047' : '#bef264', 'left', lw); y += 20;
+  text(`Seed ${G.seeds} Wood ${G.wood}` + (p.fed > 0 ? ` Fed ${Math.ceil(p.fed)}` : '') + (touchUi ? '' : '  B: Ward (3 wood)'), 10, y, 14, p.fed > 0 ? '#fde047' : '#bef264', 'left', lw); y += 20;
   for (const k in G.w) { text(`${WEAPONS[k].name} ${G.w[k] >= EVO_LVL ? 'EVO' : G.w[k]}`, 10, y, 14, '#fde047', 'left', lw); y += 18; }
   for (const k in G.pa) { text(`${PASSIVES[k].name} ${G.pa[k]}`, 10, y, 14, '#a7f3d0', 'left', lw); y += 18; }
 
@@ -1267,5 +1294,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, dashBtn, hitDash, set touchUi(v) { touchUi = v; }, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES, propAt, plant, plantBtn, hitPlant, feedCrops, possess, spawnDecoy, get zoom() { return ZOOM; }, nightTint, get lights() { return litN; }, get view() { return { w: VW, h: VH }; } , titleLayout, titleTap, choiceRects, pauseBtn, pauseRects, setTouch(v) { touch = v; }, get charIdx() { return charIdx; }, get hard() { return hard; } };
+window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, dashBtn, hitDash, set touchUi(v) { touchUi = v; }, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES, propAt, plant, buildWard, plantBtn, hitPlant, wardBtn, hitWard, feedCrops, possess, spawnDecoy, get zoom() { return ZOOM; }, nightTint, get lights() { return litN; }, get view() { return { w: VW, h: VH }; } , titleLayout, titleTap, choiceRects, pauseBtn, pauseRects, setTouch(v) { touch = v; }, get charIdx() { return charIdx; }, get hard() { return hard; } };
 })();
