@@ -75,7 +75,7 @@ Vision: survivors-genre pressure with a farming loop in the middle of the run: y
 - [x] (powers) Replace VS-copy powers: Possession, Thornseed, Phantom Step; Soul Eater, Rooted, Green Thumb (2026-11-08).
 - [ ] (farm) Real playtest of Soul Garden numbers: SOUL_R/SOUL_GROW/HARVEST_R, is the 30s base growth too slow without kills?
 - [x] (farm) Spend wood mid-run: build a scarecrow/fence that slows enemies around your crops (makes the field worth defending). (2026-11-15: 3-wood scarecrow wards, up to 3, slow nearby foes by 35%; B key and touch button.)
-- [ ] (farm) Crop variety: seed types from different props (pumpkin = heal, berry = XP, thorn = turret-like damage plant).
+- [x] (farm) Crop variety: pumpkin seeds from lanterns heal, soulberries from grass add XP, and tree-thorn seeds attack nearby foes (2026-11-18).
 - [ ] (farm) Harvest Moon event (e.g. at 4:00): all crops ripen instantly and grass bursts with seeds, then a horde arrives.
 - [ ] (farm) Real playtest: are seeds too rare/common, does trampling feel fair, is standing still to chop a fun risk?
 

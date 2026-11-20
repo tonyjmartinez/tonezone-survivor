@@ -31,7 +31,7 @@ const { chromium } = require('playwright');
       await tap('__tzs.dashBtn()');
       assert.equal(await page.evaluate(() => __tzs.G.p.dashCd > 0), true);
       // Give one seed to isolate the PLANT hit target from random drops.
-      await page.evaluate(() => { __tzs.G.seeds = 1; });
+      await page.evaluate(() => { __tzs.setSeeds(1); });
       await tap('__tzs.plantBtn()');
       assert.equal(await page.evaluate(() => __tzs.G.crops.length), 1);
       await tap('__tzs.pauseBtn()');

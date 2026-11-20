@@ -26,6 +26,8 @@ function hitDash(px, py) { const b = dashBtn(); return Math.hypot(px - b.x, py -
 // PLANT button sits above DASH (touch has no F key).
 function plantBtn() { return { x: W - 58, y: H - 162, r: 36 }; }
 function hitPlant(px, py) { const b = plantBtn(); return Math.hypot(px - b.x, py - b.y) <= b.r + 8; }
+function nextSeedBtn() { return { x: W - 150, y: H - 162, r: 26 }; }
+function hitNextSeed(px, py) { const b = nextSeedBtn(); return Math.hypot(px - b.x, py - b.y) <= b.r + 8; }
 // WARD button sits above PLANT (touch has no B key).
 function wardBtn() { return { x: W - 58, y: H - 258, r: 32 }; }
 function hitWard(px, py) { const b = wardBtn(); return Math.hypot(px - b.x, py - b.y) <= b.r + 8; }
@@ -36,6 +38,7 @@ function pauseBtn() { return { x: W - 62, y: 88, w: 52, h: 52 }; }
 cv.addEventListener('pointerdown', e => {
   if (e.pointerType === 'touch') touchUi = true;
   if (state === 'play' && inRect(pauseBtn(), e.clientX, e.clientY)) { state = 'pause'; return; }
+  if (state === 'play' && touchUi && hitNextSeed(e.clientX, e.clientY)) { onKey('c'); return; }
   if (state === 'play' && touchUi && hitDash(e.clientX, e.clientY)) { onKey('shift'); return; }
   if (state === 'play' && touchUi && hitWard(e.clientX, e.clientY)) { onKey('b'); return; }
   if (state === 'play' && touchUi && hitPlant(e.clientX, e.clientY)) { onKey('f'); return; }
@@ -142,7 +145,7 @@ function newGame() {
     choices: [], gold: 0,
     rerolls: 1, // level-up rerolls left: one free per run, +1 per Luck level
     lvlT: 9, xpPulse: 0, // level-up moment: time since the card screen opened; XP bar glow
-    cut: new Map(), chop: null, loot: [], crops: [], wards: [], seeds: 0, wood: 0, harvests: 0, chopped: 0, // farming (see updateFarm)
+    cut: new Map(), chop: null, loot: [], crops: [], wards: [], seeds: 0, seedTypes: { pumpkin: 0, berry: 0, thorn: 0 }, seedType: 'pumpkin', wood: 0, harvests: 0, chopped: 0,
   };
 }
 
@@ -201,6 +204,7 @@ function onKey(k, e) {
   if (k === 'm') { muted = !muted; return; }
   if (state === 'play' && (k === 'shift' || k === ' ') && G.p.dashCd <= 0 && G.p.face) { const mv = moveInput(), mm = Math.hypot(mv.x, mv.y); G.p.dashDir = mm > 0.05 ? { x: mv.x / mm, y: mv.y / mm } : { x: G.p.face.x, y: G.p.face.y }; G.p.dashT = 0.16; G.p.dashCd = 2.5 - 0.12 * (G.w.phantom || 0); if (G.w.phantom) spawnDecoy(); G.p.hurt = Math.max(G.p.hurt, 0.2); sfx(300, 0.08, 'triangle', 0.05); return; }
   if (state === 'play' && (k === 'f' || k === 'e')) { plant(); return; }
+  if (state === 'play' && k === 'c') { cycleSeed(); return; }
   if (state === 'play' && k === 'b') { buildWard(); return; }
   if ((k === 'p' || k === 'escape') && (state === 'play' || state === 'pause')) { state = state === 'play' ? 'pause' : 'play'; return; }
   if (state === 'title' && (k === 'arrowleft' || k === 'a')) { pickChar(-1); return; }
@@ -355,6 +359,21 @@ const FARM = {
   grass: { need: 0.35, reach: 18, col: '#3f7a4a', regrow: 45 },
 };
 const CROP_GROW = 30, CROP_HP = 2, CROP_MAX = 12, FED_TIME = 20;
+const CROP_TYPES = ['pumpkin', 'berry', 'thorn'];
+const CROP_INFO = { pumpkin: { color: '#f97316' }, berry: { color: '#38bdf8' }, thorn: { color: '#86efac' } };
+function seedCount(type = G.seedType) { return G.seedTypes[type] || 0; }
+function cycleSeed() {
+  const start = CROP_TYPES.indexOf(G.seedType);
+  for (let i = 1; i <= CROP_TYPES.length; i++) {
+    const type = CROP_TYPES[(start + i) % CROP_TYPES.length];
+    if (seedCount(type) > 0) { G.seedType = type; sfx(520, 0.06, 'triangle', 0.03); return type; }
+  }
+  return G.seedType;
+}
+function addSeed(type) {
+  type = CROP_INFO[type] ? type : 'pumpkin';
+  G.seedTypes[type] = (G.seedTypes[type] || 0) + 1; G.seeds++; G.seedType = type;
+}
 // Soul Garden: a foe slain within SOUL_R of a growing crop feeds it SOUL_GROW s of growth, so you farm by fighting
 // on your field. A ripe crop is reaped with a burst (HARVEST_R, x1.4 for golden) that hits every foe around it.
 const SOUL_R = 140, SOUL_GROW = 3, HARVEST_R = 120;
@@ -369,18 +388,18 @@ function propAt(gx, gy) {
 function isCut(pr) { const c = G.cut.get(pr.key); return c !== undefined && (pr.kind !== 'grass' || G.t - c < FARM.grass.regrow); }
 function burst(x, y, c, n, sp = 90) { if (G.parts.length < 200) for (let i = 0; i < n; i++) G.parts.push({ x, y, vx: rnd(-sp, sp), vy: rnd(-sp, sp), t: 0.35, c }); }
 function dropFarm(pr) {
-  const L = G.p.luck || 1, S = L * (G.p.green || 1), drop = k => G.loot.push({ kind: k, x: pr.x + rnd(-14, 14), y: pr.y + rnd(-10, 10) });
+  const L = G.p.luck || 1, S = L * (G.p.green || 1), drop = (k, cropType) => G.loot.push({ kind: k, cropType, x: pr.x + rnd(-14, 14), y: pr.y + rnd(-10, 10) });
   if (pr.kind === 'tree') {
     for (let i = 0, n = 2 + (Math.random() < 0.5); i < n; i++) drop('wood');
-    if (Math.random() < 0.4 * S) drop('seed');
+    if (Math.random() < 0.4 * S) drop('seed', 'thorn');
     if (Math.random() < 0.1 * L) G.hearts.push({ x: pr.x, y: pr.y, heal: 15 });
     G.shake = Math.max(G.shake, 0.12); sfx(130, 0.22, 'triangle', 0.06);
   } else if (pr.kind === 'mush') {
     if (Math.random() < 0.5 * L) G.hearts.push({ x: pr.x, y: pr.y, heal: 15 });
-    if (Math.random() < 0.3 * S) drop('seed');
+    if (Math.random() < 0.3 * S) drop('seed', 'pumpkin');
     sfx(380, 0.1, 'sine', 0.05);
   } else {
-    if (Math.random() < 0.25 * S) drop('seed');
+    if (Math.random() < 0.25 * S) drop('seed', 'berry');
     if (Math.random() < 0.12 * L) G.hearts.push({ x: pr.x, y: pr.y, heal: 8 });
     sfx(600, 0.04, 'square', 0.025);
   }
@@ -388,8 +407,9 @@ function dropFarm(pr) {
 }
 function plant() {
   const p = G.p;
-  if (G.seeds <= 0 || G.crops.length >= CROP_MAX || G.crops.some(c => dist2(c, p) < 22 * 22)) { sfx(140, 0.08, 'square', 0.03); return false; }
-  G.seeds--; G.crops.push({ x: Math.round(p.x), y: Math.round(p.y + 6), age: 0, grow: CROP_GROW, hp: CROP_HP, golden: Math.random() < 0.15 });
+  const type = G.seedType;
+  if (seedCount(type) <= 0 || G.seeds <= 0 || G.crops.length >= CROP_MAX || G.crops.some(c => dist2(c, p) < 22 * 22)) { sfx(140, 0.08, 'square', 0.03); return false; }
+  G.seedTypes[type]--; G.seeds--; G.crops.push({ x: Math.round(p.x), y: Math.round(p.y + 6), kind: type, age: 0, grow: CROP_GROW, hp: CROP_HP, golden: Math.random() < 0.15, fireT: 0 });
   sfx(480, 0.12, 'triangle', 0.05); burst(p.x, p.y + 6, '#7c4a2a', 4, 50);
   if (!G.soulHint) { G.soulHint = true; G.hordeBanner = 3; G.bannerText = 'SLAY FOES NEAR CROPS TO GROW THEM'; }
   return true;
@@ -402,16 +422,17 @@ function buildWard() {
   return true;
 }
 function harvest(c) {
-  const p = G.p, heal = c.golden ? 40 : 20;
+  const p = G.p, heal = c.kind === 'pumpkin' ? (c.golden ? 40 : 20) : 0;
   p.hp = Math.min(p.maxHp, p.hp + heal); G.harvests++;
-  G.gems.push({ x: c.x, y: c.y - 8, v: c.golden ? 8 : 3, big: c.golden });
-  if (Math.random() < 0.5) G.loot.push({ kind: 'seed', x: c.x + 10, y: c.y });
-  G.texts.push({ x: p.x, y: p.y - 16, s: 'HARVEST +' + heal, t: 1 });
-  const br = HARVEST_R * (c.golden ? 1.4 : 1), bd = (30 + G.t / 5) * (c.golden ? 2 : 1);
-  for (const e of G.enemies) if (dist2(c, e) < (br + e.r) ** 2) { const a = Math.atan2(e.y - c.y, e.x - c.x); damage(e, e.boss ? bd / 2 : bd, Math.cos(a) * 30, Math.sin(a) * 30); }
+  G.gems.push({ x: c.x, y: c.y - 8, v: c.kind === 'berry' ? (c.golden ? 12 : 6) : c.golden ? 8 : 3, big: c.golden || c.kind === 'berry' });
+  if (Math.random() < 0.5) G.loot.push({ kind: 'seed', cropType: c.kind, x: c.x + 10, y: c.y });
+  G.texts.push({ x: p.x, y: p.y - 16, s: heal ? 'HARVEST +' + heal : (c.kind === 'berry' ? 'SOULBERRY +XP' : 'THORNS STRIKE'), t: 1 });
+  const br = HARVEST_R * (c.golden ? 1.4 : 1), bd = (c.kind === 'thorn' ? 42 : 30) + G.t / 5;
+  const burstDmg = bd * (c.golden ? 2 : 1);
+  for (const e of G.enemies) if (dist2(c, e) < (br + e.r) ** 2) { const a = Math.atan2(e.y - c.y, e.x - c.x); damage(e, e.boss ? burstDmg / 2 : burstDmg, Math.cos(a) * 30, Math.sin(a) * 30); }
   if (c.golden) { p.fed = FED_TIME; G.texts.push({ x: p.x, y: p.y - 30, s: 'WELL FED! +25% DMG', t: 1.6, big: true }); } // after the burst, so golden = exactly 2x
   G.mineFx.push({ x: c.x, y: c.y, r: br, t: 0.35, max: 0.35, col: '190,242,100' }); G.shake = Math.max(G.shake, 0.25);
-  sfx(c.golden ? 880 : 620, 0.2, 'triangle', 0.07); burst(c.x, c.y, c.golden ? '#fbbf24' : '#f97316', 8, 110);
+  sfx(c.golden ? 880 : 620, 0.2, 'triangle', 0.07); burst(c.x, c.y, c.golden ? '#fbbf24' : CROP_INFO[c.kind].color, 8, 110);
 }
 function updateFarm(dt) {
   const p = G.p;
@@ -445,7 +466,7 @@ function updateFarm(dt) {
     if (d2 < mr2 || l.pull) { l.pull = true; const a = Math.atan2(p.y - l.y, p.x - l.x); l.x += Math.cos(a) * 300 * dt; l.y += Math.sin(a) * 300 * dt; }
     if (d2 < (p.r + 8) ** 2) {
       l.dead = true; sfx(l.kind === 'seed' ? 760 : 300, 0.06, 'triangle', 0.04);
-      if (l.kind === 'seed') { G.seeds++; if (!G.plantHint) { G.plantHint = true; G.texts.push({ x: p.x, y: p.y - 30, s: touchUi ? 'TAP PLANT TO SOW' : 'PRESS F TO PLANT', t: 2.5, big: true }); } }
+      if (l.kind === 'seed') { addSeed(l.cropType); if (!G.plantHint) { G.plantHint = true; G.texts.push({ x: p.x, y: p.y - 30, s: touchUi ? 'TAP PLANT TO SOW' : 'PRESS F TO PLANT', t: 2.5, big: true }); } }
       else G.wood++;
     }
   }
@@ -454,6 +475,14 @@ function updateFarm(dt) {
   for (const c of G.crops) {
     if (c.age < c.grow) {
       c.age += dt * (p.green || 1); c.hurt = false; c.thornT = (c.thornT || 0) - dt;
+      if (c.kind === 'thorn') {
+        c.fireT -= dt;
+        if (c.fireT <= 0) {
+          const foe = nearest(c, 110);
+          if (foe) { damage(foe, 8 + G.t / 60); c.fireT = 0.9; burst(c.x, c.y, CROP_INFO.thorn.color, 3, 45); }
+          else c.fireT = 0.15;
+        }
+      }
       for (const e of G.enemies) if (!e.ally && dist2(c, e) < (e.r + 6) ** 2) {
         c.hp -= dt; c.hurt = true;
         if (G.w.thorn && c.thornT <= 0) { c.thornT = 0.5; damage(e, 6 + 3 * G.w.thorn); } // Thornseed: tramplers get pricked
@@ -1112,10 +1141,20 @@ function render() {
     const f = Math.min(1, c.age / c.grow), ripe = f >= 1;
     if (ripe) {
       light(c.x, c.y, c.golden ? 72 : 56, c.golden ? '253,224,71' : '253,186,116', 0.8);
-      ctx.strokeStyle = c.golden ? '#fde047' : '#fdba74'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(c.x, c.y, 14 + Math.sin(G.t * 6) * 2, 0, 7); ctx.stroke();
-      drawPickup('crop', c.golden ? '#fbbf24' : '#f97316', c.x, c.y - 2 + Math.sin(G.t * 4) * 1.5, 3);
+      ctx.strokeStyle = c.golden ? '#fde047' : CROP_INFO[c.kind].color; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(c.x, c.y, 14 + Math.sin(G.t * 6) * 2, 0, 7); ctx.stroke();
+      drawPickup('crop', c.golden ? '#fbbf24' : CROP_INFO[c.kind].color, c.x, c.y - 2 + Math.sin(G.t * 4) * 1.5, 3);
     } else {
       SPR.drawSprite(ctx, SPR.baked.sprout, 'idle', 0, c.x, c.y, f < 0.5 ? 2 : 3, { flash: c.hurt && ((G.t * 16) | 0) % 2 });
+      if (f >= 0.5 && c.kind === 'pumpkin') {
+        ctx.fillStyle = CROP_INFO.pumpkin.color; ctx.fillRect(c.x - 5, c.y - 6, 10, 7); ctx.fillRect(c.x - 3, c.y - 8, 6, 2);
+        ctx.fillStyle = '#365314'; ctx.fillRect(c.x - 1, c.y - 10, 2, 3);
+      } else if (f >= 0.5 && c.kind === 'berry') {
+        ctx.fillStyle = '#365314'; ctx.fillRect(c.x - 1, c.y - 12, 2, 7); ctx.fillRect(c.x - 4, c.y - 10, 8, 2);
+        ctx.fillStyle = CROP_INFO.berry.color; ctx.fillRect(c.x - 6, c.y - 8, 4, 4); ctx.fillRect(c.x + 2, c.y - 8, 4, 4); ctx.fillRect(c.x - 2, c.y - 5, 4, 4);
+      } else if (f >= 0.5 && c.kind === 'thorn') {
+        ctx.strokeStyle = CROP_INFO.thorn.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(c.x, c.y + 2); ctx.lineTo(c.x, c.y - 12);
+        ctx.moveTo(c.x, c.y - 8); ctx.lineTo(c.x - 6, c.y - 12); ctx.moveTo(c.x, c.y - 4); ctx.lineTo(c.x + 6, c.y - 9); ctx.stroke();
+      }
       pixBar(c.x - 12, c.y + 14, 24, 5, f, '#bef264');
     }
   }
@@ -1203,17 +1242,19 @@ function render() {
     ctx.fillStyle = rdy ? 'rgba(16,185,129,0.6)' : 'rgba(30,41,59,0.65)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
     ctx.strokeStyle = rdy ? '#6ee7b7' : '#64748b'; ctx.lineWidth = 3; ctx.stroke();
     text(rdy ? 'DASH' : p.dashCd.toFixed(1), b.x, b.y + 7, 14, '#fff', 'center');
-    const pb = plantBtn(), has = G.seeds > 0;
+    const pb = plantBtn(), has = seedCount() > 0;
     ctx.fillStyle = has ? 'rgba(101,163,13,0.6)' : 'rgba(30,41,59,0.55)'; ctx.beginPath(); ctx.arc(pb.x, pb.y, pb.r, 0, 7); ctx.fill();
     ctx.strokeStyle = has ? '#bef264' : '#64748b'; ctx.lineWidth = 3; ctx.stroke();
-    text('PLANT', pb.x, pb.y + 2, 14, has ? '#fff' : '#94a3b8', 'center'); text('x' + G.seeds, pb.x, pb.y + 20, 14, has ? '#bef264' : '#64748b', 'center');
+    text('PLANT', pb.x, pb.y + 2, 14, has ? '#fff' : '#94a3b8', 'center'); text(`${G.seedType[0].toUpperCase()} x${seedCount()}`, pb.x, pb.y + 20, 13, has ? '#bef264' : '#64748b', 'center');
+    const sb = nextSeedBtn(); ctx.fillStyle = has ? 'rgba(30,41,59,0.75)' : 'rgba(30,41,59,0.55)'; ctx.beginPath(); ctx.arc(sb.x, sb.y, sb.r, 0, 7); ctx.fill();
+    ctx.strokeStyle = has ? '#7dd3fc' : '#64748b'; ctx.lineWidth = 3; ctx.stroke(); text('NEXT', sb.x, sb.y - 2, 11, has ? '#fff' : '#64748b', 'center'); text(G.seedType[0].toUpperCase(), sb.x, sb.y + 13, 12, has ? '#7dd3fc' : '#64748b', 'center');
     const wb = wardBtn(), canBuild = G.wood >= WARD_COST && G.wards.length < WARD_MAX;
     ctx.fillStyle = canBuild ? 'rgba(161,98,7,0.72)' : 'rgba(30,41,59,0.55)'; ctx.beginPath(); ctx.arc(wb.x, wb.y, wb.r, 0, 7); ctx.fill();
     ctx.strokeStyle = canBuild ? '#fbbf24' : '#64748b'; ctx.lineWidth = 3; ctx.stroke();
     text('WARD', wb.x, wb.y + 1, 13, canBuild ? '#fff' : '#94a3b8', 'center'); text(WARD_COST + ' WOOD', wb.x, wb.y + 18, 10, canBuild ? '#fde68a' : '#64748b', 'center');
   }
   let y = narrow ? 104 : 70; const lw = narrow ? W - 90 : W / 2 - cw / 2 - 20;
-  text(`Seed ${G.seeds} Wood ${G.wood}` + (p.fed > 0 ? ` Fed ${Math.ceil(p.fed)}` : '') + (touchUi ? '' : '  B: Ward (3 wood)'), 10, y, 14, p.fed > 0 ? '#fde047' : '#bef264', 'left', lw); y += 20;
+  text(`Seeds P${seedCount('pumpkin')} B${seedCount('berry')} T${seedCount('thorn')}  Wood ${G.wood}` + (p.fed > 0 ? ` Fed ${Math.ceil(p.fed)}` : '') + (touchUi ? '' : '  C: Seed  B: Ward'), 10, y, 14, p.fed > 0 ? '#fde047' : '#bef264', 'left', lw); y += 20;
   for (const k in G.w) { text(`${WEAPONS[k].name} ${G.w[k] >= EVO_LVL ? 'EVO' : G.w[k]}`, 10, y, 14, '#fde047', 'left', lw); y += 18; }
   for (const k in G.pa) { text(`${PASSIVES[k].name} ${G.pa[k]}`, 10, y, 14, '#a7f3d0', 'left', lw); y += 18; }
 
@@ -1294,5 +1335,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hook
-window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, dashBtn, hitDash, set touchUi(v) { touchUi = v; }, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES, propAt, plant, buildWard, plantBtn, hitPlant, wardBtn, hitWard, feedCrops, possess, spawnDecoy, get zoom() { return ZOOM; }, nightTint, get lights() { return litN; }, get view() { return { w: VW, h: VH }; } , titleLayout, titleTap, choiceRects, pauseBtn, pauseRects, setTouch(v) { touch = v; }, get charIdx() { return charIdx; }, get hard() { return hard; } };
+window.__tzs = { keys, get state() { return state; }, set state(v) { state = v; }, get G() { return G; }, start() { newGame(); state = 'play'; }, update, render, press: onKey, dashBtn, hitDash, set touchUi(v) { touchUi = v; }, buildSummary, rollChoices, damage, spawnRate, makeElite, spawnEnemy, startLane, wrapLines, WEAPONS, PASSIVES, propAt, plant, buildWard, plantBtn, hitPlant, nextSeedBtn, hitNextSeed, cycleSeed, dropFarm, setSeeds(n, type = 'pumpkin') { G.seeds = n; G.seedTypes = { pumpkin: 0, berry: 0, thorn: 0, [type]: n }; G.seedType = type; }, wardBtn, hitWard, feedCrops, possess, spawnDecoy, get zoom() { return ZOOM; }, nightTint, get lights() { return litN; }, get view() { return { w: VW, h: VH }; } , titleLayout, titleTap, choiceRects, pauseBtn, pauseRects, setTouch(v) { touch = v; }, get charIdx() { return charIdx; }, get hard() { return hard; } };
 })();

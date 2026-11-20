@@ -113,10 +113,10 @@ try {
     for (let i = 0; i < 30; i++) t.update(0.1);
     t.render(); const cut = G.cut.has(tree.key), wood = G.wood, chopped = G.chopped;
     G.p.x = tree.x + 3000; G.p.y = tree.y; t.update(0.02);
-    G.seeds = 0; const noSeed = t.plant(); G.seeds = 2; const planted = t.plant(); const tooClose = t.plant();
+    t.setSeeds(0); const noSeed = t.plant(); t.setSeeds(2); const planted = t.plant(); const tooClose = t.plant();
     const crop = G.crops[0]; t.update(1); t.render(); const grew = crop.age > 0.9;
     // trample: an enemy parked on a growing crop destroys it
-    G.p.x += 300; t.update(0.02); G.seeds = 1; t.plant(); const c2 = G.crops[1];
+    G.p.x += 300; t.update(0.02); t.setSeeds(1); t.plant(); const c2 = G.crops[1];
     G.enemies.push({ x: c2.x, y: c2.y, r: 9, hp: 1e9, maxHp: 1e9, speed: 0, dmg: 0, xp: 1, color: '#a78bfa', flash: 0, kind: 'bat' });
     for (let i = 0; i < 25; i++) t.update(0.1); const trampled = !G.crops.includes(c2); G.enemies.length = 0;
     // harvest a ripe golden crop: heal + XP gem + WELL FED
@@ -129,6 +129,24 @@ try {
   const fmGold = Math.round(fm.kills + Math.floor(fm.t / 10) + 200 + fm.wood);
   if (!fm.chopping || !fm.cut || fm.wood < 2 || fm.chopped !== 1 || fm.noSeed || !fm.planted || fm.tooClose || !fm.grew || !fm.trampled
     || fm.harvested.hp !== 90 || fm.harvested.n !== 1 || !fm.harvested.gem || !fm.harvested.fed || !fm.harvested.gone || fm.gold !== fmGold) { console.log('farming failed', JSON.stringify(fm)); errs.push('farm'); }
+  const crops = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.spawnAcc = -1e9; G.nextHorde = G.nextBoss = 1e9;
+    const orig = Math.random; Math.random = () => 0;
+    const drops = {};
+    for (const kind of ['tree', 'mush', 'grass']) { G.loot.length = 0; t.dropFarm({ kind, x: 100, y: 100 }); drops[kind] = G.loot.find(l => l.kind === 'seed')?.cropType; }
+    Math.random = orig;
+    G.w = {}; G.p.x = 3000; G.p.y = 3000; t.setSeeds(1, 'pumpkin'); G.seedTypes.berry = 1; G.seeds++;
+    t.press('c'); const selected = G.seedType; t.plant(); const berry = G.crops[0]; berry.age = berry.grow; G.p.hp = 50; const xp0 = G.p.xp + G.p.lvl * 1000; t.update(0.02);
+    const berryHarvest = { kind: berry.kind, hp: G.p.hp, xp: G.p.xp + G.p.lvl * 1000 > xp0 }; t.state = 'play';
+    t.setSeeds(1, 'thorn'); t.plant(); const thorn = G.crops[0], foe = { x: thorn.x + 60, y: thorn.y, r: 10, hp: 100, maxHp: 100, speed: 0, dmg: 0, xp: 1, color: '#a78bfa', flash: 0, kind: 'bat' };
+    G.p.x += 300; G.enemies.push(foe); t.update(0.05); const turret = foe.hp < 100;
+    G.seedTypes.berry = 1; G.seeds++; G.seedType = 'thorn'; t.touchUi = true; const b = t.nextSeedBtn();
+    document.getElementById('c').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 100, pointerType: 'touch', clientX: b.x, clientY: b.y }));
+    const touchCycle = G.seedType === 'berry' && t.hitNextSeed(b.x, b.y) && b.r * 2 >= 48; t.render(); t.touchUi = false;
+    return { drops, selected, berryHarvest, turret, touchCycle };
+  });
+  if (crops.drops.tree !== 'thorn' || crops.drops.mush !== 'pumpkin' || crops.drops.grass !== 'berry' || crops.selected !== 'berry'
+    || crops.berryHarvest.kind !== 'berry' || crops.berryHarvest.hp !== 50 || !crops.berryHarvest.xp || !crops.turret || !crops.touchCycle) { console.log('crop varieties failed', JSON.stringify(crops)); errs.push('cropvarieties'); }
   // Spend wood on scarecrow wards: affordable placement slows nearby foes, blocks stacking, and has a touch control.
   const wd = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.spawnAcc = -1e9; G.nextHorde = G.nextBoss = 1e9;
@@ -146,7 +164,7 @@ try {
   const sg = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.w = {}; G.enemies.length = 0; G.spawnAcc = -1e9; G.nextHorde = G.nextBoss = 1e9; G.p.hp = G.p.maxHp = 1e9;
     const mk = (x, y, o) => Object.assign({ x, y, r: 10, hp: 1000, maxHp: 1000, speed: 0, dmg: 5, xp: 1, color: '#a78bfa', flash: 0, kind: 'bat' }, o);
-    G.p.x = 3000; G.p.y = 3000; G.seeds = 1; t.plant(); const c = G.crops[0], a0 = c.age;
+    G.p.x = 3000; G.p.y = 3000; t.setSeeds(1); t.plant(); const c = G.crops[0], a0 = c.age;
     G.enemies.push(mk(c.x + 60, c.y, { hp: 0 })); t.update(0.02); const fed = c.age - a0, souls = G.souls.length; t.render();
     const a1 = c.age; G.enemies.push(mk(c.x + 400, c.y, { hp: 0 })); t.update(0.02); const far = c.age - a1;
     c.age = c.grow; const foe = mk(c.x + 90, c.y), out = mk(c.x + 400, c.y); G.enemies.push(foe, out);
@@ -172,16 +190,16 @@ try {
     d.t = 0.01; t.update(0.02); o.decoyBurst = lure.hp < 1000 && G.decoys.length === 0;
     G = fresh({ thorn: 1 }); G.timers.thorn = 0; G.p.hp = G.p.maxHp = 1e9; t.update(0.02); o.bramble = G.brambles.length === 1; const br = G.brambles[0];
     const th = mk(G, br.x, br.y, { hp: 1000, maxHp: 1000 }); G.enemies.push(th); for (let i = 0; i < 10; i++) t.update(0.06); o.thorned = th.hp < 1000 && th.slow > 0; t.render();
-    G.enemies.length = 0; G.brambles.length = 0; G.p.x += 300; G.seeds = 1; t.plant(); const cr = G.crops[0]; G.p.x += 300; G.timers.thorn = 99;
+    G.enemies.length = 0; G.brambles.length = 0; G.p.x += 300; t.setSeeds(1); t.plant(); const cr = G.crops[0]; G.p.x += 300; G.timers.thorn = 99;
     const tr = mk(G, cr.x, cr.y, { hp: 1000, maxHp: 1000 }); G.enemies.push(tr); t.update(0.3); o.thornCrop = tr.hp < 1000;
     const pick = (k) => { t.state = 'levelup'; t.G.choices = [{ kind: 'p', k, lvl: 1 }]; t.G.lvlT = 1; t.press('1'); };
     G = fresh({}); pick('rooted'); G.p.hp = G.p.maxHp = 1000; G.p.hurt = 0; G.enemies.push(mk(G, G.p.x, G.p.y, { dmg: 50 })); t.update(0.02); o.rooted = 1000 - G.p.hp;
     G = fresh({}); pick('soul'); G.p.hp = 50; G.enemies.push(mk(G, G.p.x + 200, G.p.y, { hp: 0 })); t.update(0.02); o.soulEat = G.p.hp > 50;
-    G = fresh({}); pick('green'); G.seeds = 1; t.plant(); t.update(1); o.green = G.crops[0].age;
+    G = fresh({}); pick('green'); t.setSeeds(1); t.plant(); t.update(1); o.green = G.crops[0].age;
     return o;
   });
   if (!np.ally || !np.safe || !np.allyHit || !np.immune || !np.expired || !np.decoy || !np.lured || !np.decoyBurst || !np.bramble || !np.thorned || !np.thornCrop || np.rooted !== 44 || !np.soulEat || !(np.green > 1.25)) { console.log('new powers failed', JSON.stringify(np)); errs.push('powers'); }
-  const pbtn = await pg.evaluate(() => { const t = window.__tzs; t.touchUi = true; t.start(); t.G.seeds = 1; t.render(); const b = t.plantBtn(), d = t.dashBtn(); const r = { d: b.r * 2, hit: t.hitPlant(b.x, b.y), apart: Math.hypot(b.x - d.x, b.y - d.y) > b.r + d.r }; t.touchUi = false; return r; });
+  const pbtn = await pg.evaluate(() => { const t = window.__tzs; t.touchUi = true; t.start(); t.setSeeds(1); t.render(); const b = t.plantBtn(), d = t.dashBtn(); const r = { d: b.r * 2, hit: t.hitPlant(b.x, b.y), apart: Math.hypot(b.x - d.x, b.y - d.y) > b.r + d.r }; t.touchUi = false; return r; });
   if (pbtn.d < 48 || !pbtn.hit || !pbtn.apart) { console.log('plant button failed', JSON.stringify(pbtn)); errs.push('plantbtn'); }
   const chs = await pg.evaluate(() => {
     const t = window.__tzs, out = {}; t.state = 'title';
@@ -299,7 +317,7 @@ try {
   if (!lm.guarded || !lm.picked) { console.log('levelup moment failed', JSON.stringify(lm)); errs.push('lvlmoment'); }
   // touch: dash follows the stick direction; a second finger (dash/pause) never moves or releases the stick
   const td = await pg.evaluate(() => {
-    const t = window.__tzs; t.touchUi = true; t.start(); const G = t.G; G.enemies.length = 0; G.p.face = { x: 1, y: 0 };
+    const t = window.__tzs; t.touchUi = true; t.start(); t.setTouch(null); const G = t.G; G.enemies.length = 0; G.p.face = { x: 1, y: 0 };
     const cv = document.getElementById('c'), ev = (type, id, x, y) => cv.dispatchEvent(new PointerEvent(type, { pointerId: id, clientX: x, clientY: y, pointerType: 'touch', bubbles: true }));
     ev('pointerdown', 1, 100, 300); ev('pointermove', 1, 100, 240); // stick: straight up
     t.update(0.02);
@@ -380,7 +398,7 @@ try {
   const lt = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.crops.length = 0;
     t.render(); const base = t.lights;
-    G.seeds = 1; t.plant(); G.crops[0].age = G.crops[0].grow; t.render();
+    t.setSeeds(1); t.plant(); G.crops[0].age = G.crops[0].grow; t.render();
     const [a, m, d] = [0, 540, 600].map(x => t.nightTint(x));
     return { base, crop: t.lights - base, night: a[2] > a[0], blood: m[0] > m[2] * 2, dawn: d[3] < a[3] && d[3] < m[3] };
   });
