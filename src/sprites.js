@@ -289,15 +289,15 @@ const BOSS_LEGS = [
 DEFS.boss = { size: 32, anims: { walk: BOSS_LEGS.map(l => { const r = BOSS_TOP.concat(l).map(mirror); r.unshift(mirror('................')); while (r.length < 32) r.push(mirror('................')); return r; }) } };
 
 // Pickups (8x8, 1-frame 'idle'; art stays inside the 6x6 centre so the baked outline fits).
-// Tinted by variant(): gem cyan / pink, heart rose, chest brown.
+// Tinted by variant(): souls cyan / pink, hearts rose, coffins brown.
 const PICKUP = {
-  gem: ['........', '...hb...', '..hbbB..', '.hwbbbB.', '.hbbbbB.', '..BbbB..', '...BB...', '........'],
+  gem: ['........', '...h....', '..hwwB..', '.hwwwB..', '..wwB...', '...w....', '..BB....', '........'],
   heart: ['........', '.bb..bb.', '.hbbbbB.', '.bbbbbB.', '.BbbbbB.', '..BbbB..', '...BB...', '........'],
   boom: ['........', '.bb.....', '.hbb....', '..hbbbB.', '...hbbbb', '....bB..', '.....B..', '........'],
   bomb: ['.....yo.', '....y...', '..hbbbb.', '.hbbbbbB', '.bbbbbbB', '.bbbbbbB', '..BbbbB.', '........'],
   ice: ['...hb...', '..hwbB..', '.hwbbbB.', 'hwbbbbbB', '.hbbbbB.', '..hbbB..', '...BB...', '........'],
   vac: ['..bbbb..', '.bB..bB.', 'bB.ww.bB', 'b..ww..B', 'b..ww..B', 'bB....BB', '.bB..bB.', '..BBBB..'],
-  chest: ['........', '.hbbbbB.', '.hbbbbB.', '.yyyyyy.', '.bbyyBB.', '.bbbbbB.', '.BBBBBB.', '........'],
+  chest: ['........', '...y....', '..hyB...', '.hyyyB..', '.hyyyyB.', '.hyyyB..', '..BBB...', '........'],
   bolt: ['........', '........', '..hbbb..', '.hwwwbB.', '.hwwwbB.', '..BbbB..', '........', '........'],
   orb: ['........', '..hbb...', '.hwbbB..', '.hbbbB..', '.bbbBB..', '..BBB...', '........', '........'],
   mine: ['........', '...yy...', '..bbbB..', '.bhbbbB.', '.bbbbBB.', '..BBBB..', '........', '........'],

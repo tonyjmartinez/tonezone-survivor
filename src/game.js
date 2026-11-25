@@ -75,7 +75,7 @@ const PASSIVES = {
   rooted: { name: 'Rooted', desc: 'Stand still: -12% dmg, chop +40%', max: 5 },
   green:  { name: 'Green Thumb', desc: 'Crops grow 30% faster, +30% seeds', max: 5 },
 };
-// Evolution: a maxed weapon + its paired passive, opened via boss chest, jumps to level 8 (EVO).
+// Evolution: a maxed weapon + its paired passive, opened via a boss coffin, jumps to level 8 (EVO).
 const EVOLVE = { bolt: 'haste', possess: 'might', phantom: 'magnet', boomer: 'speed', whip: 'health', thorn: 'green', zap: 'soul', mine: 'luck', frost: 'rooted' };
 const EVO_LVL = 8;
 const ENEMY_TYPES = [
@@ -312,7 +312,7 @@ function spawnTitan() {
   G.enemies.push({ x: G.p.x + Math.cos(a) * d, y: G.p.y + Math.sin(a) * d, r: 52, hp, maxHp: hp, speed: 38, dmg: 30, xp: 120, color: '#f97316', flash: 0, boss: true, titan: true, kind: 'boss', sc: 3, st: SLAM_EVERY });
   G.hordeBanner = 3; G.bannerText = 'THE TITAN AWAKENS!'; G.shake = Math.max(G.shake, 0.5); sfx(80, 0.5, 'sawtooth', 0.08);
 }
-// Elite: 2.5x HP, bigger, gold ring; always drops a heart, 20% a chest.
+// Elite: 2.5x HP, bigger, gold ring; always drops a heart, 20% a coffin.
 function makeElite(e) { e.elite = true; e.hp *= 2.5; e.maxHp *= 2.5; e.r = Math.round(e.r * 1.3); e.xp *= 3; e.dmg = Math.round(e.dmg * 1.25); return e; }
 
 function spawnHorde() {

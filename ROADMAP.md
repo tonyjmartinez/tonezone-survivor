@@ -82,7 +82,7 @@ Vision: survivors-genre pressure with a farming loop in the middle of the run: y
 ## Milestone: Spooky graveyard identity (2026-11-01, owner request)
 Owner: "make the game a bit more unique with a more consistent and interesting spooky theme". First pass done (PR: graveyard props, fog, vignette, spooky event names, themed title). Next ideas, one per loop iteration:
 - [x] (design) Kill fx: a small ghost wisp rises from slain undead (bats/ghouls/wraiths) instead of generic pixels.
-- [ ] (design) Rename/reskin the remaining non-spooky bits so names match the night: gems read as souls (cyan wisp gem sprite), chests as coffins.
+- [x] (design) Rename/reskin the remaining non-spooky bits so names match the night: gems now render as souls and chests as coffins (2026-11-22).
 - [ ] (feel) Low drone + occasional distant bell (WebAudio only, no assets), off with M.
 - [x] (design) Moon phase: the night slowly reddens toward 9:00 (titan), dawn light at 10:00 win (done with art slice 7, `NIGHT` keyframes).
 
