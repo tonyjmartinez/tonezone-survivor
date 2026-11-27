@@ -359,6 +359,7 @@ const FARM = {
   grass: { need: 0.35, reach: 18, col: '#3f7a4a', regrow: 45 },
 };
 const CROP_GROW = 30, CROP_HP = 2, CROP_MAX = 12, FED_TIME = 20;
+const HARVEST_MOON_AT = 240, HARVEST_WINDOW = 6;
 const CROP_TYPES = ['pumpkin', 'berry', 'thorn'];
 const CROP_INFO = { pumpkin: { color: '#f97316' }, berry: { color: '#38bdf8' }, thorn: { color: '#86efac' } };
 function seedCount(type = G.seedType) { return G.seedTypes[type] || 0; }
@@ -386,6 +387,24 @@ function propAt(gx, gy) {
   return { kind, key: gx * 100003 + gy, x: gx * PROP_CELL + 16 + (h >> 8) % 80, y: gy * PROP_CELL + 16 + (h >> 16) % 80 };
 }
 function isCut(pr) { const c = G.cut.get(pr.key); return c !== undefined && (pr.kind !== 'grass' || G.t - c < FARM.grass.regrow); }
+function updateHarvestMoon() {
+  if (!G.harvestMoon && G.t >= HARVEST_MOON_AT) {
+    G.harvestMoon = true; G.harvestHordeAt = G.t + HARVEST_WINDOW;
+    for (const c of G.crops) c.age = Math.max(c.age, c.grow);
+    const cx = Math.floor(G.p.x / PROP_CELL), cy = Math.floor(G.p.y / PROP_CELL);
+    for (let gx = cx - 3; gx <= cx + 3; gx++) for (let gy = cy - 3; gy <= cy + 3; gy++) {
+      const pr = propAt(gx, gy); if (!pr || pr.kind !== 'grass' || isCut(pr)) continue;
+      G.cut.set(pr.key, G.t);
+      G.loot.push({ kind: 'seed', cropType: 'berry', x: pr.x, y: pr.y });
+      burst(pr.x, pr.y, '#fbbf24', 4, 45);
+    }
+    G.hordeBanner = HARVEST_WINDOW; G.bannerText = 'HARVEST MOON! REAP BEFORE THE HORDE';
+    sfx(880, 0.4, 'triangle', 0.06);
+  }
+  if (G.harvestHordeAt && G.t >= G.harvestHordeAt) {
+    G.harvestHordeAt = 0; spawnHorde();
+  }
+}
 function burst(x, y, c, n, sp = 90) { if (G.parts.length < 200) for (let i = 0; i < n; i++) G.parts.push({ x, y, vx: rnd(-sp, sp), vy: rnd(-sp, sp), t: 0.35, c }); }
 function dropFarm(pr) {
   const L = G.p.luck || 1, S = L * (G.p.green || 1), drop = (k, cropType) => G.loot.push({ kind: k, cropType, x: pr.x + rnd(-14, 14), y: pr.y + rnd(-10, 10) });
@@ -543,6 +562,7 @@ function update(dt) {
   else { p.x += dx * p.speed * dt; p.y += dy * p.speed * dt; }
   p.hurt = Math.max(0, p.hurt - dt);
   G.cam.x = p.x - VW / 2; G.cam.y = p.y - VH / 2;
+  updateHarvestMoon();
   updateFarm(dt);
 
   // spawn
@@ -762,7 +782,8 @@ function update(dt) {
   }
   G.enemies = G.enemies.filter(e => e.hp > 0);
   // despawn very far
-  G.enemies = G.enemies.filter(e => e.boss || dist2(p, e) < 1600 * 1600);
+  const despawnR = Math.max(1600, spawnDist(200));
+  G.enemies = G.enemies.filter(e => e.boss || dist2(p, e) < despawnR * despawnR);
 
   // gems
   const mr2 = p.magnet * p.magnet;
