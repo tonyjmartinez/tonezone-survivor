@@ -140,7 +140,7 @@ try {
     const berryHarvest = { kind: berry.kind, hp: G.p.hp, xp: G.p.xp + G.p.lvl * 1000 > xp0 }; t.state = 'play';
     t.setSeeds(1, 'thorn'); t.plant(); const thorn = G.crops[0], foe = { x: thorn.x + 60, y: thorn.y, r: 10, hp: 100, maxHp: 100, speed: 0, dmg: 0, xp: 1, color: '#a78bfa', flash: 0, kind: 'bat' };
     G.p.x += 300; G.enemies.push(foe); t.update(0.05); const turret = foe.hp < 100;
-    G.seedTypes.berry = 1; G.seeds++; G.seedType = 'thorn'; t.touchUi = true; const b = t.nextSeedBtn();
+    t.setSeeds(1, 'berry'); G.seedType = 'thorn'; t.touchUi = true; const b = t.nextSeedBtn();
     document.getElementById('c').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 100, pointerType: 'touch', clientX: b.x, clientY: b.y }));
     const touchCycle = G.seedType === 'berry' && t.hitNextSeed(b.x, b.y) && b.r * 2 >= 48; t.render(); t.touchUi = false;
     return { drops, selected, berryHarvest, turret, touchCycle };
