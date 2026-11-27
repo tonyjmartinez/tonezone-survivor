@@ -394,6 +394,30 @@ try {
     return { early, late, titan: true, warned, hit: H.p.hp < hp0, cleared: !ti.slam };
   });
   if (cl.early || !cl.late || !cl.titan || !cl.warned || !cl.hit || !cl.cleared) { console.log('climax failed', JSON.stringify(cl)); errs.push('climax'); }
+  // Harvest Moon: one crop/seed windfall at 4:00, then a delayed horde; resets each run.
+  const moon = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G;
+    G.p.hp = G.p.maxHp = 1e9; G.farmHint = true; G.nextHorde = G.nextBoss = 1e9;
+    G.w = {}; G.enemies.length = 0;
+    G.crops = ['pumpkin', 'berry', 'thorn'].map((kind, i) => ({ kind, x: 100 + i * 40, y: 0, age: i, grow: 30, hp: 2, fireT: 0 }));
+    let grass = 0;
+    for (let x = -3; x <= 3; x++) for (let y = -3; y <= 3; y++) {
+      const pr = t.propAt(x, y); if (pr && pr.kind === 'grass') grass++;
+    }
+    G.t = 239.9; t.update(0.01); const early = !!G.harvestMoon;
+    G.t = 239.99; t.update(0.02); t.render();
+    const ripe = G.crops.every(c => c.age >= c.grow), seeds = G.loot.length;
+    const banner = G.bannerText, due = G.harvestHordeAt;
+    const count = () => G.enemies.length;
+    G.spawnAcc = -1e6; G.enemies.length = 0; t.update(0.01);
+    const once = G.loot.length === seeds && G.harvestHordeAt === due;
+    G.t = due - 0.02; t.update(0.01); const before = count();
+    G.t = due - 0.005; t.update(0.01); const after = count();
+    G.enemies.length = 0; t.update(0.01); const repeated = count();
+    t.start(); const reset = !t.G.harvestMoon && !t.G.harvestHordeAt;
+    return { early, ripe, grass, seeds, banner, once, before, after, repeated, reset };
+  });
+  if (moon.early || !moon.ripe || !moon.grass || moon.seeds !== moon.grass || !moon.banner.startsWith('HARVEST MOON!') || !moon.once || moon.before || !moon.after || moon.repeated || !moon.reset) { console.log('harvest moon failed', JSON.stringify(moon)); errs.push('harvestmoon'); }
   // night lighting: light map punches a hole per light; tint drifts indigo -> blood moon (9:00) -> dawn (10:00)
   const lt = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.crops.length = 0;
