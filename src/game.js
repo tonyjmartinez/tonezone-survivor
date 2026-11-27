@@ -782,7 +782,8 @@ function update(dt) {
   }
   G.enemies = G.enemies.filter(e => e.hp > 0);
   // despawn very far
-  G.enemies = G.enemies.filter(e => e.boss || dist2(p, e) < 1600 * 1600);
+  const despawnR = Math.max(1600, spawnDist(200));
+  G.enemies = G.enemies.filter(e => e.boss || dist2(p, e) < despawnR * despawnR);
 
   // gems
   const mr2 = p.magnet * p.magnet;

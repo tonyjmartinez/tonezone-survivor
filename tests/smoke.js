@@ -418,6 +418,17 @@ try {
     return { early, ripe, grass, seeds, banner, once, before, after, repeated, reset };
   });
   if (moon.early || !moon.ripe || !moon.grass || moon.seeds !== moon.grass || !moon.banner.startsWith('HARVEST MOON!') || !moon.once || moon.before || !moon.after || moon.repeated || !moon.reset) { console.log('harvest moon failed', JSON.stringify(moon)); errs.push('harvestmoon'); }
+  await pg.setViewportSize({ width: 3840, height: 2160 });
+  const moon4k = await pg.evaluate(() => {
+    const t = window.__tzs; t.start(); const G = t.G;
+    G.farmHint = true; G.w = {}; G.p.hp = G.p.maxHp = 1e9;
+    G.nextBoss = G.nextHorde = 1e9; G.spawnAcc = -1e6;
+    G.t = 239.99; t.update(0.02);
+    G.t = G.harvestHordeAt; t.update(0.01);
+    return G.enemies.length;
+  });
+  if (moon4k !== 32) { console.log('4K harvest horde failed', moon4k); errs.push('harvest4k'); }
+  await pg.setViewportSize({ width: 900, height: 600 });
   // night lighting: light map punches a hole per light; tint drifts indigo -> blood moon (9:00) -> dawn (10:00)
   const lt = await pg.evaluate(() => {
     const t = window.__tzs; t.start(); const G = t.G; G.enemies.length = 0; G.crops.length = 0;
